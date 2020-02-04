@@ -2,95 +2,70 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
+	"os"
+	"strings"
 )
 
 //https://restapi.qgenda.com/?version=latest
 
-type qgendaAPI struct {
-	BaseURL url.URL
-	Client  *http.Client
+//QgendaClient is the primary struct for handling client
+// interactions with the qgenda api
+type QgendaClient struct {
+	BaseURL *url.URL
+	// LoginURL   *url.URL
+	Client     *http.Client
+	Values     *url.Values
+	Email      string
+	CompanyKey string
+	Password   string
 }
 
 func main() {
 
-	var qa qgendaAPI
-	u, err := url.Parse("https://api.qgenda.com")
+	var q QgendaClient
+	q.SetBaseURL("https://api.qgenda.com/v2")
+
+}
+
+// SetBaseURL sets the base url for the qgenda rest api client
+func (q *QgendaClient) SetBaseURL(s string) {
+	baseURL, err := url.Parse(s)
 	if err != nil {
 		log.Fatal(err)
 	}
-	qa.BaseURL = *u
-	qa.Client = &http.Client{}
+	q.BaseURL = baseURL
 
-	// qa.BaseURL, err :=
-	// if err != nil {
-	// 	log.Fatalln(err)
-	// }
-	fmt.Println(qa)
+}
 
-	// client := &http.Client{}
+// Login uses environment variables to exchange client credentials for
+// a bearer token
+func (q *QgendaClient) Login() {
+	q.Password = os.Getenv("QGENDA_PASSWORD")
+	q.Email = os.Getenv("QGENDA_EMAIL")
+	q.CompanyKey = os.Getenv("QGENDA_COMPANY_KEY")
+	requestString := fmt.Sprintf("email=%v&password=%v", q.Email, q.Password)
+	requestBody := strings.NewReader(requestString)
+	loginURL := fmt.Sprintf("%v/login", q.BaseURL.String())
+	fmt.Println(loginURL)
 
-	// baseURL :=
-	// method := "POST"
+	method := "POST"
 
-	// qgendaEmail := os.Getenv("QGENDA_EMAIL")
-	// fmt.Println(qgendaEmail)
-	// qgendaPassword := os.Getenv("QGENDA_PASSWORD")
+	req, err := http.NewRequest(method, loginURL, requestBody)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	res, err := q.Client.Do(req)
+	defer res.Body.Close()
+	resBody, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		log.Fatalln(err)
+	}
 
-	// formData := url.Values{
-	// 	"name": {"test"},
-	// }
+	fmt.Print(string(resBody))
 
-	// fmt.Println(formData)
-
-	// payload := fmt.Sprintf("email=%s&password=%s", qgendaEmail, qgendaPassword)
-
-	// payloadReader := strings.NewReader(payload)
-
-	// req, err := http.NewRequest(method, baseURL, payloadReader)
-
-	// if err != nil {
-	// 	fmt.Println(err)
-	// }
-	// req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-
-	// res, err := client.Do(req)
-	// defer res.Body.Close()
-	// body, err := ioutil.ReadAll(res.Body)
-
-	// fmt.Println(string(body))
-
-	// u := &url.URL{
-	// 	Scheme: "https",
-	// 	Host:   "api.qgenda.com",
-	// 	User: url.UserPassword(
-	// 		os.Getenv("QGENDA_EMAIL"),
-	// 		os.Getenv("QGENDA_PASSWORD"),
-	// 	),
-	// }
-	// fmt.Println(u)
-	// qgendaCompanyKey := os.Getenv("QGENDA_COMPANY_KEY")
-
-	// payload := strings.NewReader("email=test@test.com&password=test123")
-	/*-----------------------------------------------------------------------*/
-
-	// url = "https://api.qgenda.com/v2/schedule?companyKey=00000000-0000-0000-0000-000000000000&startDate=1/1/2014&endDate=1/31/2014&$select=Date,TaskAbbrev,StaffAbbrev&$filter=IsPublished&$orderby=Date,TaskAbbrev,StaffAbbrev&includes=Task"
-	// method = "GET"
-
-	// client = &http.Client{}
-	// req, err = http.NewRequest(method, url, nil)
-
-	// if err != nil {
-	// 	fmt.Println(err)
-	// }
-	// // req.Header.Add("Authorization", "bearer eyJhbGciOiJBMjU2S1ciLCJlbmMiO...")
-	// req.Header.Add("Authorization", "bearer eyJhbGciOiJBMjU2S1ciLCJlbmMiO...")
-
-	// res, err = client.Do(req)
-	// defer res.Body.Close()
-	// body, err = ioutil.ReadAll(res.Body)
-
-	// fmt.Println(string(body))
 }
