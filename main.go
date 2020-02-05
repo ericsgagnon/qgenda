@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"strings"
 )
 
@@ -15,8 +16,7 @@ import (
 //QgendaClient is the primary struct for handling client
 // interactions with the qgenda api
 type QgendaClient struct {
-	BaseURL *url.URL
-	// LoginURL   *url.URL
+	BaseURL    *url.URL
 	Client     *http.Client
 	Values     *url.Values
 	Email      string
@@ -24,48 +24,62 @@ type QgendaClient struct {
 	Password   string
 }
 
+var err error
+
 func main() {
 
-	var q QgendaClient
-	q.SetBaseURL("https://api.qgenda.com/v2")
-
-}
-
-// SetBaseURL sets the base url for the qgenda rest api client
-func (q *QgendaClient) SetBaseURL(s string) {
-	baseURL, err := url.Parse(s)
-	if err != nil {
-		log.Fatal(err)
+	// grab credentials from environment variables
+	q := &QgendaClient{
+		// BaseURL:    "https://api.qgenda.com/v2",
+		BaseURL: &url.URL{
+			Scheme: "https",
+			Host:   "api.qgenda.com",
+			Path:   "v2",
+		},
+		Client:     &http.Client{},
+		Values:     &url.Values{},
+		Email:      os.Getenv("QGENDA_EMAIL"),
+		CompanyKey: os.Getenv("QGENDA_COMPANY_KEY"),
+		Password:   os.Getenv("QGENDA_PASSWORD"),
 	}
-	q.BaseURL = baseURL
+	// fmt.Println(q)
+	q.Login()
 
 }
 
-// Login uses environment variables to exchange client credentials for
-// a bearer token
+// Login posts credentials in a request body and sets the
+// authorization bearer header with the returned access token
 func (q *QgendaClient) Login() {
-	q.Password = os.Getenv("QGENDA_PASSWORD")
-	q.Email = os.Getenv("QGENDA_EMAIL")
-	q.CompanyKey = os.Getenv("QGENDA_COMPANY_KEY")
-	requestString := fmt.Sprintf("email=%v&password=%v", q.Email, q.Password)
-	requestBody := strings.NewReader(requestString)
-	loginURL := fmt.Sprintf("%v/login", q.BaseURL.String())
-	fmt.Println(loginURL)
 
-	method := "POST"
+	// request URL
+	reqURL := *q.BaseURL
+	reqURL.Path = path.Join(reqURL.Path, "/login")
+	fmt.Println(reqURL.String())
 
-	req, err := http.NewRequest(method, loginURL, requestBody)
+	// request body
+	v := &url.Values{}
+	v.Add("email", q.Email)
+	v.Add("password", q.Password)
+	v.Add("companyKey", q.CompanyKey)
+	reqBody := strings.NewReader(v.Encode())
+	fmt.Println(reqBody)
+
+	// request
+	req, err := http.NewRequest(http.MethodPost, reqURL.String(), reqBody)
 	if err != nil {
 		log.Fatalln(err)
 	}
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	res, err := q.Client.Do(req)
+	if err != nil {
+		log.Fatalln(err)
+	}
 	defer res.Body.Close()
 	resBody, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	fmt.Print(string(resBody))
-
+	fmt.Sprint(string(resBody))
+	fmt.Println(q.Client)
 }
