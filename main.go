@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"time"
 )
 
 //https://restapi.qgenda.com/?version=latest
@@ -36,7 +37,9 @@ func main() {
 			Host:   "api.qgenda.com",
 			Path:   "v2",
 		},
-		Client:     &http.Client{},
+		Client: &http.Client{
+			Timeout: time.Second * 10,
+		},
 		Values:     &url.Values{},
 		Email:      os.Getenv("QGENDA_EMAIL"),
 		CompanyKey: os.Getenv("QGENDA_COMPANY_KEY"),
@@ -65,21 +68,28 @@ func (q *QgendaClient) Login() {
 	fmt.Println(reqBody)
 
 	// request
-	req, err := http.NewRequest(http.MethodPost, reqURL.String(), reqBody)
+	res, err := q.Client.PostForm(reqURL.String(), *v)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatal(err)
 	}
-	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	res, err := q.Client.Do(req)
-	if err != nil {
-		log.Fatalln(err)
-	}
+
 	defer res.Body.Close()
 	resBody, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		log.Fatalln(err)
 	}
-
-	fmt.Sprint(string(resBody))
-	fmt.Println(q.Client)
+	fmt.Printf("\n\n%+v\n\n", string(resBody))
 }
+
+// req, err := http.NewRequest(http.MethodPost, reqURL.String(), reqBody)
+// if err != nil {
+// 	log.Fatalln(err)
+// }
+// req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+// res, err := q.Client.Do(req)
+// if err != nil {
+// 	log.Fatalln(err)
+// }
+
+// fmt.Sprint(string(resBody))
+// fmt.Println(q.Client)
