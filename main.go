@@ -34,9 +34,9 @@ func main() {
 	ctx = q.Auth(ctx)
 
 	fmt.Println("---------------------------------------------------------")
-	for _, v := range q.Authorization.Cookies(q.BaseURL) {
-		fmt.Printf("%v: %v\n%v\n", v.Name, v.Expires, v.Value)
-	}
+	// for _, v := range q.Authorization.Cookies(q.BaseURL) {
+	// 	fmt.Printf("%v: %v\n%v\n", v.Name, v.Expires, v.Value)
+	// }
 
 	fmt.Println("---------------------------------------------------------")
 	fmt.Println(ctx)

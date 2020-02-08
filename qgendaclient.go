@@ -3,11 +3,8 @@ package main
 import (
 	"errors"
 	"net/http"
-	"net/http/cookiejar"
 	"net/url"
 	"time"
-
-	"golang.org/x/net/publicsuffix"
 )
 
 // QgendaClientConfig is used to pass all necessary
@@ -21,16 +18,24 @@ type QgendaClientConfig struct {
 	Password       string
 }
 
+// AuthToken is the header that holds the authorization: bearer token and expire timestamp
+type AuthToken struct {
+	Token   *http.Header
+	Expires time.Time
+}
+
 //QgendaClient is the primary struct for handling client
 // interactions with the qgenda api
 type QgendaClient struct {
-	BaseURL     *url.URL
-	Client      *http.Client
-	Credentials *url.Values
-	Values      *url.Values
-	// Authorization *[]http.Header
-	Authorization *cookiejar.Jar
+	BaseURL       *url.URL
+	Client        *http.Client
+	Credentials   *url.Values
+	Values        *url.Values
+	Authorization *AuthToken
 	Config        QgendaClientConfig
+	// Authorization *http.Header
+	// Authorization *cookiejar.Jar
+	// Authorization *http.Cookie
 }
 
 // NewQgendaClient creates a QgendaClient from config values
@@ -43,10 +48,10 @@ func NewQgendaClient(qcc QgendaClientConfig) (*QgendaClient, error) {
 	}
 
 	// create a somewhat safe cookie jar
-	jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
-	if err != nil {
-		return nil, err
-	}
+	// jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	// provide reasonable default client timeout
 	var cto time.Duration
@@ -68,6 +73,9 @@ func NewQgendaClient(qcc QgendaClientConfig) (*QgendaClient, error) {
 		return nil, errors.New("Error: QgendaClientConfig.CompanyKey cannot be empty")
 	}
 
+	// acd := &http.Cookie{}
+	// acd := &http.Header{}
+
 	q := &QgendaClient{
 		BaseURL: bu,
 		Client: &http.Client{
@@ -81,7 +89,8 @@ func NewQgendaClient(qcc QgendaClientConfig) (*QgendaClient, error) {
 		},
 		Values: &url.Values{},
 		// Authorization: &[]http.Header{},
-		Authorization: jar,
+		// Authorization: jar,
+		Authorization: &AuthToken{},
 		Config:        qcc,
 	}
 	return q, nil

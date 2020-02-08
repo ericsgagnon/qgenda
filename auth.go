@@ -51,25 +51,32 @@ func (q *QgendaClient) Auth(ctx context.Context) context.Context {
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	expireTime := respTime.Add(validDuration)
+	fmt.Println(respTime.Format(time.RFC3339))
+	fmt.Println(validDuration)
+	fmt.Println(respTime.Add(validDuration).Format(time.RFC850))
+	fmt.Println(expireTime.Format(time.RFC850))
 	fmt.Println("----------------------------------------------------")
 
 	// Set the Authorization header in the QgendaClient
-	// q.Authorization.Set(
-	// 	http.CanonicalHeaderKey("Authorization"),
-	// 	fmt.Sprintf("bearer %v", resData["access_token"]),
-	// )
-	ac := []*http.Cookie{
-		&http.Cookie{
-			Name:     http.CanonicalHeaderKey("Authorization"),
-			Value:    fmt.Sprintf("bearer %v", resData["access_token"]),
-			Domain:   q.BaseURL.Hostname(),
-			Path:     "/",
-			SameSite: http.SameSiteNoneMode,
-			// Expires: time.Now().Add(resData["expires_in"] * time.Second),
-			Expires: respTime.Add(validDuration),
-		},
-	}
+	q.Authorization.Token.Set(
+		http.CanonicalHeaderKey("Authorization"),
+		fmt.Sprintf("bearer %v", resData["access_token"]),
+	)
+
+	q.Authorization.Expires = expireTime
+	// Set the expire timestamp for the Authorization Header
+
+	// q.Authorization.Cookies = []*http.Cookie{
+	// q.Authorization = &http.Cookie{
+	// 	Name:     http.CanonicalHeaderKey("Authorization"),
+	// 	Value:    fmt.Sprintf("bearer %v", resData["access_token"]),
+	// 	Domain:   q.BaseURL.Hostname(),
+	// 	Path:     "/",
+	// 	SameSite: http.SameSiteNoneMode,
+	// 	// Expires: time.Now().Add(resData["expires_in"] * time.Second),
+	// 	Expires: time.Time(expireTime),
+	// }
 
 	// for _, v := range ac {
 	// 	fmt.Printf("%v: %v\n", v.Name, v.Value)
@@ -77,6 +84,21 @@ func (q *QgendaClient) Auth(ctx context.Context) context.Context {
 	// set Authorization cookie for all endpoints
 	u := *q.BaseURL
 	u.Path = "/"
-	q.Authorization.SetCookies(&u, ac)
+	// q.Authorization.SetCookies(&u, ac)
+	// fmt.Println(q.Authorization["Authorization"])
+	// for _, v := range q.Authorization {
+	// 	fmt.Printf("%v: %#v\n%v\n", v.Name, v.Expires.Format(time.RFC850), v.Value)
+	// }
+
+	fmt.Printf("Authorization: %#v\n%v\n",
+		q.Authorization.Expires.Format(time.RFC3339),
+		q.Authorization.Token, //[http.CanonicalHeaderKey("Authorization")],
+	)
+	// fmt.Printf("%v: %#v\n%v\n", q.Authorization.Name, q.Authorization.Expires.Format(time.RFC3339), q.Authorization.Value)
+
+	// for _, v := range q.Authorization.Cookies(q.BaseURL) {
+	// 	fmt.Printf("%v: %v\n%v\n", v.Name, v.Expires.Format(time.RFC3339), v.Value)
+	// }
+
 	return ctx
 }
