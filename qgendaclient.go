@@ -1,10 +1,15 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/url"
+	"path"
+	"strings"
 	"time"
+
+	"golang.org/x/net/context/ctxhttp"
 )
 
 // QgendaClientConfig is used to pass all necessary
@@ -33,9 +38,6 @@ type QgendaClient struct {
 	Values        *url.Values
 	Authorization *AuthToken
 	Config        QgendaClientConfig
-	// Authorization *http.Header
-	// Authorization *cookiejar.Jar
-	// Authorization *http.Cookie
 }
 
 // NewQgendaClient creates a QgendaClient from config values
@@ -46,12 +48,6 @@ func NewQgendaClient(qcc QgendaClientConfig) (*QgendaClient, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	// create a somewhat safe cookie jar
-	// jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
-	// if err != nil {
-	// 	return nil, err
-	// }
 
 	// provide reasonable default client timeout
 	var cto time.Duration
@@ -73,25 +69,50 @@ func NewQgendaClient(qcc QgendaClientConfig) (*QgendaClient, error) {
 		return nil, errors.New("Error: QgendaClientConfig.CompanyKey cannot be empty")
 	}
 
-	// acd := &http.Cookie{}
-	// acd := &http.Header{}
+	authToken := &AuthToken{
+		Token:   &http.Header{},
+		Expires: time.Time{},
+	}
 
 	q := &QgendaClient{
 		BaseURL: bu,
 		Client: &http.Client{
 			Timeout: cto,
-			// Jar:     jar,
 		},
 		Credentials: &url.Values{
 			"email":      {email},
 			"companyKey": {companyKey},
 			"password":   {password},
 		},
-		Values: &url.Values{},
-		// Authorization: &[]http.Header{},
-		// Authorization: jar,
-		Authorization: &AuthToken{},
+		Values:        &url.Values{},
+		Authorization: authToken,
 		Config:        qcc,
 	}
 	return q, nil
 }
+
+// Post wraps http.Post to pass a context and send the QgendaClient.Authorization.Token header
+// func Post(ctx context.Context, q *QgendaClient, uri string, v url.Values) context.Context {
+
+// }
+
+// Post wraps http.Post to pass a context and send the QgendaClient.Authorization.Token header
+func (q *QgendaClient) Post(ctx context.Context, uri string, v url.Values) (context.Context, *http.Response, error) {
+
+	reqURL := *q.BaseURL
+	reqURL.Path = path.Join(reqURL.Path, uri)
+
+	reqBody := strings.NewReader("")
+	// req, err := http.NewRequestWithContext(ctx, http.MethodPost, )
+	// request
+	// res, err := q.Client.PostForm(reqURL.String(), *q.Credentials)
+	res, err := ctxhttp.PostForm(ctx, q.Client, reqURL.String(), *q.Credentials)
+	// if err != nil {
+	// 	return ctx, nil, err
+	// }
+	return ctx, res, err
+
+}
+
+//Content-Type: application/json
+//Accept-Encoding: gzip, deflate, *
