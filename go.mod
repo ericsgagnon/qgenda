@@ -11,6 +11,7 @@ require (
 	github.com/go-openapi/strfmt v0.19.4 // indirect
 	github.com/go-openapi/swag v0.19.7 // indirect
 	github.com/go-openapi/validate v0.19.6 // indirect
+	github.com/google/uuid v1.1.1
 	github.com/gorilla/mux v1.7.3
 	github.com/urfave/cli v1.22.2
 	github.com/urfave/cli/v2 v2.1.1
