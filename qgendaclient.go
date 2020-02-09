@@ -1,15 +1,10 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"net/http"
 	"net/url"
-	"path"
-	"strings"
 	"time"
-
-	"golang.org/x/net/context/ctxhttp"
 )
 
 // QgendaClientConfig is used to pass all necessary
@@ -97,22 +92,22 @@ func NewQgendaClient(qcc QgendaClientConfig) (*QgendaClient, error) {
 // }
 
 // Post wraps http.Post to pass a context and send the QgendaClient.Authorization.Token header
-func (q *QgendaClient) Post(ctx context.Context, uri string, v url.Values) (context.Context, *http.Response, error) {
+// func (q *QgendaClient) Post(ctx context.Context, uri string, v url.Values) (context.Context, *http.Response, error) {
 
-	reqURL := *q.BaseURL
-	reqURL.Path = path.Join(reqURL.Path, uri)
+// 	reqURL := *q.BaseURL
+// 	reqURL.Path = path.Join(reqURL.Path, uri)
 
-	reqBody := strings.NewReader("")
-	// req, err := http.NewRequestWithContext(ctx, http.MethodPost, )
-	// request
-	// res, err := q.Client.PostForm(reqURL.String(), *q.Credentials)
-	res, err := ctxhttp.PostForm(ctx, q.Client, reqURL.String(), *q.Credentials)
-	// if err != nil {
-	// 	return ctx, nil, err
-	// }
-	return ctx, res, err
+// 	reqBody := strings.NewReader("")
+// 	// req, err := http.NewRequestWithContext(ctx, http.MethodPost, )
+// 	// request
+// 	// res, err := q.Client.PostForm(reqURL.String(), *q.Credentials)
+// 	res, err := ctxhttp.PostForm(ctx, q.Client, reqURL.String(), *q.Credentials)
+// 	// if err != nil {
+// 	// 	return ctx, nil, err
+// 	// }
+// 	return ctx, res, err
 
-}
+// }
 
 //Content-Type: application/json
 //Accept-Encoding: gzip, deflate, *

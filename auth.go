@@ -62,10 +62,10 @@ func (q *QgendaClient) Auth(ctx context.Context) context.Context {
 	u := *q.BaseURL
 	u.Path = "/"
 
-	// fmt.Printf("Authorization: %#v\n%v\n",
-	// 	q.Authorization.Expires.Format(time.RFC3339),
-	// 	q.Authorization.Token.Get(http.CanonicalHeaderKey("Authorization")),
-	// )
+	fmt.Printf("Authorization: %#v\n%v\n",
+		q.Authorization.Expires.Format(time.RFC3339),
+		q.Authorization.Token.Get(http.CanonicalHeaderKey("Authorization")),
+	)
 
 	return ctx
 }
