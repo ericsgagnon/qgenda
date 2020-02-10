@@ -3,11 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+
+	// "io/ioutil"
 	"log"
-	"net/http"
+	// "net/http"
 	"os"
-	"strings"
+	// "strings"
 	"time"
 )
 
@@ -38,7 +39,6 @@ func main() {
 
 	ctx = q.Auth(ctx)
 
-	fmt.Println("---------------------------------------------------------")
 	// for _, v := range q.Authorization.Cookies(q.BaseURL) {
 	// 	fmt.Printf("%v: %v\n%v\n", v.Name, v.Expires, v.Value)
 	// }
@@ -62,51 +62,51 @@ func main() {
 	// fmt.Println(string(body))
 
 	// url := "https://api.qgenda.com/v2/company?includes=Profiles,Organizations"
-	url := "https://api.qgenda.com/v2/staffmember?companyKey=" + q.Credentials.Get("companyKey") + "&includes=Skillset,Tags,Profiles,TTCMTags"
-	fmt.Println(url)
+	// url := "https://api.qgenda.com/v2/staffmember?companyKey=" + q.Credentials.Get("companyKey") + "&includes=Skillset,Tags,Profiles,TTCMTags"
+	// fmt.Println(url)
 	// t := map[string][]string.(q.Credentials)["companyKey"]
 	// companyKey = "8c44c075-d894-4b00-9ae7-3b3842226626"
 	// profileKey = "7f4d8aa0-292d-43b9-bec9-d253624c7de0"
 
 	//url := "https://api.qgenda.com/v2/facility?companyKey=" + q.Credentials.Get("companyKey") + "&includes=TaskShift"
 	// url := "https://api.qgenda.com/v2/location?companyKey=" + q.Credentials.Get("companyKey")
-	method := "GET"
+	// method := "GET"
 
-	payload := strings.NewReader("")
+	// payload := strings.NewReader("")
 
-	client := &http.Client{}
-	req, err := http.NewRequest(method, url, payload)
+	// client := &http.Client{}
+	// req, err := http.NewRequest(method, url, payload)
 
-	if err != nil {
-		fmt.Println(err)
-	}
-	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	// req.Header.Add("Content-Type", "application/json")
-	req.Header.Add(
-		http.CanonicalHeaderKey("Authorization"),
-		q.Authorization.Token.Get(http.CanonicalHeaderKey("Authorization")),
-	)
+	// if err != nil {
+	// 	fmt.Println(err)
+	// }
+	// req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	// // req.Header.Add("Content-Type", "application/json")
 	// req.Header.Add(
-	// 	http.CanonicalHeaderKey("Accept-Encoding"),
-	// 	"*",
+	// 	http.CanonicalHeaderKey("Authorization"),
+	// 	q.Authorization.Token.Get(http.CanonicalHeaderKey("Authorization")),
 	// )
-	//req.Header[http.CanonicalHeaderKey("Authorization")] = q.Auth.Token
-	res, err := client.Do(req)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer res.Body.Close()
-	body, err := ioutil.ReadAll(res.Body)
+	// // req.Header.Add(
+	// // 	http.CanonicalHeaderKey("Accept-Encoding"),
+	// // 	"*",
+	// // )
+	// //req.Header[http.CanonicalHeaderKey("Authorization")] = q.Auth.Token
+	// res, err := client.Do(req)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// defer res.Body.Close()
+	// body, err := ioutil.ReadAll(res.Body)
 
-	fmt.Println(string(body))
-	ioutil.WriteFile("samples/staffmembers.json", body, 0777)
+	// fmt.Println(string(body))
+	// ioutil.WriteFile("samples/staffmembers.json", body, 0777)
 
-	date := "2100-01-01T00:00:00"
-	dateTime, err := time.ParseInLocation(time.RFC3339, date, time.Local)
-	if err != nil {
-		log.Fatal(err)
+	// date := "2100-01-01T00:00:00"
+	// dateTime, err := time.ParseInLocation(time.RFC3339, date, time.Local)
+	// if err != nil {
+	// 	log.Fatal(err)
 
-	}
-	fmt.Println(dateTime)
+	// }
+	// fmt.Println(dateTime)
 
 }
