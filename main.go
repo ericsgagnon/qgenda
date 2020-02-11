@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
 
 	// "io/ioutil"
 	"log"
@@ -41,17 +42,24 @@ func main() {
 		},
 	)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalln(err)
 	}
 
-	ctx = q.Auth(ctx)
-
+	err = q.Auth(ctx)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	// print token
+	fmt.Printf("Authorization: %#v\n%v\n",
+		q.Authorization.Expires.Format(time.RFC3339),
+		q.Authorization.Token.Get(http.CanonicalHeaderKey("Authorization")),
+	)
 	// for _, v := range q.Authorization.Cookies(q.BaseURL) {
 	// 	fmt.Printf("%v: %v\n%v\n", v.Name, v.Expires, v.Value)
 	// }
 
 	fmt.Println("---------------------------------------------------------")
-	fmt.Println(ctx)
+
 	fmt.Println("---------------------------------------------------------")
 
 	// res, err := q.Client.Get("https://api.qgenda.com/v2/company")
