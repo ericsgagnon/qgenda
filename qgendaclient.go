@@ -18,12 +18,6 @@ type QgendaClientConfig struct {
 	Password       string
 }
 
-// AuthToken is the header that holds the authorization: bearer token and expire timestamp
-type AuthToken struct {
-	Token   *http.Header
-	Expires time.Time
-}
-
 //QgendaClient is the primary struct for handling client
 // interactions with the qgenda api
 type QgendaClient struct {

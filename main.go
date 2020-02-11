@@ -21,6 +21,13 @@ var err error
 func main() {
 
 	ctx := context.Background()
+	// Set a duration.
+	// duration := 150 * time.Millisecond
+
+	// // Create a context that is both manually cancellable and will signal
+	// // a cancel at the specified duration.
+	// ctx, cancel := context.WithTimeout(context.Background(), duration)
+	// defer cancel()
 
 	// use environment variables to provide credentials
 	q, err := NewQgendaClient(

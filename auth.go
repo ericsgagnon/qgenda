@@ -14,56 +14,76 @@ import (
 	"golang.org/x/net/context/ctxhttp"
 )
 
-const credentialsFile = "./.tmp-creds.json"
+// AuthToken is the header that holds the authorization: bearer token and expire timestamp
+type AuthToken struct {
+	Token   *http.Header
+	Expires time.Time
+}
+
+const credentialsFile = "./.auth-token.json"
 
 // Auth posts credentials in a request body and creates an authorization
 // bearer header in the client with the returned access token
-func (q *QgendaClient) Auth(ctx context.Context) context.Context {
+func (q *QgendaClient) Auth(ctx context.Context) {
 
+	//
+	valid := q.Authorization.Valid(ctx)
+	fmt.Println(valid)
+}
+
+// Valid checks if the AuthToken is valid
+func (t *AuthToken) Valid(ctx context.Context) bool {
+	// checks if AuthToken exists and will expire more than a minute from now
+	if t == nil || t.Token.Get(http.CanonicalHeaderKey("Authorization")) == "" || t.Expires.UTC().After(time.Now().Add(time.Minute).UTC()) {
+		//TODO: Add jwt format validation
+		return false
+	}
+	return true
+
+}
+
+// WriteFile writes the AuthToken to a file cache
+func (t *AuthToken) WriteFile(ctx context.Context) {
+
+	j, err := json.MarshalIndent(t, "", "  ")
+
+	f, err := os.Create(credentialsFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f.Close()
+
+	f.Write(j)
+
+}
+
+// ReadFile reads the AuthToken from a file cache
+func (t *AuthToken) ReadFile(ctx context.Context) {
 	// credentialsFile := "./.tmp-creds.json"
-	jsonFile, err := os.Open(credentialsFile)
+	f, err := os.Open(credentialsFile)
 
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer jsonFile.Close()
+	defer f.Close()
 
 	// read our opened jsonFile as a byte array.
-	b, err := ioutil.ReadAll(jsonFile)
+	b, err := ioutil.ReadAll(f)
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	var auth AuthToken
 	// we unmarshal our byteArray which contains our
 	// jsonFile's content into 'users' which we defined above
-	json.Unmarshal(b, &auth)
-	// fmt.Printf("%+v", auth)
+	json.Unmarshal(b, t)
+}
 
-	// fmt.Println(q.Authorization.Token)
-	// fmt.Println(q.Authorization.Expires)
+// Login submits credentials for authorization bearer token
+func (q *QgendaClient) Login(ctx context.Context) {
 
-	fmt.Printf("Authorization: %+v\n%+v\n",
-		auth.Expires.Format(time.RFC3339),
-		auth.Token.Get(http.CanonicalHeaderKey("Authorization")),
-	)
-
-	fmt.Printf("Credentials Expired: %t\n\n", auth.Expires.UTC().Before(time.Now().UTC()))
-
-	if auth.Expires.UTC().Before(time.Now().UTC()) {
-		fmt.Println("ttttttt")
-	}
-	fmt.Printf("Authorization: %#v\n%v\n",
-		q.Authorization.Expires.Format(time.RFC3339),
-		q.Authorization.Token.Get(http.CanonicalHeaderKey("Authorization")),
-	)
-
-	//TODO: check for Auth cookie or header, get another if missing or expired
 	// request URL
 	url := *q.BaseURL
 	url.Path = path.Join(url.Path, "/login")
 
-	// request
 	// res, err := q.Client.PostForm(url.String(), *q.Credentials)
 	res, err := ctxhttp.PostForm(ctx, q.Client, url.String(), *q.Credentials)
 	if err != nil {
@@ -108,43 +128,24 @@ func (q *QgendaClient) Auth(ctx context.Context) context.Context {
 		q.Authorization.Token.Get(http.CanonicalHeaderKey("Authorization")),
 	)
 
-	j, err := json.MarshalIndent(q.Authorization, "", "  ")
-
-	f, err := os.Create(credentialsFile)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer f.Close()
-
-	f.Write(j)
-
-	return ctx
 }
 
-// CheckAuthToken checks the QgendaClient Auth Token for existence and expiration
-func (q *QgendaClient) CheckAuthToken(ctx context.Context) context.Context {
-	valid := q.Authorization.Expires.UTC().After(time.Now().UTC())
-	if !valid {
-		ctx = q.CheckAuthToken(ctx)
-	}
-	// Check for a valid authorization bearer token in QgendaClient
-	// Set the Authorization header in the QgendaClient
-	q.Authorization.Token.Get(
-		http.CanonicalHeaderKey("Authorization"),
-		fmt.Sprintf("bearer %v", resData["access_token"]),
-	)
+// Check for a valid authorization bearer token in QgendaClient
+// Set the Authorization header in the QgendaClient
+// t.Get(http.CanonicalHeaderKey("Authorization"))
+// fmt.Printf("%+v", auth)
 
-	return ctx
-}
+// fmt.Println(q.Authorization.Token)
+// fmt.Println(q.Authorization.Expires)
 
-// CheckAuthFile checks the QgendaClient Auth Token for existence and expiration
-func (q *QgendaClient) CheckAuthFile(ctx context.Context) context.Context {
+// fmt.Printf("Authorization: %+v\n%+v\n",
+// 	auth.Expires.Format(time.RFC3339),
+// 	auth.Token.Get(http.CanonicalHeaderKey("Authorization")),
+// )
 
-	return ctx
-}
+// fmt.Printf("Credentials Expired: %t\n\n", auth.Expires.UTC().Before(time.Now().UTC()))
 
-// Login submits credentials for authorization bearer token
-func (q *QgendaClient) Login(ctx context.Context) context.Context {
-
-	return ctx
-}
+// fmt.Printf("Authorization: %#v\n%v\n",
+// 	q.Authorization.Expires.Format(time.RFC3339),
+// 	q.Authorization.Token.Get(http.CanonicalHeaderKey("Authorization")),
+// )
