@@ -15,7 +15,7 @@ import (
 	"golang.org/x/net/context/ctxhttp"
 )
 
-// AuthToken is the header that holds the authorization: bearer token and expire timestamp
+// AuthToken holds the authorization: bearer token header and an expire timestamp
 type AuthToken struct {
 	Token   *http.Header `json:"Token"`
 	Expires time.Time    `json:"Expires"`
@@ -34,24 +34,15 @@ func (q *QgendaClient) Auth(ctx context.Context) error {
 	if q.Authorization.Valid(ctx) {
 		return nil
 	}
+
 	log.Printf("----------------------------------------------------------------------------")
 	log.Printf("Check cached AuthToken validity")
-
 	err := q.Authorization.ReadFile(ctx)
-	// fmt.Printf(
-	// 	"\n\nRead File: %v\n%v\n\n",
-	// 	q.Authorization.Expires.String(),
-	// 	q.Authorization.Token.Get(http.CanonicalHeaderKey("Authorization")),
-	// )
-
 	if err == nil {
 		if q.Authorization.Valid(ctx) {
 			return nil
 		}
 	}
-	// else {
-	// 	log.Printf("I'm a pretty princess: %v", err)
-	// }
 
 	log.Printf("----------------------------------------------------------------------------")
 	log.Printf("Login")
@@ -61,6 +52,9 @@ func (q *QgendaClient) Auth(ctx context.Context) error {
 
 // Valid checks if the AuthToken is valid
 func (t *AuthToken) Valid(ctx context.Context) bool {
+
+	log.Printf("----------------------------------------------------------------------------")
+	log.Printf("Check AuthToken validity")
 	// checks if AuthToken exists and will expire more than a minute from now
 	switch {
 	case t == nil:
@@ -154,7 +148,7 @@ func (q *QgendaClient) Login(ctx context.Context) error {
 	// manually set a 'start' time for the AuthToken
 	// to be conservative with expiration time, the start timestamp is
 	// set just before the token is requested
-	start := time.Now().UTC()
+	startTime := time.Now().UTC()
 
 	// res, err := q.Client.PostForm(url.String(), *q.Credentials)
 	res, err := ctxhttp.PostForm(ctx, q.Client, endpoint.String(), *q.Credentials)
@@ -167,18 +161,16 @@ func (q *QgendaClient) Login(ctx context.Context) error {
 	//response body
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		log.Printf("Error reading auth token from response: %v", err)
+		log.Printf("Error reading AuthToken from response: %v", err)
 		return err
 	}
 
 	// authorization token is returned in the response body
 	var tokenMap map[string]string
 	if err := json.Unmarshal(body, &tokenMap); err != nil {
-		log.Printf("Error unmarshalling json response from login endpoint: %v", err)
+		log.Printf("Error unmarshalling AuthToken from response: %v", err)
 		return err
 	}
-
-	// fmt.Printf("\nin Login:\n\ntokenMap:\n%v\n\n", tokenMap)
 
 	// Set the Authorization header in the QgendaClient
 	q.Authorization.Token.Set(
@@ -186,21 +178,16 @@ func (q *QgendaClient) Login(ctx context.Context) error {
 		fmt.Sprintf("bearer %v", tokenMap["access_token"]),
 	)
 
-	fmt.Printf("\nin Login:\n\nAuthToken:\n%v\n\n", q.Authorization.Token)
-	// use response timestamp + valid duration to set expire time
-	// resTime, err := time.Parse(time.RFC1123, res.Header[http.CanonicalHeaderKey("date")][0])
-	// if err != nil {
-	// 	log.Printf("Error parsing response timestamp from response headers: %v", err)
-	// 	return err
-	// }
+	// fmt.Printf("\nin Login:\n\nAuthToken:\n%v\n\n", q.Authorization.Token)
+	// use response startTime + valid duration to set expire time
 	validDuration, err := time.ParseDuration(tokenMap["expires_in"] + "s")
 	if err != nil {
 		log.Printf("Error parsing token valid duration: %v", err)
 		return err
 	}
 	// q.Authorization.Expires = resTime.Add(validDuration)
-	q.Authorization.Expires = start.Add(validDuration)
-	log.Printf("Token Updated")
+	q.Authorization.Expires = startTime.Add(validDuration)
+	log.Printf("AuthToken updated - expiration: %v", q.Authorization.Expires.UTC().Format(time.RFC3339))
 
 	if q.Authorization.Valid(ctx) {
 		log.Printf("Token appears valid")
