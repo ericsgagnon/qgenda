@@ -20,7 +20,7 @@ var err error
 // "https://api.qgenda.com/v2/schedule/openshifts?companyKey=00000000-0000-0000-0000-000000000000&startDate=1/1/2012&endDate=1/31/2012&includes=LocationTags"
 // "https://api.qgenda.com/v2/schedule/openshifts?companyKey=00000000-0000-0000-0000-000000000000&startDate=1/1/2014&endDate=1/31/2014&$select=Date,TaskAbbrev,OpenShiftCount&$filter=IsPublished&$orderby=Date,TaskAbbrev,OpenShiftCount&includes=Task"
 func main() {
-
+	log.SetFlags(log.LstdFlags | log.LUTC)
 	ctx := context.Background()
 	// Set a duration.
 	// duration := 150 * time.Millisecond
@@ -58,9 +58,9 @@ func main() {
 	// 	fmt.Printf("%v: %v\n%v\n", v.Name, v.Expires, v.Value)
 	// }
 
-	fmt.Println("---------------------------------------------------------")
+	// fmt.Println("---------------------------------------------------------")
 
-	fmt.Println("---------------------------------------------------------")
+	// fmt.Println("---------------------------------------------------------")
 
 	// res, err := q.Client.Get("https://api.qgenda.com/v2/company")
 	// if err != nil {
