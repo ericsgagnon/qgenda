@@ -147,11 +147,17 @@ func (t *AuthToken) ReadFile(ctx context.Context) error {
 func (q *QgendaClient) Login(ctx context.Context) error {
 
 	// request URL
-	url := *q.BaseURL
-	url.Path = path.Join(url.Path, "/login")
+	route := "/login"
+	endpoint := *q.BaseURL
+	endpoint.Path = path.Join(endpoint.Path, route)
+
+	// manually set a 'start' time for the AuthToken
+	// to be conservative with expiration time, the start timestamp is
+	// set just before the token is requested
+	start := time.Now().UTC()
 
 	// res, err := q.Client.PostForm(url.String(), *q.Credentials)
-	res, err := ctxhttp.PostForm(ctx, q.Client, url.String(), *q.Credentials)
+	res, err := ctxhttp.PostForm(ctx, q.Client, endpoint.String(), *q.Credentials)
 	if err != nil {
 		return err
 	}
@@ -168,11 +174,11 @@ func (q *QgendaClient) Login(ctx context.Context) error {
 	// authorization token is returned in the response body
 	var tokenMap map[string]string
 	if err := json.Unmarshal(body, &tokenMap); err != nil {
-		log.Printf("Error unmarshalling response from json: %v", err)
+		log.Printf("Error unmarshalling json response from login endpoint: %v", err)
 		return err
 	}
 
-	fmt.Printf("\nin Login:\n\ntokenMap:\n%v\n\n", tokenMap)
+	// fmt.Printf("\nin Login:\n\ntokenMap:\n%v\n\n", tokenMap)
 
 	// Set the Authorization header in the QgendaClient
 	q.Authorization.Token.Set(
@@ -182,28 +188,29 @@ func (q *QgendaClient) Login(ctx context.Context) error {
 
 	fmt.Printf("\nin Login:\n\nAuthToken:\n%v\n\n", q.Authorization.Token)
 	// use response timestamp + valid duration to set expire time
-	resTime, err := time.Parse(time.RFC1123, res.Header[http.CanonicalHeaderKey("date")][0])
-	if err != nil {
-		log.Printf("Error parsing response timestamp from response headers: %v", err)
-		return err
-	}
+	// resTime, err := time.Parse(time.RFC1123, res.Header[http.CanonicalHeaderKey("date")][0])
+	// if err != nil {
+	// 	log.Printf("Error parsing response timestamp from response headers: %v", err)
+	// 	return err
+	// }
 	validDuration, err := time.ParseDuration(tokenMap["expires_in"] + "s")
 	if err != nil {
 		log.Printf("Error parsing token valid duration: %v", err)
 		return err
 	}
-	q.Authorization.Expires = resTime.Add(validDuration)
+	// q.Authorization.Expires = resTime.Add(validDuration)
+	q.Authorization.Expires = start.Add(validDuration)
 	log.Printf("Token Updated")
 
 	if q.Authorization.Valid(ctx) {
 		log.Printf("Token appears valid")
 	}
 
-	// troubleshooting
+	// write AuthToken to file
 	if err := q.Authorization.WriteFile(ctx); err != nil {
 		log.Printf("Unable to write AuthToken to %v:  %v", credentialsFile, err)
 		return err
 	}
-
+	log.Printf("AuthToken written to %v", credentialsFile)
 	return nil
 }
