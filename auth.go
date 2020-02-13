@@ -30,13 +30,11 @@ const credentialsFile = "./.auth-token.json"
 func (q *QgendaClient) Auth(ctx context.Context) error {
 
 	log.Printf("----------------------------------------------------------------------------")
-	log.Printf("Check AuthToken validity")
 	if q.Authorization.Valid(ctx) {
 		return nil
 	}
 
 	log.Printf("----------------------------------------------------------------------------")
-	log.Printf("Check cached AuthToken validity")
 	err := q.Authorization.ReadFile(ctx)
 	if err == nil {
 		if q.Authorization.Valid(ctx) {
@@ -53,7 +51,6 @@ func (q *QgendaClient) Auth(ctx context.Context) error {
 // Valid checks if the AuthToken is valid
 func (t *AuthToken) Valid(ctx context.Context) bool {
 
-	log.Printf("----------------------------------------------------------------------------")
 	log.Printf("Check AuthToken validity")
 	// checks if AuthToken exists and will expire more than a minute from now
 	switch {
@@ -64,13 +61,13 @@ func (t *AuthToken) Valid(ctx context.Context) bool {
 		log.Printf("AuthToken Authorization header is empty")
 		fallthrough
 	case t.Expires.IsZero():
-		log.Printf("AuthToken expiration at zero %v", t.Expires.UTC().String())
+		log.Printf("AuthToken expiration time is at zero %v", t.Expires.UTC().String())
 		return false
 	case t.Expires.UTC().Before(time.Now().Add(time.Minute).UTC()):
 		log.Printf("AuthToken expired %v", t.Expires.UTC().String())
 		return false
 	case t.Expires.UTC().After(time.Now().Add(time.Minute).UTC()):
-		log.Printf("AuthToken will expire %v", t.Expires.UTC().String())
+		log.Printf("AuthToken appears valid until %v", t.Expires.UTC().String())
 		//TODO: Add jwt format validation
 		return true
 	}
@@ -79,7 +76,7 @@ func (t *AuthToken) Valid(ctx context.Context) bool {
 
 // WriteFile writes the AuthToken to a file cache
 func (t *AuthToken) WriteFile(ctx context.Context) error {
-
+	log.Printf("Write AuthToken to file %v", credentialsFile)
 	j, err := json.MarshalIndent(t, "", "  ")
 	if err != nil {
 		log.Printf("Error marshalling AuthToken to json: %v", err)
@@ -96,12 +93,13 @@ func (t *AuthToken) WriteFile(ctx context.Context) error {
 		log.Printf("Unable to write AuthToken:\n%v\n", err)
 		return err
 	}
+	log.Printf("AuthToken written to file %v", credentialsFile)
 	return nil
 }
 
 // ReadFile reads the AuthToken from a file cache
 func (t *AuthToken) ReadFile(ctx context.Context) error {
-
+	log.Printf("Read cached AuthToken from file")
 	f, err := os.Open(credentialsFile)
 	if err != nil {
 		log.Printf("Error opening AuthToken cache file %v: %v\n", credentialsFile, err)
@@ -122,8 +120,8 @@ func (t *AuthToken) ReadFile(ctx context.Context) error {
 	if err := json.Unmarshal(b, tkn); err != nil {
 		log.Printf("Error unmarshalling cached AuthToken: %v", err)
 	}
-	// fmt.Printf("\nin ReadFile - tkn:\n%v", tkn)
-	if tkn.Expires.UTC().Before(t.Expires.UTC()) {
+
+	if tkn.Expires.UTC().Before(t.Expires.UTC()) || tkn.Expires.UTC().Before(time.Now().UTC()) {
 		m := fmt.Sprintf("Cached AuthToken expired %v", tkn.Expires.UTC().String())
 		log.Printf(m)
 		return errors.New(m)
@@ -131,7 +129,7 @@ func (t *AuthToken) ReadFile(ctx context.Context) error {
 	t.Token = tkn.Token
 	t.Expires = tkn.Expires
 	t = tkn
-	// fmt.Printf("\nin ReadFile - AuthToken:\n%v", t)
+
 	log.Printf("Cached AuthToken appears valid until %v", t.Expires.UTC().String())
 	return nil
 

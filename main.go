@@ -2,8 +2,13 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
+	"net/url"
+	"path"
+	"strings"
 
 	// "io/ioutil"
 	"log"
@@ -11,6 +16,8 @@ import (
 	"os"
 	// "strings"
 	"time"
+
+	"k8s.io/apimachinery/pkg/conversion/queryparams"
 )
 
 //https://restapi.qgenda.com/?version=latest
@@ -49,79 +56,181 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	// print token
-	fmt.Printf("Authorization: %#v\n%v\n",
-		q.Authorization.Expires.Format(time.RFC3339),
-		q.Authorization.Token.Get(http.CanonicalHeaderKey("Authorization")),
-	)
-	// for _, v := range q.Authorization.Cookies(q.BaseURL) {
-	// 	fmt.Printf("%v: %v\n%v\n", v.Name, v.Expires, v.Value)
-	// }
 
-	// fmt.Println("---------------------------------------------------------")
+	// var companies []Company
+	companies, err := q.GetCompanies(ctx)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	fmt.Println(companies)
+}
 
-	// fmt.Println("---------------------------------------------------------")
 
-	// res, err := q.Client.Get("https://api.qgenda.com/v2/company")
+// GetCompanies uses the company endpoint to get all companies for a user
+func (q *QgendaClient) GetCompanies(ctx context.Context, qp *url.Values) (*[]Company, error) {
+
+// queryparams{}
+
+	u := &url.Values{}
+
+	"includes", "Profiles,Organizations"
+
+	if qp == nil {
+
+	}
+
+	var c *[]Company
+	err := q.Get(ctx, )
+
+	
+	// req, err := http.NewRequestWithContext(ctx, "GET", "https://api.qgenda.com/v2/company", strings.NewReader("?includes=Profiles,Organizations&companyKey=8c44c075-d894-4b00-9ae7-3b3842226626"))
 	// if err != nil {
-	// 	log.Fatal(err)
+	// 	log.Fatalln(err)
 
 	// }
-
+	// req.Header = q.Authorization.Token.Clone()
+	// res, err := q.Client.Do(req)
+	// if err != nil {
+	// 	log.Printf("Error getting companies %v", err)
+	// 	return nil, err
+	// }
 	// body, err := ioutil.ReadAll(res.Body)
-	// if err != nil {
-	// 	log.Fatal(err)
-
-	// }
-
-	// fmt.Println(string(body))
-
-	// url := "https://api.qgenda.com/v2/company?includes=Profiles,Organizations"
-	// url := "https://api.qgenda.com/v2/staffmember?companyKey=" + q.Credentials.Get("companyKey") + "&includes=Skillset,Tags,Profiles,TTCMTags"
-	// fmt.Println(url)
-	// t := map[string][]string.(q.Credentials)["companyKey"]
-	// companyKey = "8c44c075-d894-4b00-9ae7-3b3842226626"
-	// profileKey = "7f4d8aa0-292d-43b9-bec9-d253624c7de0"
-
-	//url := "https://api.qgenda.com/v2/facility?companyKey=" + q.Credentials.Get("companyKey") + "&includes=TaskShift"
-	// url := "https://api.qgenda.com/v2/location?companyKey=" + q.Credentials.Get("companyKey")
-	// method := "GET"
-
-	// payload := strings.NewReader("")
-
-	// client := &http.Client{}
-	// req, err := http.NewRequest(method, url, payload)
-
-	// if err != nil {
-	// 	fmt.Println(err)
-	// }
-	// req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	// // req.Header.Add("Content-Type", "application/json")
-	// req.Header.Add(
-	// 	http.CanonicalHeaderKey("Authorization"),
-	// 	q.Authorization.Token.Get(http.CanonicalHeaderKey("Authorization")),
-	// )
-	// // req.Header.Add(
-	// // 	http.CanonicalHeaderKey("Accept-Encoding"),
-	// // 	"*",
-	// // )
-	// //req.Header[http.CanonicalHeaderKey("Authorization")] = q.Auth.Token
-	// res, err := client.Do(req)
 	// if err != nil {
 	// 	log.Fatal(err)
 	// }
 	// defer res.Body.Close()
-	// body, err := ioutil.ReadAll(res.Body)
-
-	// fmt.Println(string(body))
-	// ioutil.WriteFile("samples/staffmembers.json", body, 0777)
-
-	// date := "2100-01-01T00:00:00"
-	// dateTime, err := time.ParseInLocation(time.RFC3339, date, time.Local)
-	// if err != nil {
-	// 	log.Fatal(err)
-
+	// ioutil.WriteFile("samples/company.json", body, 0777)
+	// // fmt.Println(string(body))
+	// if err := json.Unmarshal(body, &c); err != nil {
+	// 	log.Printf("Error unmarshalling companies from response: %v", err)
+	// 	return nil, err
 	// }
-	// fmt.Println(dateTime)
 
+	return c, nil
 }
+
+// Get handles all aspects of the http get request and handling the response
+func (q *QgendaClient) Get(ctx context.Context, url string, qp *url.Values, s *[]interface{}) error {
+
+	if err := q.Auth(ctx); err != nil {
+		log.Printf("Error authorizing get request to %v: %v", url, err)
+		return err
+	}
+	qp.Add("companyKey", q.Credentials.Get("companyKey"))
+
+	endpoint := path.Join(url, qp.Encode())
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, strings.NewReader(qp.Encode()))
+	if err != nil {
+		log.Printf("Error in request to %v: %v", url, err)
+		return err
+	}
+	req.Header = q.Authorization.Token.Clone()
+	res, err := q.Client.Do(req)
+	if err != nil {
+		log.Printf("Error retrieving response from %v: %v", endpoint, err)
+		return err
+	}
+	// TODO: improve reading response for larger requests
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		log.Printf("Error reading response from %v: %v", endpoint, err)
+		return err
+	}
+	defer res.Body.Close()
+	if err := json.Unmarshal(body, s); err != nil {
+		log.Printf("Error unmarshalling response from %v: %v", err)
+		return err
+	}
+
+	return nil
+}
+
+// fmt.Printf("\n----------------------------------------------------------------------------------\n")
+// fmt.Printf("\n%v\n", res.Request)
+// fmt.Printf("\n----------------------------------------------------------------------------------\n")
+// fmt.Printf("\n%v\n", q.Client.Transport)
+// req.Header.Add(http.CanonicalHeaderKey("Accept-Encoding"), "*gzip")
+// req.Header.Add(http.CanonicalHeaderKey("Accept-Encoding"), "*")
+// req.Header.Add(http.CanonicalHeaderKey("Content-Type"), "application/json")
+
+// g, err := gzip.NewReader(res.Body)
+// if err != nil {
+// 	log.Fatalln(err)
+// }
+// if _, err := io.Copy(os.Stdout, g); err != nil {
+// 	log.Fatal(err)
+// }
+
+// if err := g.Close(); err != nil {
+// 	log.Fatal(err)
+// }
+// print token
+// fmt.Printf("Authorization: %#v\n%v\n",
+// 	q.Authorization.Expires.Format(time.RFC3339),
+// 	q.Authorization.Token.Get(http.CanonicalHeaderKey("Authorization")),
+// )
+// for _, v := range q.Authorization.Cookies(q.BaseURL) {
+// 	fmt.Printf("%v: %v\n%v\n", v.Name, v.Expires, v.Value)
+// }
+
+// fmt.Println("---------------------------------------------------------")
+
+// fmt.Println("---------------------------------------------------------")
+
+// }
+
+// body, err := ioutil.ReadAll(res.Body)
+// if err != nil {
+// 	log.Fatal(err)
+
+// }
+
+// fmt.Println(string(body))
+
+// url := "https://api.qgenda.com/v2/company?includes=Profiles,Organizations"
+// url := "https://api.qgenda.com/v2/staffmember?companyKey=" + q.Credentials.Get("companyKey") + "&includes=Skillset,Tags,Profiles,TTCMTags"
+// fmt.Println(url)
+// t := map[string][]string.(q.Credentials)["companyKey"]
+// companyKey = "8c44c075-d894-4b00-9ae7-3b3842226626"
+// profileKey = "7f4d8aa0-292d-43b9-bec9-d253624c7de0"
+
+//url := "https://api.qgenda.com/v2/facility?companyKey=" + q.Credentials.Get("companyKey") + "&includes=TaskShift"
+// url := "https://api.qgenda.com/v2/location?companyKey=" + q.Credentials.Get("companyKey")
+// method := "GET"
+
+// payload := strings.NewReader("")
+
+// client := &http.Client{}
+// req, err := http.NewRequest(method, url, payload)
+
+// if err != nil {
+// 	fmt.Println(err)
+// }
+// req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+// // req.Header.Add("Content-Type", "application/json")
+// req.Header.Add(
+// 	http.CanonicalHeaderKey("Authorization"),
+// 	q.Authorization.Token.Get(http.CanonicalHeaderKey("Authorization")),
+// )
+// // req.Header.Add(
+// // 	http.CanonicalHeaderKey("Accept-Encoding"),
+// // 	"*",
+// // )
+// //req.Header[http.CanonicalHeaderKey("Authorization")] = q.Auth.Token
+// res, err := client.Do(req)
+// if err != nil {
+// 	log.Fatal(err)
+// }
+// defer res.Body.Close()
+// body, err := ioutil.ReadAll(res.Body)
+
+// fmt.Println(string(body))
+// ioutil.WriteFile("samples/staffmembers.json", body, 0777)
+
+// date := "2100-01-01T00:00:00"
+// dateTime, err := time.ParseInLocation(time.RFC3339, date, time.Local)
+// if err != nil {
+// 	log.Fatal(err)
+
+// }
+// fmt.Println(dateTime)

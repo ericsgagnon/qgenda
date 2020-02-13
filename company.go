@@ -6,6 +6,18 @@ import (
 	"github.com/google/uuid"
 )
 
+// CompanyQuery is
+type CompanyQuery struct {
+	Route    string `schema:"-"`
+	Includes string `schema:"includes"`
+	Select   string `schema:"$select"`
+	Filter   string `schema:"$filter"`
+	OrderBy  string `schema:"$orderby"`
+	Expand   string `schema:"$expand"`
+}
+
+// /company
+
 // Company contains basic company info
 type Company struct {
 	ID            uuid.UUID      `json:"CompanyKey"`
