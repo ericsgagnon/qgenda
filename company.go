@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"time"
 
 	"github.com/google/uuid"
@@ -8,12 +9,12 @@ import (
 
 // CompanyQuery is
 type CompanyQuery struct {
-	Route    string `schema:"-"`
-	Includes string `schema:"includes"`
-	Select   string `schema:"$select"`
-	Filter   string `schema:"$filter"`
-	OrderBy  string `schema:"$orderby"`
-	Expand   string `schema:"$expand"`
+	Route    string `path:"-"`
+	Includes string `query:"includes"`
+	Select   string `query:"$select"`
+	Filter   string `query:"$filter"`
+	OrderBy  string `query:"$orderby"`
+	Expand   string `query:"$expand"`
 }
 
 // /company
@@ -41,4 +42,49 @@ type Profile struct {
 type Organization struct {
 	Name string    `json:"OrgName"`
 	ID   uuid.UUID `json:"OrgKey"`
+}
+
+// GetCompanies uses the company endpoint to get all companies for a user
+func (q *QgendaClient) GetCompanies(ctx context.Context, cq *CompanyQuery, c *[]Company) error {
+
+	if cq == nil {
+		cq = &CompanyQuery{
+			Route:    "/company",
+			Includes: "includes=Profiles,Organizations",
+		}
+	}
+
+	// 	"includes", "Profiles,Organizations"
+
+	// 	if qp == nil {
+
+	// 	}
+
+	// var c *[]Company
+	// err := q.Get(ctx)
+
+	// req, err := http.NewRequestWithContext(ctx, "GET", "https://api.qgenda.com/v2/company", strings.NewReader("?includes=Profiles,Organizations&companyKey=8c44c075-d894-4b00-9ae7-3b3842226626"))
+	// if err != nil {
+	// 	log.Fatalln(err)
+
+	// }
+	// req.Header = q.Authorization.Token.Clone()
+	// res, err := q.Client.Do(req)
+	// if err != nil {
+	// 	log.Printf("Error getting companies %v", err)
+	// 	return nil, err
+	// }
+	// body, err := ioutil.ReadAll(res.Body)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// defer res.Body.Close()
+	// ioutil.WriteFile("samples/company.json", body, 0777)
+	// // fmt.Println(string(body))
+	// if err := json.Unmarshal(body, &c); err != nil {
+	// 	log.Printf("Error unmarshalling companies from response: %v", err)
+	// 	return nil, err
+	// }
+
+	return nil
 }

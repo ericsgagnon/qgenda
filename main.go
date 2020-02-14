@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"reflect"
 	"strings"
 
 	// "io/ioutil"
@@ -16,8 +17,6 @@ import (
 	"os"
 	// "strings"
 	"time"
-
-	"k8s.io/apimachinery/pkg/conversion/queryparams"
 )
 
 //https://restapi.qgenda.com/?version=latest
@@ -58,55 +57,36 @@ func main() {
 	}
 
 	// var companies []Company
-	companies, err := q.GetCompanies(ctx)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	fmt.Println(companies)
-}
-
-
-// GetCompanies uses the company endpoint to get all companies for a user
-func (q *QgendaClient) GetCompanies(ctx context.Context, qp *url.Values) (*[]Company, error) {
-
-// queryparams{}
-
-	u := &url.Values{}
-
-	"includes", "Profiles,Organizations"
-
-	if qp == nil {
-
-	}
-
-	var c *[]Company
-	err := q.Get(ctx, )
-
-	
-	// req, err := http.NewRequestWithContext(ctx, "GET", "https://api.qgenda.com/v2/company", strings.NewReader("?includes=Profiles,Organizations&companyKey=8c44c075-d894-4b00-9ae7-3b3842226626"))
+	// companies, err := q.GetCompanies(ctx)
 	// if err != nil {
 	// 	log.Fatalln(err)
+	// }
+	// fmt.Println(companies)
+	var cq *CompanyQuery
+	cq = &CompanyQuery{
+		Route:    "/company",
+		Includes: "includes=Profiles,Organizations",
+	}
 
-	// }
-	// req.Header = q.Authorization.Token.Clone()
-	// res, err := q.Client.Do(req)
-	// if err != nil {
-	// 	log.Printf("Error getting companies %v", err)
-	// 	return nil, err
-	// }
-	// body, err := ioutil.ReadAll(res.Body)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// defer res.Body.Close()
-	// ioutil.WriteFile("samples/company.json", body, 0777)
-	// // fmt.Println(string(body))
-	// if err := json.Unmarshal(body, &c); err != nil {
-	// 	log.Printf("Error unmarshalling companies from response: %v", err)
-	// 	return nil, err
-	// }
+	fmt.Println(reflect.ValueOf(cq).Kind().String())
+	fmt.Println(reflect.ValueOf(cq).Elem().Kind().String())
+	if reflect.ValueOf(cq).Elem().Kind() == reflect.Struct {
+		fmt.Println("Yeah Baby")
+	}
+	fmt.Println(reflect.ValueOf(cq).Elem().Type())
+	fmt.Println(reflect.ValueOf(cq).Elem().NumField())
+	fmt.Println(reflect.ValueOf(cq).Elem().Type().Field(0))
+	fmt.Println(reflect.ValueOf(cq).Elem().Type().Field(0).Tag.Get("path"))
 
-	return c, nil
+	// v := reflect.ValueOf(q)
+	// fmt.Println(v.Kind().String())
+	// vv := v.Elem()
+	// fmt.Println(vv)
+	// fmt.Println(vv.Kind().String())
+	// var t *map[string]string
+	// tt := reflect.ValueOf(t)
+	// fmt.Println(tt.Kind().String())
+
 }
 
 // Get handles all aspects of the http get request and handling the response
