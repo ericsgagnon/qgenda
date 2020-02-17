@@ -42,11 +42,37 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-
+	// initial login
 	err = q.Auth(ctx)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	cq := NewCompanyQuery()
-	QueryConfigToQuery(cq)
+
+	// // get companies
+	// cq := NewCompanyRequest()
+	// cr, err := ParseRequest(cq)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// fmt.Println(cr)
+	// bb, err := q.Get2(ctx, cr)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+
+	// fmt.Println(string(bb))
+	// // unmarshall companies data
+	// var c []Company
+	// if err := json.Unmarshal(bb, &c); err != nil {
+	// 	log.Printf("Error unmarshalling response from %v", err)
+	// 	//return err
+	// }
+	// fmt.Printf("\n\n%v\n", c)
+
+	// fmt.Printf("\n\n%v\n", c[0].CreatedTime.Valid)
+	var c []Company
+	if err := q.GetCompanies(ctx, nil, &c); err != nil {
+		log.Fatal(err)
+	}
+
 }
