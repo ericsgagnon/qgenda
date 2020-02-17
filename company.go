@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/google/uuid"
@@ -42,6 +44,48 @@ type Profile struct {
 type Organization struct {
 	Name string    `json:"OrgName"`
 	ID   uuid.UUID `json:"OrgKey"`
+}
+
+// MarshallQuery takes a query struct
+func MarshallQuery(ctx context.Context, qs *interface{}) error {
+
+	// path variables can use html/template to build paths
+
+	// query parameters just need to be in url form
+
+	// body variables are in ?
+	// url.Par
+	// var companies []Company
+	// companies, err := q.GetCompanies(ctx)
+	// if err != nil {
+	// 	log.Fatalln(err)
+	// }
+	// fmt.Println(companies)
+	var cq *CompanyQuery
+	cq = &CompanyQuery{
+		Route:    "/company",
+		Includes: "includes=Profiles,Organizations",
+	}
+
+	fmt.Println(reflect.ValueOf(cq).Kind().String())
+	fmt.Println(reflect.ValueOf(cq).Elem().Kind().String())
+	if reflect.ValueOf(cq).Elem().Kind() == reflect.Struct {
+		fmt.Println("Yeah Baby")
+	}
+	fmt.Println(reflect.ValueOf(cq).Elem().Type())
+	fmt.Println(reflect.ValueOf(cq).Elem().NumField())
+	fmt.Println(reflect.ValueOf(cq).Elem().Type().Field(0))
+	fmt.Println(reflect.ValueOf(cq).Elem().Type().Field(0).Tag.Get("path"))
+
+	// v := reflect.ValueOf(q)
+	// fmt.Println(v.Kind().String())
+	// vv := v.Elem()
+	// fmt.Println(vv)
+	// fmt.Println(vv.Kind().String())
+	// var t *map[string]string
+	// tt := reflect.ValueOf(t)
+	// fmt.Println(tt.Kind().String())
+	return nil
 }
 
 // GetCompanies uses the company endpoint to get all companies for a user

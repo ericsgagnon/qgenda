@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"path"
 	"reflect"
 	"strings"
+	"text/template"
 
 	// "io/ioutil"
 	"log"
@@ -55,38 +57,149 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-
-	// var companies []Company
-	// companies, err := q.GetCompanies(ctx)
-	// if err != nil {
-	// 	log.Fatalln(err)
+	// var cq CompanyQuery
+	// cq = CompanyQuery{
+	// 	Route:    "/company",
+	// 	Includes: "Profiles,Organizations",
+	// 	Select:   "example select statement",
+	// 	Filter:   "justafilter",
+	// 	OrderBy:  "orderingordering",
+	// 	Expand:   "expanding",
 	// }
-	// fmt.Println(companies)
-	var cq *CompanyQuery
-	cq = &CompanyQuery{
+	cq := NewCompanyQuery()
+	StructToQuery(cq)
+}
+
+// NewCompanyQuery returns a point to a CompanyQuery with default values
+func NewCompanyQuery() *CompanyQuery {
+	cq := &CompanyQuery{
 		Route:    "/company",
-		Includes: "includes=Profiles,Organizations",
+		Includes: "Profiles,Organizations",
+		// Select:   "example select statement",
+		// Filter:   "justafilter",
+		// OrderBy:  "orderingordering",
+		// Expand:   "expanding",
+	}
+	return cq
+}
+
+// EncodePath uses html template to interpolate path values for an endpoint
+func EncodePath(data interface{}) (string, error) {
+	d := reflect.ValueOf(data)
+	templateText := reflect.Indirect(d).FieldByName("Route").Interface().(string)
+	// fmt.Println(templateText)
+	// return templateText, nil
+	t, err := template.New("path").Parse(templateText)
+	if err != nil {
+		log.Printf("Error Parsing Template: %v", err)
+		return "", err
+	}
+	var bb bytes.Buffer
+	err = t.Execute(&bb, d)
+	if err != nil {
+		log.Printf("Error Executing Template: %v", err)
+		return "", err
+	}
+	p := bb.String()
+	p = path.Join(p)
+	return p, nil
+}
+
+// EncodeURLValues extracts struct values that match the provided tag and encodes them into a
+// an escaped string of the url.Values
+func EncodeURLValues(data interface{}, tag string) (string, error) {
+	d := reflect.ValueOf(data)
+	dv := reflect.Indirect(d)
+	uv := url.Values{}
+	for i := 0; i < dv.NumField(); i++ {
+		query, ok := dv.Type().Field(i).Tag.Lookup(tag)
+		if ok {
+			val := fmt.Sprintf("%v", dv.Field(i).Interface())
+			if val != "" {
+				uv.Add(query, val)
+			}
+			//qv[query] = []string{val}
+
+		}
 	}
 
-	fmt.Println(reflect.ValueOf(cq).Kind().String())
-	fmt.Println(reflect.ValueOf(cq).Elem().Kind().String())
-	if reflect.ValueOf(cq).Elem().Kind() == reflect.Struct {
-		fmt.Println("Yeah Baby")
+	u := uv.Encode()
+	return u, nil
+
+}
+
+// StructToQuery awesomeness
+func StructToQuery(qs interface{}) {
+
+	// v := reflect.ValueOf(qs).Elem()
+	// fmt.Printf("%#v\n", v)
+
+	p, err := EncodePath(qs)
+	if err != nil {
+		log.Fatal(err)
 	}
-	fmt.Println(reflect.ValueOf(cq).Elem().Type())
-	fmt.Println(reflect.ValueOf(cq).Elem().NumField())
-	fmt.Println(reflect.ValueOf(cq).Elem().Type().Field(0))
-	fmt.Println(reflect.ValueOf(cq).Elem().Type().Field(0).Tag.Get("path"))
+	fmt.Println(p)
 
-	// v := reflect.ValueOf(q)
-	// fmt.Println(v.Kind().String())
-	// vv := v.Elem()
-	// fmt.Println(vv)
-	// fmt.Println(vv.Kind().String())
-	// var t *map[string]string
-	// tt := reflect.ValueOf(t)
-	// fmt.Println(tt.Kind().String())
+	// Build path
+	// fmt.Println("------------------------------------------------------------------------")
+	// pathTemplate := v.FieldByName("Route").Interface().(string)
+	// t, err := template.New("path").Parse(pathTemplate)
+	// if err != nil {
+	// 	log.Printf("Terrible Error: %v", err)
+	// }
 
+	// var bb bytes.Buffer
+	// err = t.Execute(&bb, v)
+	// if err != nil {
+	// 	log.Printf("Terrible Error: %v", err)
+	// }
+	// urlPath := bb.String()
+	// urlPath = path.Join(urlPath)
+	// fmt.Println(urlPath)
+
+	// Encode query
+	fmt.Println("------------------------------------------------------------------------")
+	u, err := EncodeURLValues(qs, "query")
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(u)
+	// qv := url.Values{}
+	// for i := 0; i < v.NumField(); i++ {
+	// 	query, ok := v.Type().Field(i).Tag.Lookup("query")
+	// 	if ok {
+	// 		val := fmt.Sprintf("%v", v.Field(i).Interface())
+	// 		//qv[query] = []string{val}
+	// 		qv.Add(query, val)
+
+	// 	}
+	// }
+
+	// urlQuery := qv.Encode()
+	// fmt.Sprintf(urlQuery)
+
+	// Encode body
+	fmt.Println("------------------------------------------------------------------------")
+	b, err := EncodeURLValues(qs, "body")
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(b)
+
+	// for i := 0; i < v.NumField(); i++ {
+	// 	ni := v.Type().Field(i).Name
+	// 	ti := v.Type().Field(i).Type
+	// 	vi := v.Field(i).Interface()
+	// 	tgi := v.Type().Field(i).Tag.Get("query")
+	// 	fmt.Printf("Name: %v\tType: %v\tValue: %v\tTag: %v\n", ni, ti, vi, tgi)
+	// }
+	// p, err := EncodePath(v)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// fmt.Println(p)
+
+	// var qv map[string][]string
 }
 
 // Get handles all aspects of the http get request and handling the response
@@ -118,7 +231,7 @@ func (q *QgendaClient) Get(ctx context.Context, url string, qp *url.Values, s *[
 	}
 	defer res.Body.Close()
 	if err := json.Unmarshal(body, s); err != nil {
-		log.Printf("Error unmarshalling response from %v: %v", err)
+		log.Printf("Error unmarshalling response from %v", err)
 		return err
 	}
 
