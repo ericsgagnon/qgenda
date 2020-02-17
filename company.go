@@ -19,7 +19,24 @@ type CompanyQuery struct {
 	Expand   string `query:"$expand"`
 }
 
-// /company
+type Query struct {
+	Path  string
+	Query string
+	Body  string
+}
+
+// NewCompanyQuery returns a point to a CompanyQuery with default values
+func NewCompanyQuery() *CompanyQuery {
+	cq := &CompanyQuery{
+		Route:    "/company",
+		Includes: "Profiles,Organizations",
+		// Select:   "",
+		// Filter:   "",
+		// OrderBy:  "",
+		// Expand:   "",
+	}
+	return cq
+}
 
 // Company contains basic company info
 type Company struct {

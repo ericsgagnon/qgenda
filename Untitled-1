@@ -1,0 +1,48 @@
+package main
+
+import (
+	"fmt"
+	"reflect"
+)
+
+// CompanyQuery is
+type CompanyQuery struct {
+	Route    string `path:"route"`
+	Includes string `query:"includes"`
+	Select   string `query:"$select"`
+	Filter   string `query:"$filter"`
+	OrderBy  string `query:"$orderby"`
+	Expand   string `query:"$expand"`
+}
+
+func main() {
+
+	var cq *CompanyQuery
+	cq = &CompanyQuery{
+		Route:    "/company",
+		Includes: "Profiles,Organizations",
+		Select:   "example select statement",
+		Filter:   "justafilter",
+		OrderBy:  "orderingordering",
+		Expand:   "expanding",
+	}
+	StructToQuery(cq)
+}
+
+func StructToQuery(qs interface{}) {
+
+	fmt.Prinln(reflect.ValueOf(qs))
+
+	fmt.Println(reflect.ValueOf(qs).Kind().String())
+	fmt.Println(reflect.ValueOf(qs).Elem().Kind().String())
+	if reflect.ValueOf(qs).Elem().Kind() == reflect.Struct {
+		fmt.Println("Yeah Baby")
+	}
+	fmt.Println(reflect.ValueOf(qs).Elem().Type())
+	fmt.Println(reflect.ValueOf(qs).Elem().NumField())
+	fmt.Println(reflect.ValueOf(qs).Elem().Type().Field(0))
+	fmt.Println(
+		reflect.ValueOf(qs).Elem().Type().Field(0).Tag.Get("path"),
+	)
+
+}
