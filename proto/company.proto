@@ -1,0 +1,28 @@
+syntax = "proto3";
+package qgenda ;
+import "google/protobuf/timestamp.proto";
+
+message Company {
+	string id = 1  [json_name="id"]; // ID            uuid.UUID      `json:"CompanyKey"`
+	string name = 2 ; // Name          string         `json:"CompanyName"`
+	string abbreviation = 3; // Abbreviation  string         `json:"CompanyAbbr"`
+	google.protobuf.Timestamp createdtime = 4; // CreatedTime   TimeUTC        `json:"DateCreatedUtc,omitempty"`
+	string location = 5; // Location      string         `json:"CompanyLocation,omitempty"`
+	string phonenumber = 6; // PhoneNumber   string         `json:"CompanyPhoneNumber,omitempty"`
+	repeated Profile profile = 7; // Profiles      []Profile      `json:"Profiles,omitempty"`
+	repeated Organization organization = 8; // Organizations []Organization `json:"Organizations,omitempty"`
+}
+
+// Profile appears to link a user role to a company...
+message Profile {
+	string name = 1 ; // Name  string    `json:"ProfileName"`
+	string key = 2 ; // Key   uuid.UUID `json:"ProfileKey"`
+	bool admin = 3 ; // Admin bool      `json:"IsAdmin"`
+ }
+
+// Organization appears to linke multiple companies and users
+message Organization {
+	string name = 1 ; // Name string `json:"OrgName"`
+	string key = 2 ; // Key  int    `json:"OrgKey"`
+}
+

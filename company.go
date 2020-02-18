@@ -4,10 +4,19 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
+	"os"
+	"path"
 
 	"github.com/google/uuid"
 )
+
+// ItemList is hilarious
+type ItemList struct {
+	MetaData *Metadata   `json:"Metadata"`
+	Items    interface{} `json:"Items"`
+}
 
 // CompanyRequest is intended to be used as inputs to
 // api requests to the company endpoints
@@ -64,7 +73,8 @@ type Organization struct {
 }
 
 // GetCompanies uses the company endpoint to get all companies for a user
-func (q *QgendaClient) GetCompanies(ctx context.Context, cr *CompanyRequest, c *[]Company) error {
+// func (q *QgendaClient) GetCompanies(ctx context.Context, cr *CompanyRequest, c *[]Company) error {
+func (q *QgendaClient) GetCompanies(ctx context.Context, cr *CompanyRequest, il *ItemList) error {
 
 	if cr == nil {
 		cr = NewCompanyRequest()
@@ -74,49 +84,93 @@ func (q *QgendaClient) GetCompanies(ctx context.Context, cr *CompanyRequest, c *
 	if err != nil {
 		log.Fatal(err)
 	}
-	bb, err := q.Get(ctx, r)
+	bb, meta, err := q.Get(ctx, r)
 	if err != nil {
 		log.Fatal(err)
 	}
+	// fmt.Println(meta)
+	meta.Name = "CompanyList"
 
-	fmt.Println(string(bb))
+	// fmt.Println(string(bb))
+	var c *[]Company
 	if err := json.Unmarshal(bb, &c); err != nil {
 		log.Printf("Error unmarshalling response from %v", err)
+		return err
+	}
+
+	// il = &ItemList{
+	// 	MetaData: meta,
+	// 	Items:    c,
+	// }
+
+	il.MetaData = meta
+	il.Items = c
+	// mm, err := json.MarshalIndent(il, "", "  ")
+	// if err != nil {
+	// 	log.Printf("Error marshalling to json: %v", err)
+	// }
+	// // fmt.Println(string(mm))
+	// var ct *[]Company
+	// ill := &ItemList{
+	// 	MetaData: &Metadata{},
+	// 	Items:    ct,
+	// }
+	// if err := json.Unmarshal(mm, ill); err != nil {
+	// 	log.Printf("Apparently translating twice isn't the best idead: %v", err)
+	// }
+	// // fmt.Printf("\n\n%v\n\n", ill)
+	// // fmt.Printf("\n\n%v\n%v\n", *il.MetaData, il.Items.(*[]Company))
+	// il.ToJSONFile("", "")
+
+	return nil
+}
+
+// ToJSONFile writes an itemlist to a file in json format, using metadata to form
+// the filename
+func (il *ItemList) ToJSONFile(p string, f string) error {
+	// create directory, or use "data" as default
+	if p == "" {
+		p = "data"
+	}
+	if err := os.MkdirAll(p, 0777); err != nil {
+		log.Printf("Error making directory %v: %#v", p, err)
+		return err
+	}
+
+	// build filename if not provided
+	if f == "" {
+		// f = il.MetaData.Name + "-" + il.MetaData.Timestamp.UTC().Format("20060102T150405Z07:00") + ".json"
+		f = il.MetaData.Name + ".json"
+	}
+	f = path.Join(p, f)
+
+	mm, err := json.MarshalIndent(il, "", "  ")
+	if err != nil {
+		log.Printf("Error marshalling to json: %+v", err)
+		return err
+	}
+
+	if err := ioutil.WriteFile(f, mm, 0755); err != nil {
+		log.Printf("Error writing file %v to disk: %v", f, err)
 		return err
 	}
 
 	return nil
 }
 
-// unmarshall companies data
-// var c []Company
-// fmt.Printf("\n\n%v\n", c)
+// FromJSONFile reads an itemlist from a jsonfile
+func FromJSONFile(f string, il *ItemList) error {
+	b, err := ioutil.ReadFile(f)
+	if err != nil {
+		log.Printf("Error Reading file %v: %v", f, err)
+		return err
+	}
 
-// fmt.Printf("\n\n%v\n", c[0].CreatedTime.Valid)
+	if err := json.Unmarshal(b, il); err != nil {
+		log.Printf("Error Unmarshaling file %v: %v", f, err)
+		return err
+	}
+	return nil
+}
 
-// if c == nil {
-// 	return fmt.Errorf(fmt.Sprintf("Error: must provide %T", c))
-// }
-
-// req, err := http.NewRequestWithContext(ctx, "GET", "https://api.qgenda.com/v2/company", strings.NewReader("?includes=Profiles,Organizations&companyKey=8c44c075-d894-4b00-9ae7-3b3842226626"))
-// if err != nil {
-// 	log.Fatalln(err)
-
-// }
-// req.Header = q.Authorization.Token.Clone()
-// res, err := q.Client.Do(req)
-// if err != nil {
-// 	log.Printf("Error getting companies %v", err)
-// 	return nil, err
-// }
-// body, err := ioutil.ReadAll(res.Body)
-// if err != nil {
-// 	log.Fatal(err)
-// }
-// defer res.Body.Close()
-// ioutil.WriteFile("samples/company.json", body, 0777)
-// // fmt.Println(string(body))
-// if err := json.Unmarshal(body, &c); err != nil {
-// 	log.Printf("Error unmarshalling companies from response: %v", err)
-// 	return nil, err
-// }
+// CheckJSONFileAge

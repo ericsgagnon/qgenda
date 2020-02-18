@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 
 	// "io/ioutil"
 	"log"
@@ -48,31 +49,14 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	// // get companies
-	// cq := NewCompanyRequest()
-	// cr, err := ParseRequest(cq)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// fmt.Println(cr)
-	// bb, err := q.Get2(ctx, cr)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-
-	// fmt.Println(string(bb))
-	// // unmarshall companies data
+	// GetCompanies gets the user's companies, optionally, a
+	// request can be passed in to override default arguments
 	// var c []Company
-	// if err := json.Unmarshal(bb, &c); err != nil {
-	// 	log.Printf("Error unmarshalling response from %v", err)
-	// 	//return err
-	// }
-	// fmt.Printf("\n\n%v\n", c)
-
-	// fmt.Printf("\n\n%v\n", c[0].CreatedTime.Valid)
-	var c []Company
-	if err := q.GetCompanies(ctx, nil, &c); err != nil {
+	var il ItemList
+	if err := q.GetCompanies(ctx, nil, &il); err != nil {
 		log.Fatal(err)
 	}
 
+	fmt.Printf("\n\n%v\n%v\n", il.MetaData, il.Items)
+	// fmt.Println(c)
 }

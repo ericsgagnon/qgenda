@@ -11,6 +11,7 @@ import (
 	"path"
 	"reflect"
 	"text/template"
+	"time"
 )
 
 // Request holds the processed (escaped) values for each element
@@ -45,8 +46,7 @@ func EncodePath(data interface{}) (string, error) {
 	return p, nil
 }
 
-// EncodeURLValues extracts struct values that match the provided tag and encodes them into a
-// an escaped string
+// EncodeURLValues extracts struct values that match tag and returns them in a url.Values
 func EncodeURLValues(data interface{}, tag string) (url.Values, error) {
 	d := reflect.ValueOf(data)
 	dv := reflect.Indirect(d)
@@ -97,77 +97,68 @@ func ParseRequest(qs interface{}) (*Request, error) {
 	return r, err
 }
 
-// Get handles all aspects of the http get request and handling the response
-func (q *QgendaClient) Get(ctx context.Context, rs *Request) ([]byte, error) {
+// Metadata captures relevant metadata from each response
+type Metadata struct {
+	APIVersion string    `json:"apiVersion"`
+	Kind       string    `json:"kind"`
+	Name       string    `json:"name"`
+	URL        string    `json:"url"`
+	Timestamp  time.Time `json:"time"`
+}
 
-	url := *q.BaseURL
+// Get handles all aspects of the http get request and handling the response
+func (q *QgendaClient) Get(ctx context.Context, rs *Request) ([]byte, *Metadata, error) {
+
+	u := *q.BaseURL
 	r := *rs
 	if err := q.Auth(ctx); err != nil {
 		log.Printf("Error authorizing get request to %v: %v", r.Path, err)
-		return nil, err
+		return nil, nil, err
 	}
 	r.Query.Add("companyKey", q.Credentials.Get("companyKey"))
 	// authTokenHeader := url.Values{}
 	// authTokenHeader.Add("companyKey", q.Credentials.Get("companyKey"))
-	url.RawQuery = r.Query.Encode()
-	url.Path = path.Join(url.Path, r.Path)
-	fmt.Println(url.String())
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url.String(), nil)
+	u.RawQuery = r.Query.Encode()
+	u.Path = path.Join(u.Path, r.Path)
+	fmt.Println(u.String())
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
-		log.Printf("Error in request to %v: %v", url, err)
-		return nil, err
+		log.Printf("Error in request to %v: %v", u, err)
+		return nil, nil, err
 	}
 	req.Header = q.Authorization.Token.Clone()
 	res, err := q.Client.Do(req)
 	if err != nil {
-		log.Printf("Error retrieving response from %v: %v", url, err)
-		return nil, err
+		log.Printf("Error retrieving response from %v: %v", u, err)
+		return nil, nil, err
 	}
 	// TODO: improve reading response for larger requests
 	b, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		log.Printf("Error reading response from %v: %v", url, err)
-		return nil, err
+		log.Printf("Error reading response from %v: %v", u, err)
+		return nil, nil, err
 	}
 	defer res.Body.Close()
+	resTime, err := http.ParseTime(res.Header.Get("Date"))
+	if err != nil {
+		log.Printf("Error parsing date header in response: %v", err)
+		// accept time.Now as a 'rough' estimate of now
+		resTime = time.Now()
+	}
 
-	return b, nil
+	// uu, err := url.QueryUnescape(u.String())
+	// if err != nil {
+	// 	log.Printf("Error unescaping url %v: %v", u.String(), err)
+	// }
+
+	// fmt.Printf("\n\n%v\n\n", uu)
+	meta := &Metadata{
+		APIVersion: "v2",
+		Kind:       "qgenda",
+		URL:        u.String(),
+		Name:       "",
+		Timestamp:  resTime,
+	}
+
+	return b, meta, nil
 }
-
-// func (q *QgendaClient) Get(ctx context.Context, , s *[]interface{}) error {
-
-// // Get handles all aspects of the http get request and handling the response
-// func (q *QgendaClient) Get(ctx context.Context, url string, qp *url.Values, s *[]interface{}) error {
-
-// 	if err := q.Auth(ctx); err != nil {
-// 		log.Printf("Error authorizing get request to %v: %v", url, err)
-// 		return err
-// 	}
-// 	qp.Add("companyKey", q.Credentials.Get("companyKey"))
-
-// 	endpoint := path.Join(url, qp.Encode())
-// 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, strings.NewReader(qp.Encode()))
-// 	if err != nil {
-// 		log.Printf("Error in request to %v: %v", url, err)
-// 		return err
-// 	}
-// 	req.Header = q.Authorization.Token.Clone()
-// 	res, err := q.Client.Do(req)
-// 	if err != nil {
-// 		log.Printf("Error retrieving response from %v: %v", endpoint, err)
-// 		return err
-// 	}
-// 	// TODO: improve reading response for larger requests
-// 	body, err := ioutil.ReadAll(res.Body)
-// 	if err != nil {
-// 		log.Printf("Error reading response from %v: %v", endpoint, err)
-// 		return err
-// 	}
-// 	defer res.Body.Close()
-// 	if err := json.Unmarshal(body, s); err != nil {
-// 		log.Printf("Error unmarshalling response from %v", err)
-// 		return err
-// 	}
-
-// 	return nil
-// }
