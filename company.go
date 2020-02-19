@@ -12,7 +12,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// ItemList is hilarious
+// ItemList is a universal container to data and metadata
 type ItemList struct {
 	MetaData *Metadata   `json:"Metadata"`
 	Items    interface{} `json:"Items"`
@@ -41,11 +41,6 @@ func NewCompanyRequest() *CompanyRequest {
 	}
 	return cr
 }
-
-// func (q *QgendaClient) GetCompanies(ctx context.Context, cq *CompanyRequest, c *[]Company) error {
-// 	//func (q *QgendaClient) Get(ctx context.Context, r Request) error Request
-
-// }
 
 // Company contains basic company info
 type Company struct {
@@ -98,29 +93,8 @@ func (q *QgendaClient) GetCompanies(ctx context.Context, cr *CompanyRequest, il 
 		return err
 	}
 
-	// il = &ItemList{
-	// 	MetaData: meta,
-	// 	Items:    c,
-	// }
-
 	il.MetaData = meta
 	il.Items = c
-	// mm, err := json.MarshalIndent(il, "", "  ")
-	// if err != nil {
-	// 	log.Printf("Error marshalling to json: %v", err)
-	// }
-	// // fmt.Println(string(mm))
-	// var ct *[]Company
-	// ill := &ItemList{
-	// 	MetaData: &Metadata{},
-	// 	Items:    ct,
-	// }
-	// if err := json.Unmarshal(mm, ill); err != nil {
-	// 	log.Printf("Apparently translating twice isn't the best idead: %v", err)
-	// }
-	// // fmt.Printf("\n\n%v\n\n", ill)
-	// // fmt.Printf("\n\n%v\n%v\n", *il.MetaData, il.Items.(*[]Company))
-	// il.ToJSONFile("", "")
 
 	return nil
 }

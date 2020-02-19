@@ -11,8 +11,12 @@ require (
 	github.com/go-openapi/strfmt v0.19.4 // indirect
 	github.com/go-openapi/swag v0.19.7 // indirect
 	github.com/go-openapi/validate v0.19.6 // indirect
+	github.com/gogo/protobuf v1.3.1 // indirect
+	github.com/golang/protobuf v1.3.3
 	github.com/google/uuid v1.1.1
 	github.com/gorilla/mux v1.7.3
+	github.com/tidwall/gjson v1.5.0 // indirect
+	github.com/tidwall/pretty v1.0.1 // indirect
 	github.com/urfave/cli v1.22.2
 	github.com/urfave/cli/v2 v2.1.1
 	go.mongodb.org/mongo-driver v1.2.1 // indirect

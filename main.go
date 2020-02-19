@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 
 	// "io/ioutil"
 	"log"
@@ -52,11 +51,23 @@ func main() {
 	// GetCompanies gets the user's companies, optionally, a
 	// request can be passed in to override default arguments
 	// var c []Company
-	var il ItemList
-	if err := q.GetCompanies(ctx, nil, &il); err != nil {
+	var cil ItemList
+	if err := q.GetCompanies(ctx, nil, &cil); err != nil {
 		log.Fatal(err)
 	}
 
-	fmt.Printf("\n\n%v\n%v\n", il.MetaData, il.Items)
+	if err := cil.ToJSONFile("", ""); err != nil {
+		log.Fatal(err)
+	}
+
+	var smil ItemList
+	if err := q.GetStaffMembers(ctx, nil, &smil); err != nil {
+		log.Fatal(err)
+	}
+	if err := smil.ToJSONFile("", ""); err != nil {
+		log.Fatal(err)
+	}
+
+	// fmt.Printf("\n\n%v\n%v\n", il.MetaData, il.Items)
 	// fmt.Println(c)
 }

@@ -1,7 +1,10 @@
 package main
 
 import (
-	"time"
+	"context"
+	"encoding/json"
+	"fmt"
+	"log"
 
 	"github.com/google/uuid"
 )
@@ -24,45 +27,42 @@ import (
 // 	Other
 // )
 
-// Time embeds time.Time
-// qgenda doesn't comply with RFC3339
-// chose this over wrapping to slightly improve
-// convenience of calling time.Time's methods
-// type Time struct {
-// 	time.Time
-// }
+// StaffMemberRequest struct captures all available request arguments for
+// qgenda StaffMembers endpoint
+type StaffMemberRequest struct {
+	Route    string `path:"-"`
+	Includes string `query:"includes"`
+	Select   string `query:"$select"`
+	Filter   string `query:"$filter"`
+	OrderBy  string `query:"$orderby"`
+	Expand   string `query:"$expand"`
+}
 
-// // UnmarshalJSON satisfies the json.Unmarshaler interface
-// func (t *Time) UnmarshalJSON(data []byte) error {
-
-// 	tag := reflect.ValueOf(data).Type().Field(0).Tag.Get("json")
-// 	fmt.Println(tag)
-
-// 	location, err := time.LoadLocation("America/New_York")
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-// 	// Ignore null, like in the main JSON package.
-// 	if string(data) == "null" {
-// 		return nil
-// 	}
-// 	// *t, err = Parse(`"`+RFC3339+`"`, string(data))
-// 	t.Time, err = time.ParseInLocation("2006-01-02T15:04:05", string(data), location)
-// 	return err
-// }
+// NewStaffMemberRequest returns a pointer to a StaffMemberRequest with default values
+func NewStaffMemberRequest() *StaffMemberRequest {
+	cr := &StaffMemberRequest{
+		Route:    "/staffmember",
+		Includes: "Skillset,Tags,Profiles,TTCMTags",
+		// Select:   "",
+		// Filter:   "",
+		// OrderBy:  "",
+		// Expand:   "",
+	}
+	return cr
+}
 
 // StaffMember represents staff, and possibly some other entities as well?
 type StaffMember struct {
 	Abbreviation         string    `json:"Abbrev"`
 	BackgroundColor      string    `json:"BgColor"`
-	BillingSystemID      uuid.UUID `json:"BillSysId"`
-	CalendarSyncID       uuid.UUID `json:"CalSyncKey"`
-	CompanyID            uuid.UUID `json:"CompKey"`
+	BillingSystemID      string    `json:"BillSysId,omitempty"`
+	CalendarSyncID       string    `json:"CalSyncKey,omitempty"`
+	CompanyID            uuid.UUID `json:"CompKey,omitempty"`
 	Email                string    `json:"Email"`
 	EMRID                string    `json:"EmrId"`
 	ERPID                string    `json:"ErpId"`
 	EndDate              Time      `json:"EndDate"`
-	ExternalCallSystemID uuid.UUID `json:"ExtCallSysId"`
+	ExternalCallSystemID string    `json:"ExtCallSysId,omitempty"`
 	FirstName            string    `json:"FirstName"`
 	HomePhone            string    `json:"HomePhone"`
 	LastName             string    `json:"LastName"`
@@ -72,22 +72,23 @@ type StaffMember struct {
 	PayrollID            string    `json:"PayrollId"`
 	RegularHours         string    `json:"RegHours"`
 	Alias                string    `json:"StaffId"`
-	ID                   uuid.UUID `json:"StaffKey"`
+	ID                   uuid.UUID `json:"StaffKey,omitempty"`
 	StartDate            Time      `json:"StartDate"`
 	TextColor            string    `json:"TextColor"`
 	Active               bool      `json:"IsActive"`
 	StaffType            string    `json:"StaffTypeKey"`
 	BillingType          string    `json:"BillingTypeKey"`
-	ProfileID            uuid.UUID `json:"UserProfileKey"`
+	ProfileID            uuid.UUID `json:"UserProfileKey,omitempty"`
 	Profile              string    `json:"UserProfile"`
-	PayrollStartDate     time.Time `json:"PayrollStartDate"`
-	PayrollEndDate       time.Time `json:"PayrollEndDate"`
-	TimeClockStartDate   time.Time `json:"TimeClockStartDate"`
-	TimeClockEndDate     time.Time `json:"TimeClockEndDate"`
+	PayrollStartDate     Time      `json:"PayrollStartDate"`
+	PayrollEndDate       Time      `json:"PayrollEndDate"`
+	TimeClockStartDate   Time      `json:"TimeClockStartDate"`
+	TimeClockEndDate     Time      `json:"TimeClockEndDate"`
 	TimeClockKioskPIN    string    `json:"TimeClockKioskPIN"`
 	AutoApproveSwap      bool      `json:"IsAutoApproveSwap"`
 	Viewable             bool      `json:"IsViewable"`
 	Schedulable          bool      `json:"IsSchedulable"`
+	Test                 Time      `json:"UserLastLoginDateTimeUtc"`
 	Address              struct {
 		Line1 string `json:"Addr1"`
 		Line2 string `json:"Addr2"`
@@ -96,8 +97,8 @@ type StaffMember struct {
 		Zip   string `json:"Zip"`
 	}
 	LastLogin struct {
-		Time   time.Time `json:"UserLastLoginDateTimeUtc"`
-		Source string    `json:"SourceOfLogin"`
+		Time   TimeUTC `json:"UserLastLoginDateTimeUtc"`
+		Source string  `json:"SourceOfLogin"`
 	}
 	SkillSet []SkillSet `json:"Skillset"`
 
@@ -118,7 +119,7 @@ type StaffMember struct {
 	// `json:"DailyUnitAverage"` // don't waste your time on this
 }
 
-// Skillset captures the staff to task relationship
+// SkillSet captures the staff to task relationship
 type SkillSet struct {
 	Staff struct {
 		FirstName    string `json:"StaffFirstName"`
@@ -161,132 +162,36 @@ type SkillSet struct {
 	}
 }
 
-// func (q *QgendaClient) Get(ctx context.Context, url string)
+// GetStaffMembers returns all staff members
+func (q *QgendaClient) GetStaffMembers(ctx context.Context, sr *StaffMemberRequest, il *ItemList) error {
+	if sr == nil {
+		sr = NewStaffMemberRequest()
+	}
+	r, err := ParseRequest(sr)
+	fmt.Println(r)
+	if err != nil {
+		log.Fatal(err)
+	}
+	bb, meta, err := q.Get(ctx, r)
+	if err != nil {
+		log.Fatal(err)
+	}
+	// fmt.Println(meta)
+	meta.Name = "StaffMemberList"
+	// if err := ioutil.WriteFile("data/sml.json", bb, 0777); err != nil {
+	// 	log.Printf("Couldn't response to disk: %v", err)
+	// 	return err
+	// }
+	// fmt.Println(string(bb))
+	var sm []StaffMember
+	// c := []StaffMember{}
+	if err := json.Unmarshal(bb, &sm); err != nil {
+		log.Printf("Error unmarshalling response from %v", err)
+		return err
+	}
+	fmt.Printf("\n\n%+v\n\n", sm)
+	il.MetaData = meta
+	il.Items = sm
 
-// // GetStaffMember returns all staff members
-// func (q *QgendaClient) GetStaffMember(ctx context.Context) context.Context {
-// 	//TODO: check for Auth cookie or header, get another if missing or expired
-// 	// request URL
-// 	url := *q.BaseURL
-// 	uri := "/staffmember?companyKey=" + q.Credentials.Get("companyKey") + "&includes=Skillset,Tags,Profiles,TTCMTags"
-// 	url.Path = path.Join(url.Path, uri)
-
-// 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url.String())
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-// 	// req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-// 	// // req.Header.Add("Content-Type", "application/json")
-// 	// req.Header.Add(
-// 	// 	http.CanonicalHeaderKey("Authorization"),
-// 	// 	q.Authorization.Token.Get(http.CanonicalHeaderKey("Authorization")),
-// 	// )
-// 	// // req.Header.Add(
-// 	// // 	http.CanonicalHeaderKey("Accept-Encoding"),
-// 	// // 	"*",
-// 	// // )
-// 	// //req.Header[http.CanonicalHeaderKey("Authorization")] = q.Auth.Token
-// 	// res, err := client.Do(req)
-// 	// if err != nil {
-// 	// 	log.Fatal(err)
-// 	// }
-// 	// defer res.Body.Close()
-// 	// body, err := ioutil.ReadAll(res.Body)
-
-// 	// fmt.Println(string(body))
-
-// 	// request
-// 	// res, err := q.Client.PostForm(reqURL.String(), *q.Credentials)
-// 	res, err := ctxhttp.PostForm(ctx, q.Client, url.String(), *q.Credentials)
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-// 	defer res.Body.Close()
-
-// 	//response body
-// 	resBody, err := ioutil.ReadAll(res.Body)
-// 	if err != nil {
-// 		log.Fatalln(err)
-// 	}
-
-// 	// authorization token is returned in the response body
-// 	var resData map[string]string
-// 	json.Unmarshal(resBody, &resData)
-
-// 	// use response timestamp + valid duration to set expire time
-// 	respTime, err := time.Parse(time.RFC1123, res.Header[http.CanonicalHeaderKey("date")][0])
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-// 	validDuration, err := time.ParseDuration(resData["expires_in"] + "s")
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-// 	expireTime := respTime.Add(validDuration)
-
-// 	// Set the Authorization header in the QgendaClient
-// 	q.Authorization.Token.Set(
-// 		http.CanonicalHeaderKey("Authorization"),
-// 		fmt.Sprintf("bearer %v", resData["access_token"]),
-// 	)
-
-// 	q.Authorization.Expires = expireTime
-// 	// set Authorization cookie for all endpoints
-// 	u := *q.BaseURL
-// 	u.Path = "/"
-
-// 	fmt.Printf("Authorization: %#v\n%v\n",
-// 		q.Authorization.Expires.Format(time.RFC3339),
-// 		q.Authorization.Token.Get(http.CanonicalHeaderKey("Authorization")),
-// 	)
-
-// 	return ctx
-// }
-
-// url := "https://api.qgenda.com/v2/company?includes=Profiles,Organizations"
-// url := "https://api.qgenda.com/v2/staffmember?companyKey=" + q.Credentials.Get("companyKey") + "&includes=Skillset,Tags,Profiles,TTCMTags"
-// fmt.Println(url)
-// t := map[string][]string.(q.Credentials)["companyKey"]
-// companyKey = "8c44c075-d894-4b00-9ae7-3b3842226626"
-// profileKey = "7f4d8aa0-292d-43b9-bec9-d253624c7de0"
-
-//url := "https://api.qgenda.com/v2/facility?companyKey=" + q.Credentials.Get("companyKey") + "&includes=TaskShift"
-// url := "https://api.qgenda.com/v2/location?companyKey=" + q.Credentials.Get("companyKey")
-// method := "GET"
-
-// payload := strings.NewReader("")
-
-// client := &http.Client{}
-// req, err := http.NewRequest(method, url, payload)
-
-// if err != nil {
-// 	fmt.Println(err)
-// }
-// req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-// // req.Header.Add("Content-Type", "application/json")
-// req.Header.Add(
-// 	http.CanonicalHeaderKey("Authorization"),
-// 	q.Authorization.Token.Get(http.CanonicalHeaderKey("Authorization")),
-// )
-// // req.Header.Add(
-// // 	http.CanonicalHeaderKey("Accept-Encoding"),
-// // 	"*",
-// // )
-// //req.Header[http.CanonicalHeaderKey("Authorization")] = q.Auth.Token
-// res, err := client.Do(req)
-// if err != nil {
-// 	log.Fatal(err)
-// }
-// defer res.Body.Close()
-// body, err := ioutil.ReadAll(res.Body)
-
-// fmt.Println(string(body))
-// ioutil.WriteFile("samples/staffmembers.json", body, 0777)
-
-// date := "2100-01-01T00:00:00"
-// dateTime, err := time.ParseInLocation(time.RFC3339, date, time.Local)
-// if err != nil {
-// 	log.Fatal(err)
-
-// }
-// fmt.Println(dateTime)
+	return nil
+}

@@ -106,21 +106,20 @@ type Metadata struct {
 	Timestamp  time.Time `json:"time"`
 }
 
-// Get handles all aspects of the http get request and handling the response
+// Get handles a *Request and returns the data and metadata in response
 func (q *QgendaClient) Get(ctx context.Context, rs *Request) ([]byte, *Metadata, error) {
 
 	u := *q.BaseURL
 	r := *rs
+	// handle authorization
 	if err := q.Auth(ctx); err != nil {
 		log.Printf("Error authorizing get request to %v: %v", r.Path, err)
 		return nil, nil, err
 	}
 	r.Query.Add("companyKey", q.Credentials.Get("companyKey"))
-	// authTokenHeader := url.Values{}
-	// authTokenHeader.Add("companyKey", q.Credentials.Get("companyKey"))
+	// build and send http request
 	u.RawQuery = r.Query.Encode()
 	u.Path = path.Join(u.Path, r.Path)
-	fmt.Println(u.String())
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
 		log.Printf("Error in request to %v: %v", u, err)
@@ -132,6 +131,8 @@ func (q *QgendaClient) Get(ctx context.Context, rs *Request) ([]byte, *Metadata,
 		log.Printf("Error retrieving response from %v: %v", u, err)
 		return nil, nil, err
 	}
+
+	// handle response
 	// TODO: improve reading response for larger requests
 	b, err := ioutil.ReadAll(res.Body)
 	if err != nil {
@@ -146,12 +147,7 @@ func (q *QgendaClient) Get(ctx context.Context, rs *Request) ([]byte, *Metadata,
 		resTime = time.Now()
 	}
 
-	// uu, err := url.QueryUnescape(u.String())
-	// if err != nil {
-	// 	log.Printf("Error unescaping url %v: %v", u.String(), err)
-	// }
-
-	// fmt.Printf("\n\n%v\n\n", uu)
+	// metadata to capture data heritage
 	meta := &Metadata{
 		APIVersion: "v2",
 		Kind:       "qgenda",
