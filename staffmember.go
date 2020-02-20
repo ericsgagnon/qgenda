@@ -1,46 +1,20 @@
 package main
 
 import (
-	"context"
-	"encoding/json"
-	"fmt"
-	"log"
-
 	"github.com/google/uuid"
 )
 
-// // StaffType represents preconfigured values
-// type StaffType int
-
-// // preconfigured values for stafftype
-// const (
-// 	nil StaffType = iota
-// 	Physician
-// 	CRNA
-// 	Technologist
-// 	Locum
-// 	Office
-// 	Resident
-// 	Specialty
-// 	MAPA
-// 	Nurse
-// 	Other
-// )
-
-// StaffMemberRequest struct captures all available request arguments for
-// qgenda StaffMembers endpoint
-type StaffMemberRequest struct {
-	Route    string `path:"-"`
-	Includes string `query:"includes"`
-	Select   string `query:"$select"`
-	Filter   string `query:"$filter"`
-	OrderBy  string `query:"$orderby"`
-	Expand   string `query:"$expand"`
+// NewStaffMemberRequestResponse returns a pointer to a StaffMemberRequestConfig with default values
+func NewStaffMemberRequestResponse() *RequestResponse {
+	rr := NewRequestResponse()
+	rr.Request.Config = NewStaffMemberRequestConfig()
+	return rr
 }
 
-// NewStaffMemberRequest returns a pointer to a StaffMemberRequest with default values
-func NewStaffMemberRequest() *StaffMemberRequest {
-	cr := &StaffMemberRequest{
+// NewStaffMemberRequestConfig returns a point to a StaffMemberRequestConfig with default values
+func NewStaffMemberRequestConfig() *StaffMemberRequestConfig {
+	r := &StaffMemberRequestConfig{
+		Resource: "StaffMember",
 		Route:    "/staffmember",
 		Includes: "Skillset,Tags,Profiles,TTCMTags",
 		// Select:   "",
@@ -48,7 +22,19 @@ func NewStaffMemberRequest() *StaffMemberRequest {
 		// OrderBy:  "",
 		// Expand:   "",
 	}
-	return cr
+	return r
+}
+
+// StaffMemberRequestConfig struct captures all available request arguments for
+// qgenda StaffMembers endpoint
+type StaffMemberRequestConfig struct {
+	Resource string
+	Route    string `path:"-"`
+	Includes string `query:"includes"`
+	Select   string `query:"$select"`
+	Filter   string `query:"$filter"`
+	OrderBy  string `query:"$orderby"`
+	Expand   string `query:"$expand"`
 }
 
 // StaffMember represents staff, and possibly some other entities as well?
@@ -163,35 +149,53 @@ type SkillSet struct {
 }
 
 // GetStaffMembers returns all staff members
-func (q *QgendaClient) GetStaffMembers(ctx context.Context, sr *StaffMemberRequest, il *ItemList) error {
-	if sr == nil {
-		sr = NewStaffMemberRequest()
-	}
-	r, err := ParseRequest(sr)
-	fmt.Println(r)
-	if err != nil {
-		log.Fatal(err)
-	}
-	bb, meta, err := q.Get(ctx, r)
-	if err != nil {
-		log.Fatal(err)
-	}
-	// fmt.Println(meta)
-	meta.Name = "StaffMemberList"
-	// if err := ioutil.WriteFile("data/sml.json", bb, 0777); err != nil {
-	// 	log.Printf("Couldn't response to disk: %v", err)
-	// 	return err
-	// }
-	// fmt.Println(string(bb))
-	var sm []StaffMember
-	// c := []StaffMember{}
-	if err := json.Unmarshal(bb, &sm); err != nil {
-		log.Printf("Error unmarshalling response from %v", err)
-		return err
-	}
-	fmt.Printf("\n\n%+v\n\n", sm)
-	il.MetaData = meta
-	il.Items = sm
+// func (q *QgendaClient) GetStaffMembers(ctx context.Context, sr *StaffMemberRequest, il *ItemList) error {
+// 	if sr == nil {
+// 		sr = NewStaffMemberRequest()
+// 	}
+// 	r, err := ParseRequest(sr)
+// 	// fmt.Println(r)
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
+// 	bb, meta, err := q.Get(ctx, r)
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
+// 	// fmt.Println(meta)
+// 	meta.Name = "StaffMemberList"
+// 	// if err := ioutil.WriteFile("data/sml.json", bb, 0777); err != nil {
+// 	// 	log.Printf("Couldn't response to disk: %v", err)
+// 	// 	return err
+// 	// }
+// 	// fmt.Println(string(bb))
+// 	var sm []StaffMember
+// 	// c := []StaffMember{}
+// 	if err := json.Unmarshal(bb, &sm); err != nil {
+// 		log.Printf("Error unmarshalling response from %v", err)
+// 		return err
+// 	}
+// 	// fmt.Printf("\n\n%+v\n\n", sm)
+// 	il.MetaData = meta
+// 	il.Items = sm
 
-	return nil
-}
+// 	return nil
+// }
+
+// // StaffType represents preconfigured values
+// type StaffType int
+
+// // preconfigured values for stafftype
+// const (
+// 	nil StaffType = iota
+// 	Physician
+// 	CRNA
+// 	Technologist
+// 	Locum
+// 	Office
+// 	Resident
+// 	Specialty
+// 	MAPA
+// 	Nurse
+// 	Other
+// )

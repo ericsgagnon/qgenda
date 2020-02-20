@@ -1,9 +1,14 @@
 package main
 
 import (
+	"context"
 	"errors"
+	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
+	"path"
+	"reflect"
 	"time"
 )
 
@@ -78,4 +83,62 @@ func NewQgendaClient(qcc QgendaClientConfig) (*QgendaClient, error) {
 		Config:        qcc,
 	}
 	return q, nil
+}
+
+// Get handles a *RequestResponse.Request and returns the data and metadata in
+// *RequestResponse.Response
+func (q *QgendaClient) Get(ctx context.Context, rr *RequestResponse) error {
+
+	u := *q.BaseURL
+	r := *rr.Request
+	// handle authorization
+	if err := q.Auth(ctx); err != nil {
+		log.Printf("Error authorizing get request to %v: %v", r.Path, err)
+		return err
+	}
+	r.Query.Add("companyKey", q.Credentials.Get("companyKey"))
+	// build and send http request
+	u.RawQuery = r.Query.Encode()
+	u.Path = path.Join(u.Path, r.Path)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+	if err != nil {
+		log.Printf("Error in request to %v: %v", u, err)
+		return err
+	}
+	req.Header = q.Authorization.Token.Clone()
+	res, err := q.Client.Do(req)
+	if err != nil {
+		log.Printf("Error retrieving response from %v: %v", u, err)
+		return err
+	}
+
+	// handle response
+	// TODO: improve reading response for larger requests
+	b, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		log.Printf("Error reading response from %v: %v", u, err)
+		return err
+	}
+	defer res.Body.Close()
+	resTime, err := http.ParseTime(res.Header.Get("Date"))
+	if err != nil {
+		log.Printf("Error parsing date header in response: %v", err)
+		// accept time.Now as a 'rough' estimate of now
+		resTime = time.Now()
+	}
+
+	requestConfig := reflect.ValueOf(r.Config)
+	resourceName := reflect.Indirect(requestConfig).FieldByName("Resource").Interface().(string)
+	// metadata to capture data heritage
+	meta := &Metadata{
+		APIVersion: "v2",
+		Kind:       "qgenda",
+		URL:        u.String(),
+		Name:       resourceName,
+		Timestamp:  resTime,
+	}
+	rr.Response.Metadata = meta
+	rr.Response.Data = &b
+
+	return nil
 }

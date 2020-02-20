@@ -1,26 +1,13 @@
 package main
 
 import (
-	"context"
-	"encoding/json"
-	"fmt"
-	"io/ioutil"
-	"log"
-	"os"
-	"path"
-
 	"github.com/google/uuid"
 )
 
-// ItemList is a universal container to data and metadata
-type ItemList struct {
-	MetaData *Metadata   `json:"Metadata"`
-	Items    interface{} `json:"Items"`
-}
-
-// CompanyRequest is intended to be used as inputs to
+// CompanyRequestConfig is intended to be used as inputs to
 // api requests to the company endpoints
-type CompanyRequest struct {
+type CompanyRequestConfig struct {
+	Resource string
 	Route    string `path:"-"`
 	Includes string `query:"includes"`
 	Select   string `query:"$select"`
@@ -29,9 +16,17 @@ type CompanyRequest struct {
 	Expand   string `query:"$expand"`
 }
 
-// NewCompanyRequest returns a point to a CompanyRequest with default values
-func NewCompanyRequest() *CompanyRequest {
-	cr := &CompanyRequest{
+// NewCompanyRequestResponse returns a point to a CompanyRequestConfig with default values
+func NewCompanyRequestResponse() *RequestResponse {
+	rr := NewRequestResponse()
+	rr.Request.Config = NewCompanyRequestConfig()
+	return rr
+}
+
+// NewCompanyRequestConfig returns a point to a CompanyRequestConfig with default values
+func NewCompanyRequestConfig() *CompanyRequestConfig {
+	cr := &CompanyRequestConfig{
+		Resource: "Company",
 		Route:    "/company",
 		Includes: "Profiles,Organizations",
 		// Select:   "",
@@ -68,83 +63,88 @@ type Organization struct {
 }
 
 // GetCompanies uses the company endpoint to get all companies for a user
-// func (q *QgendaClient) GetCompanies(ctx context.Context, cr *CompanyRequest, c *[]Company) error {
-func (q *QgendaClient) GetCompanies(ctx context.Context, cr *CompanyRequest, il *ItemList) error {
+// func (q *QgendaClient) GetCompanies(ctx context.Context, cr *CompanyRequestConfig, c *[]Company) error {
+// func (q *QgendaClient) GetCompanies(ctx context.Context, cr *CompanyRequestConfig, il *ItemList) error {
 
-	if cr == nil {
-		cr = NewCompanyRequest()
-	}
-	r, err := ParseRequest(cr)
-	fmt.Println(r)
-	if err != nil {
-		log.Fatal(err)
-	}
-	bb, meta, err := q.Get(ctx, r)
-	if err != nil {
-		log.Fatal(err)
-	}
-	// fmt.Println(meta)
-	meta.Name = "CompanyList"
+// 	if cr == nil {
+// 		cr = NewCompanyRequest()
+// 	}
+// 	r, err := ParseRequest(cr)
+// 	// fmt.Println(r)
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
+// 	bb, meta, err := q.Get(ctx, r)
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
+// 	// fmt.Println(meta)
+// 	meta.Name = "CompanyList"
 
-	// fmt.Println(string(bb))
-	var c *[]Company
-	if err := json.Unmarshal(bb, &c); err != nil {
-		log.Printf("Error unmarshalling response from %v", err)
-		return err
-	}
+// 	// fmt.Println(string(bb))
+// 	var c *[]Company
+// 	if err := json.Unmarshal(bb, &c); err != nil {
+// 		log.Printf("Error unmarshalling response from %v", err)
+// 		return err
+// 	}
 
-	il.MetaData = meta
-	il.Items = c
+// 	il.MetaData = meta
+// 	il.Items = c
 
-	return nil
-}
+// 	return nil
+// }
 
 // ToJSONFile writes an itemlist to a file in json format, using metadata to form
 // the filename
-func (il *ItemList) ToJSONFile(p string, f string) error {
-	// create directory, or use "data" as default
-	if p == "" {
-		p = "data"
-	}
-	if err := os.MkdirAll(p, 0777); err != nil {
-		log.Printf("Error making directory %v: %#v", p, err)
-		return err
-	}
+// func (il *ItemList) ToJSONFile(p string, f string) error {
+// 	// create directory, or use "data" as default
+// 	if p == "" {
+// 		p = "data"
+// 	}
+// 	if err := os.MkdirAll(p, 0777); err != nil {
+// 		log.Printf("Error making directory %v: %#v", p, err)
+// 		return err
+// 	}
 
-	// build filename if not provided
-	if f == "" {
-		// f = il.MetaData.Name + "-" + il.MetaData.Timestamp.UTC().Format("20060102T150405Z07:00") + ".json"
-		f = il.MetaData.Name + ".json"
-	}
-	f = path.Join(p, f)
+// 	// build filename if not provided
+// 	if f == "" {
+// 		// f = il.MetaData.Name + "-" + il.MetaData.Timestamp.UTC().Format("20060102T150405Z07:00") + ".json"
+// 		f = il.MetaData.Name + ".json"
+// 	}
+// 	f = path.Join(p, f)
 
-	mm, err := json.MarshalIndent(il, "", "  ")
-	if err != nil {
-		log.Printf("Error marshalling to json: %+v", err)
-		return err
-	}
+// 	mm, err := json.MarshalIndent(il, "", "  ")
+// 	if err != nil {
+// 		log.Printf("Error marshalling to json: %+v", err)
+// 		return err
+// 	}
 
-	if err := ioutil.WriteFile(f, mm, 0755); err != nil {
-		log.Printf("Error writing file %v to disk: %v", f, err)
-		return err
-	}
+// 	if err := ioutil.WriteFile(f, mm, 0755); err != nil {
+// 		log.Printf("Error writing file %v to disk: %v", f, err)
+// 		return err
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
 // FromJSONFile reads an itemlist from a jsonfile
-func FromJSONFile(f string, il *ItemList) error {
-	b, err := ioutil.ReadFile(f)
-	if err != nil {
-		log.Printf("Error Reading file %v: %v", f, err)
-		return err
-	}
+// func FromJSONFile(f string, il *ItemList) error {
+// 	b, err := ioutil.ReadFile(f)
+// 	if err != nil {
+// 		log.Printf("Error Reading file %v: %v", f, err)
+// 		return err
+// 	}
 
-	if err := json.Unmarshal(b, il); err != nil {
-		log.Printf("Error Unmarshaling file %v: %v", f, err)
-		return err
-	}
-	return nil
-}
+// 	if err := json.Unmarshal(b, il); err != nil {
+// 		log.Printf("Error Unmarshaling file %v: %v", f, err)
+// 		return err
+// 	}
+// 	return nil
+// }
 
 // CheckJSONFileAge
+// // ItemList is a universal container to data and metadata
+// type ItemList struct {
+// 	MetaData *Metadata   `json:"Metadata"`
+// 	Items    interface{} `json:"Items"`
+// }

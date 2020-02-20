@@ -48,26 +48,29 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	// GetCompanies gets the user's companies, optionally, a
-	// request can be passed in to override default arguments
-	// var c []Company
-	var cil ItemList
-	if err := q.GetCompanies(ctx, nil, &cil); err != nil {
-		log.Fatal(err)
+	// Initialize a *RequestResponse for company
+	crr := NewCompanyRequestResponse()
+	// parse the *RequestResponse.Request.Config
+	if err := crr.Request.ParseRequest(); err != nil {
+		log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
+	}
+	if err := q.Get(ctx, crr); err != nil {
+		log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
+	}
+	if err := crr.Response.ToJSONFile(""); err != nil {
+		log.Fatalln(err)
 	}
 
-	if err := cil.ToJSONFile("", ""); err != nil {
-		log.Fatal(err)
+	// Initialize a *RequestResponse for staffmembers
+	srr := NewStaffMemberRequestResponse()
+	// parse the *RequestResponse.Request.Config
+	if err := srr.Request.ParseRequest(); err != nil {
+		log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
 	}
-
-	var smil ItemList
-	if err := q.GetStaffMembers(ctx, nil, &smil); err != nil {
-		log.Fatal(err)
+	if err := q.Get(ctx, srr); err != nil {
+		log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
 	}
-	if err := smil.ToJSONFile("", ""); err != nil {
-		log.Fatal(err)
+	if err := srr.Response.ToJSONFile(""); err != nil {
+		log.Fatalln(err)
 	}
-
-	// fmt.Printf("\n\n%v\n%v\n", il.MetaData, il.Items)
-	// fmt.Println(c)
 }
