@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 
 	// "io/ioutil"
 	"log"
@@ -60,17 +61,39 @@ func main() {
 	if err := crr.Response.ToJSONFile(""); err != nil {
 		log.Fatalln(err)
 	}
+	fmt.Println(crr.Request.String())
+	// fmt.Println(crr.Request.String())
+	fmt.Println(sprintRequestConfigurator(crr.Request.Config))
 
-	// Initialize a *RequestResponse for staffmembers
-	srr := NewStaffMemberRequestResponse()
-	// parse the *RequestResponse.Request.Config
-	if err := srr.Request.ParseRequest(); err != nil {
-		log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
-	}
-	if err := q.Get(ctx, srr); err != nil {
-		log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
-	}
-	if err := srr.Response.ToJSONFile(""); err != nil {
-		log.Fatalln(err)
-	}
+	// // Initialize a *RequestResponse for staffmembers
+	// srr := NewStaffMemberRequestResponse()
+	// // parse the *RequestResponse.Request.Config
+	// if err := srr.Request.ParseRequest(); err != nil {
+	// 	log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
+	// }
+	// if err := q.Get(ctx, srr); err != nil {
+	// 	log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
+	// }
+	// if err := srr.Response.ToJSONFile(""); err != nil {
+	// 	log.Fatalln(err)
+	// }
+
+	// 	src := NewScheduleRequestConfig()
+	// 	u, err := EncodeURLValues(src, "query")
+	// 	if err != nil {
+	// 		log.Fatalln(err)
+	// 	}
+	// 	for k, v := range u {
+	// 		fmt.Printf("|%-25v|%-60v|\n", k, v)
+	// 	}
+
 }
+
+// tagValue := dv.Type().Field(i).Tag.Get(tag)
+// fieldType := strings.Split(tagValue, ",")
+// fmt.Println(fieldType)
+// fmt.Println(dv.Type().Field(i).Tag.Get("format"))
+// fieldType := dv.Type().Field(i).Tag.Get("format")
+// fieldFormat := dv.Type().Field(i).Tag.Get("format")
+
+// fmt.Println(dv.Type().Field(i).Tag)
