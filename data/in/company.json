@@ -1,0 +1,22 @@
+[
+  {
+    "CompanyKey": "8c44c075-d894-4b00-9ae7-3b3842226626",
+    "CompanyName": "Penn State Health Hershey Medical Center - Radiology",
+    "CompanyAbbreviation": null,
+    "CompanyLocation": "Hershey, PA",
+    "CompanyPhoneNumber": "717-531-5593",
+    "Profiles": [
+      {
+        "ProfileKey": "7f4d8aa0-292d-43b9-bec9-d253624c7de0",
+        "ProfileName": "API Access",
+        "IsAdmin": false
+      }
+    ],
+    "Organizations": [
+      {
+        "OrgKey": 33,
+        "OrgName": "Hershey Medical Center"
+      }
+    ]
+  }
+]

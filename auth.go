@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"golang.org/x/net/context/ctxhttp"
@@ -20,9 +22,6 @@ type AuthToken struct {
 	Token   *http.Header `json:"Token"`
 	Expires time.Time    `json:"Expires"`
 }
-
-// use a preset file for caching the AuthToken to disk
-const credentialsFile = "./.auth-token.json"
 
 // Auth is the top level authorization method, it checks the validity of an existing token
 // reads a cached token from disk into AuthToken, or logs in and retrieves a new token
@@ -35,12 +34,18 @@ func (q *QgendaClient) Auth(ctx context.Context) error {
 	}
 
 	log.Printf("----------------------------------------------------------------------------")
-	err := q.Authorization.ReadFile(ctx)
+	err := q.Authorization.ReadCache(ctx, "")
 	if err == nil {
 		if q.Authorization.Valid(ctx) {
 			return nil
 		}
 	}
+	// err = q.Authorization.ReadFile(ctx)
+	// if err == nil {
+	// 	if q.Authorization.Valid(ctx) {
+	// 		return nil
+	// 	}
+	// }
 
 	log.Printf("----------------------------------------------------------------------------")
 	log.Printf("Login")
@@ -74,42 +79,79 @@ func (t *AuthToken) Valid(ctx context.Context) bool {
 	return false
 }
 
-// WriteFile writes the AuthToken to a file cache
-func (t *AuthToken) WriteFile(ctx context.Context) error {
-	log.Printf("Write AuthToken to file %v", credentialsFile)
+// CacheFile parses the input filename or default cache file, creates the directory if
+// necessary and returns the complete path/filename as a string
+func (t *AuthToken) CacheFile(ctx context.Context, filename string) (string, error) {
+	var err error
+	// parse path to cache directory or default to user's cache directory/qgenda/auth
+	p := strings.TrimSuffix(filename, filepath.Base(filename))
+	if p == "" || p == "." {
+		if p, err = os.UserCacheDir(); err != nil {
+			log.Printf("Error retrieving cache directory: %v", err)
+			return "", err
+		}
+		p = p + "/qgenda/auth"
+	}
+	// make cache directory
+	if err := os.MkdirAll(p, 0777); err != nil {
+		log.Printf("Error making directory %v: %#v", p, err)
+		return "", err
+	}
+
+	// parse filename or default to authtoken.json
+	f := filepath.Base(filename)
+	f = strings.ToLower(f)
+	if f == "" || f == "*" || f == "." {
+		f = "authtoken.json"
+	}
+	// compile absolute path + file name
+	f = filepath.Join(p, f)
+	return f, nil
+}
+
+// WriteCache writes the AuthToken to a file cache
+func (t *AuthToken) WriteCache(ctx context.Context, filename string) error {
+	// get the file to write cache to
+	filename, err := t.CacheFile(ctx, filename)
+	if err != nil {
+		return err
+	}
+	// marshal AuthToken to json
 	j, err := json.MarshalIndent(t, "", "  ")
 	if err != nil {
 		log.Printf("Error marshalling AuthToken to json: %v", err)
 	}
-
-	f, err := os.Create(credentialsFile)
-	if err != nil {
-		log.Printf("Error opening file %v: %v", credentialsFile, err)
+	log.Printf("Write AuthToken to file %v", filename)
+	// write file to file cache
+	if err := ioutil.WriteFile(filename, j, 0755); err != nil {
+		log.Printf("Error writing file %v to disk: %v", filename, err)
 		return err
 	}
-	defer f.Close()
-
-	if _, err := f.Write(j); err != nil {
-		log.Printf("Unable to write AuthToken:\n%v\n", err)
-		return err
-	}
-	log.Printf("AuthToken written to file %v", credentialsFile)
+	// confirm success in logs
+	log.Printf("AuthToken written to file %v", filename)
 	return nil
 }
 
-// ReadFile reads the AuthToken from a file cache
-func (t *AuthToken) ReadFile(ctx context.Context) error {
+// ReadCache reads the AuthToken from a file cache
+func (t *AuthToken) ReadCache(ctx context.Context, filename string) error {
+
 	log.Printf("Read cached AuthToken from file")
-	f, err := os.Open(credentialsFile)
+	// get the file to write cache to
+	filename, err := t.CacheFile(ctx, filename)
 	if err != nil {
-		log.Printf("Error opening AuthToken cache file %v: %v\n", credentialsFile, err)
+		return err
+	}
+
+	f, err := os.Open(filename)
+	if err != nil {
+		log.Printf("Error opening AuthToken cache file %v: %v\n", filename, err)
 		return err
 	}
 	defer f.Close()
 
 	b, err := ioutil.ReadAll(f)
 	if err != nil {
-		log.Printf("Error reading AuthToken cache file %v: %v\n", credentialsFile, err)
+		log.Printf("Error reading AuthToken cache file %v: %v\n", filename, err)
 		return err
 	}
 
@@ -191,11 +233,18 @@ func (q *QgendaClient) Login(ctx context.Context) error {
 		log.Printf("Token appears valid")
 	}
 
+	// // write AuthToken to file
+	// if err := q.Authorization.WriteFile(ctx); err != nil {
+	// 	log.Printf("Unable to write AuthToken to %v:  %v", credentialsFile, err)
+	// 	return err
+	// }
+	// log.Printf("AuthToken written to %v", credentialsFile)
+
 	// write AuthToken to file
-	if err := q.Authorization.WriteFile(ctx); err != nil {
-		log.Printf("Unable to write AuthToken to %v:  %v", credentialsFile, err)
+	if err := q.Authorization.WriteCache(ctx, ""); err != nil {
+		log.Printf("Troubles using new cache file method %v", err)
 		return err
 	}
-	log.Printf("AuthToken written to %v", credentialsFile)
+
 	return nil
 }
