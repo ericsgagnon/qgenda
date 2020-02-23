@@ -16,6 +16,7 @@ import (
 // Request holds the processed (escaped) values for each element
 // of the api requests
 type Request struct {
+	// Config RequestConfigurator
 	Config interface{}
 	Method string
 	Path   string
@@ -24,12 +25,21 @@ type Request struct {
 }
 
 // RequestConfigurator implements common methods for ResourceRequestConfigs
-type RequestConfigurator interface{}
+type RequestConfigurator interface {
+	String() string
+}
+
+// RequestConfig embeds the RequestConfigurator interface
+type RequestConfig struct {
+	RequestConfigurator
+}
 
 // NewRequest initializes a Request and returns a pointer
 func NewRequest() *Request {
+	// var rc *RequestConfigurator
 	r := &Request{
-		Config: &struct{}{},
+		// Config: &struct{}{},
+		// Config: rc,
 		Method: "",
 		Path:   "",
 		Query:  url.Values{},
@@ -183,11 +193,12 @@ func ParseRequest(qs interface{}) (*Request, error) {
 
 // String returns a prettier version of Request
 func (r Request) String() string {
-
+	rcString := fmt.Sprintf("%v", r.Config)
+	rcString = "  " + strings.ReplaceAll(rcString, "\n", "\n  ")
 	out :=
 		fmt.Sprintf(
-			"Request:\n  Config: %v\n  Method: %v\n  Path:%v\n",
-			r.Config, r.Method, r.Path) +
+			"Request:\n%v  Method: %v\n  Path:%v\n",
+			rcString, r.Method, r.Path) +
 			sprintURLValues(r.Query) +
 			sprintURLValues(r.Body)
 	return out
@@ -221,26 +232,145 @@ func sprintURLValues(u url.Values) string {
 }
 
 // sprintRequestConfigurator returns a prettier version of RequestConfigurator
-func sprintRequestConfigurator(rc interface{}) string {
+func sprintRequestConfigurator(rc RequestConfigurator) string {
 	// still struggling through pkg reflect
 	var out string
 	d := reflect.ValueOf(rc)
 	dv := reflect.Indirect(d)
-	for i := 0; i < dv.NumField(); i++ {
-		structField := dv.Type().Field(i)
-		field := reflect.Indirect(dv.Field(i))
-
-		if field.String() != "" {
-			out += fmt.Sprintf("  %v: %v  %v\n", structField.Name, field, structField.Tag)
-		}
-		// field := reflect.Indirect(dv.Field(i))
-		// var val string
-		// if query, ok := structField.Tag.Lookup(tag); ok {
-		// }
+	type rcInfo struct {
+		Type        string
+		Name        string
+		NameLength  int
+		Value       string
+		ValueLength int
+		Tag         string
 	}
+
+	// copy relevent fields to a temp struct slice
+	rcis := []rcInfo{}
+	var maxNameLength, maxValueLength int
+	for i := 0; i < dv.NumField(); i++ {
+		field := reflect.Indirect(dv.Field(i))
+		fieldType := field.Type().String()
+		// don't copy empty fields
+		if fieldType == "time.Time" && field.Interface().(time.Time).IsZero() {
+			break
+		} else if field.String() == "" {
+			break
+		}
+		structField := dv.Type().Field(i)
+		rci := rcInfo{
+			Type:        fieldType,
+			Name:        structField.Name,
+			NameLength:  len(structField.Name),
+			Value:       fmt.Sprintf("%v", field.Interface()),
+			ValueLength: len(fmt.Sprintf("%v", field.Interface())),
+			Tag:         string(structField.Tag),
+		}
+		if rci.NameLength > maxNameLength {
+			maxNameLength = rci.NameLength
+		}
+		if rci.ValueLength > maxValueLength {
+			maxValueLength = rci.ValueLength
+		}
+		rcis = append(rcis, rci)
+	}
+	format :=
+		"  %-" + fmt.Sprintf("%d", maxNameLength) + "v:" +
+			"  %-" + fmt.Sprintf("%d", maxValueLength) + "v" +
+			"  %-v\n"
+
+	for _, v := range rcis {
+		out += fmt.Sprintf(format, v.Name, v.Value, v.Tag)
+	}
+
 	return out
 }
 
+// sprintStruct returns a prettier version of RequestConfigurator
+func sprintStruct(s interface{}) string {
+	// still struggling through pkg reflect
+	var out string
+	d := reflect.ValueOf(s)
+	dv := reflect.Indirect(d)
+	type rcInfo struct {
+		Type        string
+		Name        string
+		NameLength  int
+		Value       string
+		ValueLength int
+		Tag         string
+	}
+
+	// copy relevent fields to a temp struct slice
+	rcis := []rcInfo{}
+	var maxNameLength, maxValueLength int
+	for i := 0; i < dv.NumField(); i++ {
+		field := reflect.Indirect(dv.Field(i))
+		fieldType := field.Type().String()
+		// don't copy empty fields
+		if fieldType == "time.Time" && field.Interface().(time.Time).IsZero() {
+			break
+		} else if field.String() == "" {
+			break
+		}
+		structField := dv.Type().Field(i)
+		rci := rcInfo{
+			Type:        fieldType,
+			Name:        structField.Name,
+			NameLength:  len(structField.Name),
+			Value:       fmt.Sprintf("%v", field.Interface()),
+			ValueLength: len(fmt.Sprintf("%v", field.Interface())),
+			Tag:         string(structField.Tag),
+		}
+		if rci.NameLength > maxNameLength {
+			maxNameLength = rci.NameLength
+		}
+		if rci.ValueLength > maxValueLength {
+			maxValueLength = rci.ValueLength
+		}
+		rcis = append(rcis, rci)
+	}
+	format :=
+		"  %-" + fmt.Sprintf("%d", maxNameLength) + "v:" +
+			"  %-" + fmt.Sprintf("%d", maxValueLength) + "v" +
+			"  %-v\n"
+
+	for _, v := range rcis {
+		out += fmt.Sprintf(format, v.Name, v.Value, v.Tag)
+	}
+
+	return out
+}
+
+// fmt.Println(field.Interface())
+// fmt.Println(rci)
+// for i := 0; i < dv.NumField(); i++ {
+// 	structField := dv.Type().Field(i)
+// 	field := reflect.Indirect(dv.Field(i))
+// 	fieldType := field.Type().String()
+
+// 	// only add non-zero values to out
+// 	switch {
+// 	// time.Time never evaluates to ""
+// 	case fieldType == "time.Time":
+// 		if !field.Interface().(time.Time).IsZero() {
+// 			out += fmt.Sprintf("  %v: %v  %v\n", structField.Name, field, structField.Tag)
+// 		}
+// 	default:
+// 		if field.String() != "" {
+// 			out += fmt.Sprintf("  %v: %v  %v\n", structField.Name, field, structField.Tag)
+// 		}
+// 	}
+
+// field := reflect.Indirect(dv.Field(i))
+// var val string
+// if query, ok := structField.Tag.Lookup(tag); ok {
+// }
 // fieldType := field.Type().String()
 // fieldFormat := structField.Tag.Get("format")
 // fieldValue := field.Interface()
+// fieldFormat := structField.Tag.Get("format")
+// fieldValue := field.Interface()
+// switch {
+// 	if fieldFormat != "" {

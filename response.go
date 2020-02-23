@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -14,7 +15,7 @@ import (
 // Response holds select information from the qgenda api response
 type Response struct {
 	Metadata *Metadata
-	Data     *[]byte
+	Data     *[]byte `yaml:"-"`
 }
 
 // Metadata captures relevant metadata from each response
@@ -47,31 +48,64 @@ func (r *Response) FormatJSON() ([]byte, error) {
 
 }
 
+// CacheFile parses the input filename or default cache file, creates the directory if
+// necessary and returns the complete path/filename as a string
+func CacheFile(filename string, defaultDir string, defaultFileName string) (string, error) {
+	var err error
+	// parse path to cache directory or default to user's cache directory/qgenda/auth
+	p := strings.TrimSuffix(filename, filepath.Base(filename))
+	if p == "" || p == "." {
+		if p, err = os.UserCacheDir(); err != nil {
+			log.Printf("Error retrieving cache directory: %v", err)
+			return "", err
+		}
+		p = p + defaultDir
+	}
+	// make cache directory
+	if err := os.MkdirAll(p, 0777); err != nil {
+		log.Printf("Error making directory %v: %#v", p, err)
+		return "", err
+	}
+
+	// parse filename or default to authtoken.json
+	f := filepath.Base(filename)
+	f = strings.ToLower(f)
+	if f == "" || f == "*" || f == "." {
+		f = defaultFileName
+	}
+	// compile absolute path + file name
+	f = filepath.Join(p, f)
+	return f, nil
+}
+
 // ToJSONFile writes the raw json bytes to a formatted json text file at
 // filename, or uses *Response.Metadata.Name to form a default
 func (r *Response) ToJSONFile(filename string) error {
+	// var err error
+	// p := strings.TrimSuffix(filename, filepath.Base(filename))
+	// if p == "" || p == "." {
+	// 	p = "data/in"
+	// }
 
-	p := strings.TrimSuffix(filename, filepath.Base(filename))
-	//p := filepath.Dir(filename)
-	// fmt.Println(p)
-	// create directory, or use "data/in" as default
-	if p == "" || p == "." {
-		p = "data/in"
-	}
-	// fmt.Println(p)
+	// if err := os.MkdirAll(p, 0777); err != nil {
+	// 	log.Printf("Error making directory %v: %#v", p, err)
+	// 	return err
+	// }
 
-	if err := os.MkdirAll(p, 0777); err != nil {
-		log.Printf("Error making directory %v: %#v", p, err)
+	// f := filepath.Base(filename)
+	// f = strings.ToLower(f)
+	// // build filename if not provided
+	// if f == "" || f == "*" || f == "." {
+	// 	f = strings.ToLower(r.Metadata.Name) + ".json"
+	// }
+	// f = filepath.Join(p, f)
+	f, err := CacheFile("", "/data/in", strings.ToLower(r.Metadata.Name)+".json")
+	fmt.Println("--------------HEHEHE-----------------------------------------")
+	fmt.Println(f)
+	if err != nil {
+		log.Printf("Error %v", err)
 		return err
 	}
-
-	f := filepath.Base(filename)
-	f = strings.ToLower(f)
-	// build filename if not provided
-	if f == "" || f == "*" || f == "." {
-		f = strings.ToLower(r.Metadata.Name) + ".json"
-	}
-	f = filepath.Join(p, f)
 	// fmt.Println(f)
 	var b bytes.Buffer
 	if err := json.Indent(&b, *r.Data, "", "  "); err != nil {

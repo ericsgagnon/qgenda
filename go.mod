@@ -11,6 +11,7 @@ require (
 	github.com/go-openapi/strfmt v0.19.4 // indirect
 	github.com/go-openapi/swag v0.19.7 // indirect
 	github.com/go-openapi/validate v0.19.6 // indirect
+	github.com/go-yaml/yaml v2.1.0+incompatible // indirect
 	github.com/gogo/protobuf v1.3.1 // indirect
 	github.com/golang/protobuf v1.3.3
 	github.com/google/uuid v1.1.1
@@ -21,5 +22,6 @@ require (
 	github.com/urfave/cli/v2 v2.1.1
 	go.mongodb.org/mongo-driver v1.2.1 // indirect
 	golang.org/x/net v0.0.0-20200202094626-16171245cfb2
+	gopkg.in/yaml.v3 v3.0.0-20200121175148-a6ecf24a6d71
 	k8s.io/apimachinery v0.17.3
 )

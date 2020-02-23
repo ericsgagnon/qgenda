@@ -10,8 +10,6 @@ import (
 	"net/http"
 	"os"
 	"path"
-	"path/filepath"
-	"strings"
 	"time"
 
 	"golang.org/x/net/context/ctxhttp"
@@ -82,31 +80,32 @@ func (t *AuthToken) Valid(ctx context.Context) bool {
 // CacheFile parses the input filename or default cache file, creates the directory if
 // necessary and returns the complete path/filename as a string
 func (t *AuthToken) CacheFile(ctx context.Context, filename string) (string, error) {
-	var err error
-	// parse path to cache directory or default to user's cache directory/qgenda/auth
-	p := strings.TrimSuffix(filename, filepath.Base(filename))
-	if p == "" || p == "." {
-		if p, err = os.UserCacheDir(); err != nil {
-			log.Printf("Error retrieving cache directory: %v", err)
-			return "", err
-		}
-		p = p + "/qgenda/auth"
-	}
-	// make cache directory
-	if err := os.MkdirAll(p, 0777); err != nil {
-		log.Printf("Error making directory %v: %#v", p, err)
-		return "", err
-	}
+	// var err error
+	// // parse path to cache directory or default to user's cache directory/qgenda/auth
+	// p := strings.TrimSuffix(filename, filepath.Base(filename))
+	// if p == "" || p == "." {
+	// 	if p, err = os.UserCacheDir(); err != nil {
+	// 		log.Printf("Error retrieving cache directory: %v", err)
+	// 		return "", err
+	// 	}
+	// 	p = p + "/qgenda/auth"
+	// }
+	// // make cache directory
+	// if err := os.MkdirAll(p, 0777); err != nil {
+	// 	log.Printf("Error making directory %v: %#v", p, err)
+	// 	return "", err
+	// }
 
-	// parse filename or default to authtoken.json
-	f := filepath.Base(filename)
-	f = strings.ToLower(f)
-	if f == "" || f == "*" || f == "." {
-		f = "authtoken.json"
-	}
-	// compile absolute path + file name
-	f = filepath.Join(p, f)
-	return f, nil
+	// // parse filename or default to authtoken.json
+	// f := filepath.Base(filename)
+	// f = strings.ToLower(f)
+	// if f == "" || f == "*" || f == "." {
+	// 	f = "authtoken.json"
+	// }
+	// // compile absolute path + file name
+	// f = filepath.Join(p, f)
+	// return f, nil
+	return CacheFile(filename, "/qgenda/auth", "authtoken.json")
 }
 
 // WriteCache writes the AuthToken to a file cache

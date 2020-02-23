@@ -16,9 +16,15 @@ type CompanyRequestConfig struct {
 	Expand   string `query:"$expand"`
 }
 
+// String returns a pretty version of CompanyRequestConfig for printing
+func (crc CompanyRequestConfig) String() string {
+	return "Config: \n" + sprintRequestConfigurator(crc)
+}
+
 // NewCompanyRequestResponse returns a point to a CompanyRequestConfig with default values
 func NewCompanyRequestResponse() *RequestResponse {
 	rr := NewRequestResponse()
+	// crc :=
 	rr.Request.Config = NewCompanyRequestConfig()
 	return rr
 }

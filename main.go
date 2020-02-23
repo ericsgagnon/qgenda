@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 
 	// "io/ioutil"
 	"log"
@@ -61,34 +60,62 @@ func main() {
 	if err := crr.Response.ToJSONFile(""); err != nil {
 		log.Fatalln(err)
 	}
-	fmt.Println(crr.Request.String())
-	// fmt.Println(crr.Request.String())
-	fmt.Println(sprintRequestConfigurator(crr.Request.Config))
 
-	// // Initialize a *RequestResponse for staffmembers
-	// srr := NewStaffMemberRequestResponse()
-	// // parse the *RequestResponse.Request.Config
-	// if err := srr.Request.ParseRequest(); err != nil {
-	// 	log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
-	// }
-	// if err := q.Get(ctx, srr); err != nil {
-	// 	log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
-	// }
-	// if err := srr.Response.ToJSONFile(""); err != nil {
-	// 	log.Fatalln(err)
-	// }
-
-	// 	src := NewScheduleRequestConfig()
-	// 	u, err := EncodeURLValues(src, "query")
-	// 	if err != nil {
-	// 		log.Fatalln(err)
-	// 	}
-	// 	for k, v := range u {
-	// 		fmt.Printf("|%-25v|%-60v|\n", k, v)
-	// 	}
-
+	// Initialize a *RequestResponse for company
+	smrr := NewStaffMemberRequestResponse()
+	// parse the *RequestResponse.Request.Config
+	if err := smrr.Request.ParseRequest(); err != nil {
+		log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
+	}
+	if err := q.Get(ctx, smrr); err != nil {
+		log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
+	}
+	if err := smrr.Response.ToJSONFile(""); err != nil {
+		log.Fatalln(err)
+	}
 }
 
+// fmt.Println(crr.Request.String())
+// fmt.Println(crr.Request)
+
+// crrJSON, err := json.Marshal(crr)
+// if err != nil {
+// 	log.Fatalln(err)
+// }
+// fmt.Println(string(crrJSON))
+
+// crrYAML, err := yaml.Marshal(crr)
+// if err != nil {
+// 	log.Fatalln(err)
+// }
+// fmt.Println(string(crrYAML))
+
+// fmt.Println(sprintRequestConfigurator(crr.Request.Config))
+
+// // Initialize a *RequestResponse for staffmembers
+// srr := NewStaffMemberRequestResponse()
+// // parse the *RequestResponse.Request.Config
+// if err := srr.Request.ParseRequest(); err != nil {
+// 	log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
+// }
+// if err := q.Get(ctx, srr); err != nil {
+// 	log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
+// }
+// if err := srr.Response.ToJSONFile(""); err != nil {
+// 	log.Fatalln(err)
+// }
+
+// src := NewScheduleRequestConfig()
+// fmt.Println(sprintRequestConfigurator2(src))
+// 	u, err := EncodeURLValues(src, "query")
+// 	if err != nil {
+// 		log.Fatalln(err)
+// 	}
+// 	for k, v := range u {
+// 		fmt.Printf("|%-25v|%-60v|\n", k, v)
+// 	}
+// x := &time.Time{}
+// fmt.Printf("\n%v\n", x.)
 // tagValue := dv.Type().Field(i).Tag.Get(tag)
 // fieldType := strings.Split(tagValue, ",")
 // fmt.Println(fieldType)
