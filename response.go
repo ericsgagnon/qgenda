@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -81,27 +80,7 @@ func CacheFile(filename string, defaultDir string, defaultFileName string) (stri
 // ToJSONFile writes the raw json bytes to a formatted json text file at
 // filename, or uses *Response.Metadata.Name to form a default
 func (r *Response) ToJSONFile(filename string) error {
-	// var err error
-	// p := strings.TrimSuffix(filename, filepath.Base(filename))
-	// if p == "" || p == "." {
-	// 	p = "data/in"
-	// }
-
-	// if err := os.MkdirAll(p, 0777); err != nil {
-	// 	log.Printf("Error making directory %v: %#v", p, err)
-	// 	return err
-	// }
-
-	// f := filepath.Base(filename)
-	// f = strings.ToLower(f)
-	// // build filename if not provided
-	// if f == "" || f == "*" || f == "." {
-	// 	f = strings.ToLower(r.Metadata.Name) + ".json"
-	// }
-	// f = filepath.Join(p, f)
-	f, err := CacheFile("", "/data/in", strings.ToLower(r.Metadata.Name)+".json")
-	fmt.Println("--------------HEHEHE-----------------------------------------")
-	fmt.Println(f)
+	f, err := CacheFile(filename, "/qgenda/data/in", strings.ToLower(r.Metadata.Name)+".json")
 	if err != nil {
 		log.Printf("Error %v", err)
 		return err

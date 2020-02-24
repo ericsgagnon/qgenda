@@ -21,7 +21,8 @@ func (crc CompanyRequestConfig) String() string {
 	return "Config: \n" + sprintRequestConfigurator(crc)
 }
 
-// NewCompanyRequestResponse returns a point to a CompanyRequestConfig with default values
+// NewCompanyRequestResponse returns a pointer to a RequestResponse with default values
+// for a company
 func NewCompanyRequestResponse() *RequestResponse {
 	rr := NewRequestResponse()
 	// crc :=
@@ -29,7 +30,7 @@ func NewCompanyRequestResponse() *RequestResponse {
 	return rr
 }
 
-// NewCompanyRequestConfig returns a point to a CompanyRequestConfig with default values
+// NewCompanyRequestConfig returns a pointer to a CompanyRequestConfig with default values
 func NewCompanyRequestConfig() *CompanyRequestConfig {
 	cr := &CompanyRequestConfig{
 		Resource: "Company",
@@ -154,3 +155,35 @@ type Organization struct {
 // 	MetaData *Metadata   `json:"Metadata"`
 // 	Items    interface{} `json:"Items"`
 // }
+
+// // RequestConfig2 holds all of the elements to create a Request
+// type RequestConfig2 struct {
+// 	Resource string
+// 	Route    string      `path:"-"`
+// 	Path     interface{} `path:"path"`
+// 	Query    interface{} `query:"query"`
+// 	Body     interface{} `body:"body"`
+// }
+
+// // CompanyRequestQueryConfig is super amazing
+// type CompanyRequestQueryConfig struct {
+// 	Includes string `query:"includes"`
+// 	Select   string `query:"$select"`
+// 	Filter   string `query:"$filter"`
+// 	OrderBy  string `query:"$orderby"`
+// 	Expand   string `query:"$expand"`
+// }
+
+// // CompanyRequestPathConfig is super amazing
+// type CompanyRequestPathConfig struct {
+// 	Route string `path:"-"`
+// }
+
+// // CompanyRequestBodyConfig is super amazing
+// type CompanyRequestBodyConfig struct {
+// }
+
+// Request.Config.Parse
+// Request.Config.ParseQuery
+// Request.Config.ParseBody
+// Request.Config.ParsePath

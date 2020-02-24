@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"sync"
 
 	// "io/ioutil"
 	"log"
@@ -14,11 +16,13 @@ import (
 //https://restapi.qgenda.com/?version=latest
 
 var err error
+var wg sync.WaitGroup
 
 // "https://api.qgenda.com/v2/schedule/openshifts?companyKey=00000000-0000-0000-0000-000000000000&startDate=1/1/2012&endDate=1/31/2012&includes=LocationTags"
 // "https://api.qgenda.com/v2/schedule/openshifts?companyKey=00000000-0000-0000-0000-000000000000&startDate=1/1/2014&endDate=1/31/2014&$select=Date,TaskAbbrev,OpenShiftCount&$filter=IsPublished&$orderby=Date,TaskAbbrev,OpenShiftCount&includes=Task"
 func main() {
 	log.SetFlags(log.LstdFlags | log.LUTC)
+
 	ctx := context.Background()
 	// Set a duration.
 	// duration := 150 * time.Millisecond
@@ -73,6 +77,39 @@ func main() {
 	if err := smrr.Response.ToJSONFile(""); err != nil {
 		log.Fatalln(err)
 	}
+
+	// Initialize a *RequestResponse for schedule
+	srr := NewScheduleRequestResponse()
+	// parse the *RequestResponse.Request.Config
+	if err := srr.Request.ParseRequest(); err != nil {
+		log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
+	}
+	if err := q.Get(ctx, srr); err != nil {
+		log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
+	}
+	if err := srr.Response.ToJSONFile(""); err != nil {
+		log.Fatalln(err)
+	}
+
+	startDate := time.Now().UTC().Add(time.Hour * 24 * 7 * 7 * -1)
+	endDate := time.Now().UTC().AddDate(0, 0, 7*7)
+	fmt.Println(startDate)
+	fmt.Println(endDate)
+
+	for i := startDate; i.Before(endDate); i = i.AddDate(0, 1, 7) {
+		wg.Add(1)
+		fmt.Println(i)
+		go func(x time.Time) {
+			fmt.Println(x)
+			wg.Done()
+		}(i)
+	}
+	wg.Wait()
+}
+
+func printTime(x time.Time) {
+	fmt.Println(x)
+	wg.Done()
 }
 
 // fmt.Println(crr.Request.String())
