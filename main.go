@@ -11,6 +11,8 @@ import (
 	"os"
 	// "strings"
 	"time"
+
+	"gopkg.in/yaml.v2"
 )
 
 //https://restapi.qgenda.com/?version=latest
@@ -79,38 +81,76 @@ func main() {
 	}
 
 	// Initialize a *RequestResponse for schedule
-	srr := NewScheduleRequestResponse()
-	// parse the *RequestResponse.Request.Config
-	if err := srr.Request.ParseRequest(); err != nil {
-		log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
-	}
-	if err := q.Get(ctx, srr); err != nil {
-		log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
-	}
-	if err := srr.Response.ToJSONFile(""); err != nil {
+	src := NewScheduleRequestConfig()
+	// grab a year of schedule
+	src.EndDate = time.Now().UTC()
+	src.StartDate = src.EndDate.AddDate(0, -2, 0)
+	srcOut, err := yaml.Marshal(src)
+	if err != nil {
 		log.Fatalln(err)
 	}
-
-	startDate := time.Now().UTC().Add(time.Hour * 24 * 7 * 7 * -1)
-	endDate := time.Now().UTC().AddDate(0, 0, 7*7)
-	fmt.Println(startDate)
-	fmt.Println(endDate)
-
-	for i := startDate; i.Before(endDate); i = i.AddDate(0, 1, 7) {
+	fmt.Println(string(srcOut))
+	// var srrs map[time.Time]*RequestResponse
+	// var b []byte
+	for i := src.StartDate; i.Before(src.EndDate); i = i.AddDate(0, 0, 7) {
 		wg.Add(1)
-		fmt.Println(i)
-		go func(x time.Time) {
-			fmt.Println(x)
+		go func() {
+
+			fmt.Println(i)
+			srci := *src
+			srci.StartDate = i
+			srci.EndDate = srci.StartDate.AddDate(0, 0, 6)
+			srr := NewScheduleRequestResponse()
+			srr.Request.Config = srci
+
+			if err := srr.Request.ParseRequest(); err != nil {
+				log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
+			}
+			if err := q.Get(ctx, srr); err != nil {
+				log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
+			}
+			// fmt.Println(srr)
+			// dataJSON := string(*srr.Response.Data)
+			// fmt.Printf("\n%v\n", dataJSON)
+
+			filename := srci.Resource + srci.StartDate.Format("20060102") + ".json"
+			if err := srr.Response.ToJSONFile(filename); err != nil {
+				log.Fatalln(err)
+			}
 			wg.Done()
-		}(i)
+		}()
+		// srrs[i] = srr
+		wg.Wait()
 	}
-	wg.Wait()
+	// fmt.Println(i)
+	// go func(x time.Time) {
+	// 	fmt.Println(x)
+	// 	srrs[i].Request.Config = src
+	// 	wg.Done()
+	// }(i)
+	// parse the *RequestResponse.Request.Config
+
+	// fmt.Println(srr.Request.Config.(ScheduleRequestConfig).EndDate)
+
+	// startDate := time.Now().UTC().Add(time.Hour * 24 * 7 * 7 * -1)
+	// endDate := time.Now().UTC().AddDate(0, 0, 7*7)
+	// fmt.Println(startDate)
+	// fmt.Println(endDate)
+
+	// for i := startDate; i.Before(endDate); i = i.AddDate(0, 1, 7) {
+	// 	wg.Add(1)
+	// 	fmt.Println(i)
+	// 	go func(x time.Time) {
+	// 		fmt.Println(x)
+	// 		wg.Done()
+	// 	}(i)
+	// }
 }
 
-func printTime(x time.Time) {
-	fmt.Println(x)
-	wg.Done()
-}
+// func printTime(x time.Time) {
+// 	fmt.Println(x)
+// 	wg.Done()
+// }
 
 // fmt.Println(crr.Request.String())
 // fmt.Println(crr.Request)

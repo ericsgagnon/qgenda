@@ -24,14 +24,25 @@ type Request struct {
 	Body   url.Values
 }
 
-// RequestConfigurator implements common methods for ResourceRequestConfigs
-type RequestConfigurator interface {
-	String() string
+// Request2 holds the processed (escaped) values for each element
+// of the api requests
+type Request2 struct {
+	Config *RequestConfigurator
+	// Config interface{}
+	Method string
+	Path   string
+	Query  url.Values
+	Body   url.Values
 }
 
-// RequestConfig embeds the RequestConfigurator interface
-type RequestConfig struct {
-	RequestConfigurator
+// RequestConfigurator implements common methods for ResourceRequestConfigs
+type RequestConfigurator interface {
+	Get(s string) interface{}
+
+	// String() string
+	// Parse() Request
+	// ParseQuery() *url.Values
+	// ParseBody() *url.Values
 }
 
 // NewRequest initializes a Request and returns a pointer
