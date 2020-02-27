@@ -17,9 +17,9 @@ type CompanyRequestConfig struct {
 }
 
 // String returns a pretty version of CompanyRequestConfig for printing
-func (crc CompanyRequestConfig) String() string {
-	return "Config: \n" + sprintRequestConfigurator(crc)
-}
+// func (crc CompanyRequestConfig) String() string {
+// return "Config: \n" + sprintRequestConfigurator(crc)
+// }
 
 // NewCompanyRequestResponse returns a pointer to a RequestResponse with default values
 // for a company

@@ -4,6 +4,10 @@ import "time"
 
 // "github.com/google/uuid"
 
+// ScheduleRequestResponse has a complete request and response for schedule resource
+type ScheduleRequestResponse struct {
+}
+
 // NewScheduleRequestResponse returns a pointer to a ScheduleRequestConfig with default values
 func NewScheduleRequestResponse() *RequestResponse {
 	rr := NewRequestResponse()
@@ -14,12 +18,13 @@ func NewScheduleRequestResponse() *RequestResponse {
 // NewScheduleRequestConfig returns a point to a ScheduleRequestConfig with default values
 func NewScheduleRequestConfig() *ScheduleRequestConfig {
 	r := &ScheduleRequestConfig{
-		Resource:  "Schedule",
-		Route:     "/schedule",
-		Includes:  "StaffTags,TaskTags,LocationTags",
-		StartDate: time.Now().Add(time.Hour * 168 * 2 * -1),
-		EndDate:   time.Now(),
-		Select:    "Date,TaskAbbrev,StaffAbbrev",
+		Resource:       "Schedule",
+		Route:          "/schedule",
+		Includes:       "StaffTags,TaskTags,LocationTags",
+		StartDate:      time.Now().Add(time.Hour * 168 * 2 * -1),
+		EndDate:        time.Now(),
+		IncludeDeletes: true,
+		Select:         "Date,TaskAbbrev,StaffAbbrev",
 		// Filter:   "",
 		// OrderBy:  "",
 		// Expand:   "",
@@ -34,9 +39,9 @@ type ScheduleRequestConfig struct {
 	Route                  string    `path:"-"`
 	Includes               string    `query:"includes"`
 	StartDate              time.Time `query:"startDate" format:"01/02/2006"`
-	EndDate                time.Time `query:"endDate"`
+	EndDate                time.Time `query:"endDate" format:"01/02/2006"`
 	IncludeDeletes         bool      `query:"includeDeletes"`
-	SinceModifiedTimestamp time.Time `query:"sinceModifiedTimestamp"`
+	SinceModifiedTimestamp time.Time `query:"sinceModifiedTimestamp" format:"2006-01-02T15:04:05Z"`
 	Select                 string    `query:"$select"`
 	Filter                 string    `query:"$filter"`
 	OrderBy                string    `query:"$orderby"`
