@@ -1,25 +1,34 @@
 package main
 
-import "time"
+import (
+	"net/url"
+	"time"
+)
 
 // "github.com/google/uuid"
 
-// ScheduleRequestResponse has a complete request and response for schedule resource
-type ScheduleRequestResponse struct {
+// Request3 is light years ahead of Request2 and the entire length of the dying universe ahead of Request
+type Request3 struct {
+	Config interface{}
+	Parse  string
+	Method string
+	Path   string
+	Query  url.Values
+	Body   url.Values
 }
 
-// NewScheduleRequestResponse returns a pointer to a ScheduleRequestConfig with default values
-func NewScheduleRequestResponse() *RequestResponse {
+// NewOpenShiftsRequestResponse returns a pointer to a OpenShiftsRequestConfig with default values
+func NewOpenShiftsRequestResponse() *RequestResponse {
 	rr := NewRequestResponse()
-	rr.Request.Config = NewScheduleRequestConfig()
+	rr.Request.Config = NewOpenShiftsRequestConfig()
 	return rr
 }
 
-// NewScheduleRequestConfig returns a point to a ScheduleRequestConfig with default values
-func NewScheduleRequestConfig() *ScheduleRequestConfig {
-	r := &ScheduleRequestConfig{
-		Resource:       "Schedule",
-		Route:          "/schedule",
+// NewOpenShiftsRequestConfig returns a point to a OpenShiftsRequestConfig with default values
+func NewOpenShiftsRequestConfig() *OpenShiftsRequestConfig {
+	r := &OpenShiftsRequestConfig{
+		Resource:       "OpenShifts",
+		Route:          "/OpenShifts",
 		Includes:       "StaffTags,TaskTags,LocationTags",
 		StartDate:      time.Now().Add(time.Hour * 168 * 2 * -1),
 		EndDate:        time.Now(),
@@ -32,9 +41,9 @@ func NewScheduleRequestConfig() *ScheduleRequestConfig {
 	return r
 }
 
-// ScheduleRequestConfig struct captures all available request arguments for
-// qgenda Schedules endpoint
-type ScheduleRequestConfig struct {
+// OpenShiftsRequestConfig struct captures all available request arguments for
+// qgenda OpenShiftss endpoint
+type OpenShiftsRequestConfig struct {
 	Resource               string
 	Route                  string    `path:"-"`
 	Includes               string    `query:"includes"`
@@ -48,7 +57,7 @@ type ScheduleRequestConfig struct {
 	Expand                 string    `query:"$expand"`
 }
 
-// https://api.qgenda.com/v2/schedule
+// https://api.qgenda.com/v2/OpenShifts
 
 // companyKey=00000000-0000-0000-0000-000000000000
 // startDate=1/1/2014

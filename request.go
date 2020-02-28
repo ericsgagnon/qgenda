@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"path"
 	"reflect"
-	"strings"
 	"text/template"
 	"time"
 )
@@ -27,22 +26,12 @@ type Request struct {
 // Request2 holds the processed (escaped) values for each element
 // of the api requests
 type Request2 struct {
-	Config *RequestConfigurator
+	Config RequestConfigurator
 	// Config interface{}
 	Method string
 	Path   string
 	Query  url.Values
 	Body   url.Values
-}
-
-// RequestConfigurator implements common methods for ResourceRequestConfigs
-type RequestConfigurator interface {
-	Get(s string) interface{}
-
-	// String() string
-	// Parse() Request
-	// ParseQuery() *url.Values
-	// ParseBody() *url.Values
 }
 
 // NewRequest initializes a Request and returns a pointer
@@ -142,33 +131,6 @@ func EncodeURLValues(data interface{}, tag string) (url.Values, error) {
 	return uv, nil
 }
 
-// // EncodeURLValues extracts struct values that match tag and returns them in a url.Values
-// func EncodeURLValues(data interface{}, tag string) (url.Values, error) {
-// 	d := reflect.ValueOf(data)
-// 	dv := reflect.Indirect(d)
-// 	uv := url.Values{}
-// 	for i := 0; i < dv.NumField(); i++ {
-// 		query, ok := dv.Type().Field(i).Tag.Lookup(tag)
-// 		tagValue := dv.Type().Field(i).Tag.Get(tag)
-// 		fieldType := strings.Split(tagValue, ",")
-// 		fmt.Println(fieldType)
-// 		// fmt.Println(dv.Type().Field(i).Tag.Get("format"))
-// 		// fieldType := dv.Type().Field(i).Tag.Get("format")
-// 		// fieldFormat := dv.Type().Field(i).Tag.Get("format")
-
-// 		fmt.Println(dv.Type().Field(i).Tag)
-// 		if ok {
-// 			val := fmt.Sprintf("%v", dv.Field(i).Interface())
-// 			if val != "" {
-// 				uv.Add(query, val)
-// 			}
-// 		}
-// 	}
-// 	// u := uv.Encode()
-
-// 	return uv, nil
-// }
-
 // ParseRequest takes a *QueryConfig and builds the path, query, and body of the request
 func ParseRequest(qs interface{}) (*Request, error) {
 	// Encode path
@@ -201,187 +163,3 @@ func ParseRequest(qs interface{}) (*Request, error) {
 	}
 	return r, err
 }
-
-// String returns a prettier version of Request
-func (r Request) String() string {
-	rcString := fmt.Sprintf("%v", r.Config)
-	rcString = "  " + strings.ReplaceAll(rcString, "\n", "\n  ")
-	out :=
-		fmt.Sprintf(
-			"Request:\n%v  Method: %v\n  Path:%v\n",
-			rcString, r.Method, r.Path) +
-			sprintURLValues(r.Query) +
-			sprintURLValues(r.Body)
-	return out
-}
-
-// sprintURLValues is a helper function to make printing structs that
-// contain them easier
-func sprintURLValues(u url.Values) string {
-
-	var maxKeyLength int
-	var maxValLength int
-	for k, v := range u {
-		if len(k) > maxKeyLength {
-			maxKeyLength = len(k)
-		}
-		val := strings.Join(v, ", ")
-		if len(val) > maxValLength {
-			maxValLength = len(val)
-		}
-	}
-	format := `` + "  %-" + fmt.Sprintf("%d", maxKeyLength) + "v: %v\n" + ``
-
-	var out string
-	for k, v := range u {
-		val := strings.Join(v, ", ")
-		if len(val) > 0 {
-			out += fmt.Sprintf(format, k, val)
-		}
-	}
-	return out
-}
-
-// sprintRequestConfigurator returns a prettier version of RequestConfigurator
-func sprintRequestConfigurator(rc RequestConfigurator) string {
-	// still struggling through pkg reflect
-	var out string
-	d := reflect.ValueOf(rc)
-	dv := reflect.Indirect(d)
-	type rcInfo struct {
-		Type        string
-		Name        string
-		NameLength  int
-		Value       string
-		ValueLength int
-		Tag         string
-	}
-
-	// copy relevent fields to a temp struct slice
-	rcis := []rcInfo{}
-	var maxNameLength, maxValueLength int
-	for i := 0; i < dv.NumField(); i++ {
-		field := reflect.Indirect(dv.Field(i))
-		fieldType := field.Type().String()
-		// don't copy empty fields
-		if fieldType == "time.Time" && field.Interface().(time.Time).IsZero() {
-			break
-		} else if field.String() == "" {
-			break
-		}
-		structField := dv.Type().Field(i)
-		rci := rcInfo{
-			Type:        fieldType,
-			Name:        structField.Name,
-			NameLength:  len(structField.Name),
-			Value:       fmt.Sprintf("%v", field.Interface()),
-			ValueLength: len(fmt.Sprintf("%v", field.Interface())),
-			Tag:         string(structField.Tag),
-		}
-		if rci.NameLength > maxNameLength {
-			maxNameLength = rci.NameLength
-		}
-		if rci.ValueLength > maxValueLength {
-			maxValueLength = rci.ValueLength
-		}
-		rcis = append(rcis, rci)
-	}
-	format :=
-		"  %-" + fmt.Sprintf("%d", maxNameLength) + "v:" +
-			"  %-" + fmt.Sprintf("%d", maxValueLength) + "v" +
-			"  %-v\n"
-
-	for _, v := range rcis {
-		out += fmt.Sprintf(format, v.Name, v.Value, v.Tag)
-	}
-
-	return out
-}
-
-// sprintStruct returns a prettier version of RequestConfigurator
-func sprintStruct(s interface{}) string {
-	// still struggling through pkg reflect
-	var out string
-	d := reflect.ValueOf(s)
-	dv := reflect.Indirect(d)
-	type rcInfo struct {
-		Type        string
-		Name        string
-		NameLength  int
-		Value       string
-		ValueLength int
-		Tag         string
-	}
-
-	// copy relevent fields to a temp struct slice
-	rcis := []rcInfo{}
-	var maxNameLength, maxValueLength int
-	for i := 0; i < dv.NumField(); i++ {
-		field := reflect.Indirect(dv.Field(i))
-		fieldType := field.Type().String()
-		// don't copy empty fields
-		if fieldType == "time.Time" && field.Interface().(time.Time).IsZero() {
-			break
-		} else if field.String() == "" {
-			break
-		}
-		structField := dv.Type().Field(i)
-		rci := rcInfo{
-			Type:        fieldType,
-			Name:        structField.Name,
-			NameLength:  len(structField.Name),
-			Value:       fmt.Sprintf("%v", field.Interface()),
-			ValueLength: len(fmt.Sprintf("%v", field.Interface())),
-			Tag:         string(structField.Tag),
-		}
-		if rci.NameLength > maxNameLength {
-			maxNameLength = rci.NameLength
-		}
-		if rci.ValueLength > maxValueLength {
-			maxValueLength = rci.ValueLength
-		}
-		rcis = append(rcis, rci)
-	}
-	format :=
-		"  %-" + fmt.Sprintf("%d", maxNameLength) + "v:" +
-			"  %-" + fmt.Sprintf("%d", maxValueLength) + "v" +
-			"  %-v\n"
-
-	for _, v := range rcis {
-		out += fmt.Sprintf(format, v.Name, v.Value, v.Tag)
-	}
-
-	return out
-}
-
-// fmt.Println(field.Interface())
-// fmt.Println(rci)
-// for i := 0; i < dv.NumField(); i++ {
-// 	structField := dv.Type().Field(i)
-// 	field := reflect.Indirect(dv.Field(i))
-// 	fieldType := field.Type().String()
-
-// 	// only add non-zero values to out
-// 	switch {
-// 	// time.Time never evaluates to ""
-// 	case fieldType == "time.Time":
-// 		if !field.Interface().(time.Time).IsZero() {
-// 			out += fmt.Sprintf("  %v: %v  %v\n", structField.Name, field, structField.Tag)
-// 		}
-// 	default:
-// 		if field.String() != "" {
-// 			out += fmt.Sprintf("  %v: %v  %v\n", structField.Name, field, structField.Tag)
-// 		}
-// 	}
-
-// field := reflect.Indirect(dv.Field(i))
-// var val string
-// if query, ok := structField.Tag.Lookup(tag); ok {
-// }
-// fieldType := field.Type().String()
-// fieldFormat := structField.Tag.Get("format")
-// fieldValue := field.Interface()
-// fieldFormat := structField.Tag.Get("format")
-// fieldValue := field.Interface()
-// switch {
-// 	if fieldFormat != "" {
