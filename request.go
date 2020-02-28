@@ -131,10 +131,10 @@ func EncodeURLValues(data interface{}, tag string) (url.Values, error) {
 	return uv, nil
 }
 
-// ParseRequest takes a *QueryConfig and builds the path, query, and body of the request
-func ParseRequest(qs interface{}) (*Request, error) {
+// ParseRequest takes a *RequestConfigurator returns a *Request
+func ParseRequest(rc RequestConfigurator) (*Request, error) {
 	// Encode path
-	p, err := EncodePath(qs)
+	p, err := EncodePath(rc)
 	if err != nil {
 		log.Printf("%v\n", err)
 		return nil, err
@@ -142,20 +142,21 @@ func ParseRequest(qs interface{}) (*Request, error) {
 	// fmt.Println(p)
 
 	// Encode query
-	q, err := EncodeURLValues(qs, "query")
+	q, err := EncodeURLValues(rc, "query")
 	if err != nil {
 		log.Printf("%v\n", err)
 		return nil, err
 	}
 	// fmt.Println(q)
 	// Encode body
-	b, err := EncodeURLValues(qs, "body")
+	b, err := EncodeURLValues(rc, "body")
 	if err != nil {
 		log.Printf("%v\n", err)
 		return nil, err
 	}
 	// fmt.Println(b)
 	r := &Request{
+		Config: rc,
 		Method: "GET",
 		Path:   p,
 		Query:  q,
