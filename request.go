@@ -15,19 +15,7 @@ import (
 // Request holds the processed (escaped) values for each element
 // of the api requests
 type Request struct {
-	// Config RequestConfigurator
-	Config interface{}
-	Method string
-	Path   string
-	Query  url.Values
-	Body   url.Values
-}
-
-// Request2 holds the processed (escaped) values for each element
-// of the api requests
-type Request2 struct {
 	Config RequestConfigurator
-	// Config interface{}
 	Method string
 	Path   string
 	Query  url.Values

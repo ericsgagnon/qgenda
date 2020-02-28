@@ -16,20 +16,6 @@ type CompanyRequestConfig struct {
 	Expand   string `query:"$expand"`
 }
 
-// String returns a pretty version of CompanyRequestConfig for printing
-// func (crc CompanyRequestConfig) String() string {
-// return "Config: \n" + sprintRequestConfigurator(crc)
-// }
-
-// NewCompanyRequestResponse returns a pointer to a RequestResponse with default values
-// for a company
-func NewCompanyRequestResponse() *RequestResponse {
-	rr := NewRequestResponse()
-	// crc :=
-	rr.Request.Config = NewCompanyRequestConfig()
-	return rr
-}
-
 // NewCompanyRequestConfig returns a pointer to a CompanyRequestConfig with default values
 func NewCompanyRequestConfig() *CompanyRequestConfig {
 	cr := &CompanyRequestConfig{
@@ -43,6 +29,13 @@ func NewCompanyRequestConfig() *CompanyRequestConfig {
 	}
 	return cr
 }
+
+// Parse returns a *RequestConfigurator and satisfies the the RequestConfigurator interface
+func (rc *CompanyRequestConfig) Parse() (*Request, error) {
+	return ParseRequestConfig(rc)
+}
+
+/*---------------------------------------------------------------------------------------*/
 
 // Company contains basic company info
 type Company struct {

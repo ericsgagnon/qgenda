@@ -1,7 +1,5 @@
 package main
 
-import "fmt"
-
 // RequestResponse captures all aspects of a request-response cycle
 type RequestResponse struct {
 	Request  *Request
@@ -16,9 +14,4 @@ func NewRequestResponse() *RequestResponse {
 		Response: NewResponse(),
 	}
 	return rr
-}
-
-// String produces a prettier output for *RequestResponse
-func (rr RequestResponse) String() string {
-	return fmt.Sprintf("Request: %v\nResponse: %v\n", rr.Request, rr.Response)
 }

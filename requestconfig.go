@@ -10,12 +10,12 @@ type RequestConfigurator interface {
 	// Get(s string) interface{}
 
 	// String() string
-	// Parse() Request
+	Parse() (*Request, error)
 	// ParseQuery() *url.Values
 	// ParseBody() *url.Values
 }
 
-// ParseRequestConfig takes a *RequestConfigurator and builds the path, query, and body of the request
+// ParseRequestConfig takes a *RequestConfigurator returns a *Request
 func ParseRequestConfig(rc RequestConfigurator) (*Request, error) {
 	// Encode path
 	p, err := EncodePath(rc)
