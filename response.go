@@ -13,8 +13,8 @@ import (
 
 // Response holds select information from the qgenda api response
 type Response struct {
-	Metadata *Metadata
-	Data     *[]byte `yaml:"-"`
+	Metadata Metadata
+	Data     []byte `yaml:"-"`
 }
 
 // Metadata captures relevant metadata from each response
@@ -28,18 +28,23 @@ type Metadata struct {
 
 // NewResponse initializes an empty struct and returns a points
 // it's primarily meant in other constructors to avoid null pointer
-func NewResponse() *Response {
-	r := &Response{
-		Metadata: &Metadata{},
-		Data:     &[]byte{},
+func NewResponse() Response {
+	r := Response{
+		Metadata: Metadata{},
+		Data:     []byte{},
 	}
 	return r
+}
+
+// NewResponses generalizes NewResponse to create a slice of pointers to Response
+func NewResponses() []Response {
+	return []Response{NewResponse()}
 }
 
 // FormatJSON decodes and indents the raw json bytes to a formatted json string
 func (r *Response) FormatJSON() ([]byte, error) {
 	var b bytes.Buffer
-	if err := json.Indent(&b, *r.Data, "", "  "); err != nil {
+	if err := json.Indent(&b, r.Data, "", "  "); err != nil {
 		log.Printf("Error marshalling to json: %+v", err)
 		return nil, err
 	}
@@ -87,7 +92,7 @@ func (r *Response) ToJSONFile(filename string) error {
 	}
 	// fmt.Println(f)
 	var b bytes.Buffer
-	if err := json.Indent(&b, *r.Data, "", "  "); err != nil {
+	if err := json.Indent(&b, r.Data, "", "  "); err != nil {
 		log.Printf("Error marshalling to json: %+v", err)
 		return err
 	}
@@ -98,6 +103,7 @@ func (r *Response) ToJSONFile(filename string) error {
 	}
 
 	return nil
+
 }
 
 // FromJSONFile reads an itemlist from a jsonfile

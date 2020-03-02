@@ -7,7 +7,7 @@ import (
 // NewStaffMemberRequestResponse returns a pointer to a StaffMemberRequestConfig with default values
 func NewStaffMemberRequestResponse() *RequestResponse {
 	rr := NewRequestResponse()
-	rr.Request.Config = NewStaffMemberRequestConfig()
+	rr.RequestConfig = NewStaffMemberRequestConfig()
 	return rr
 }
 
@@ -22,6 +22,7 @@ func NewStaffMemberRequestConfig() *StaffMemberRequestConfig {
 		// OrderBy:  "",
 		// Expand:   "",
 	}
+
 	return r
 }
 
@@ -35,6 +36,17 @@ type StaffMemberRequestConfig struct {
 	Filter   string `query:"$filter"`
 	OrderBy  string `query:"$orderby"`
 	Expand   string `query:"$expand"`
+}
+
+// Parse parses the RequestConfig into one or more Requests
+func (smrc StaffMemberRequestConfig) Parse() ([]Request, error) {
+	var req []Request
+	var err error
+	req[0], err = parseRequestConfig(smrc)
+	if err != nil {
+		return []Request{}, err
+	}
+	return req, nil
 }
 
 // StaffMember represents staff, and possibly some other entities as well?
