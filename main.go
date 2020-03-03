@@ -61,7 +61,7 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	// PrintYAML(scheduleRR)
+	PrintYAML(scheduleRR)
 	// preconfigure response slice capacity so we can index values and use goroutines
 	scheduleRR.Responses = make([]Response, len(scheduleRR.Requests))
 	for i := range scheduleRR.Requests {

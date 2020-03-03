@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -61,7 +62,11 @@ func (src ScheduleRequestConfig) Parse() ([]Request, error) {
 		srci := src
 		srci.StartDate = i
 		srci.EndDate = srci.StartDate.Add(src.Interval - src.IntervalPrecision)
-
+		srci.Resource = fmt.Sprintf("%v-%v-%v",
+			srci.Resource,
+			srci.StartDate.Format("20060102"),
+			srci.EndDate.Format("20060102"),
+		)
 		reqi, err := parseRequestConfig(srci)
 		if err != nil {
 			return []Request{}, err

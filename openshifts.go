@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/url"
 	"time"
 )
@@ -72,7 +73,11 @@ func (rc OpenShiftsRequestConfig) Parse() ([]Request, error) {
 		srci := rc
 		srci.StartDate = i
 		srci.EndDate = srci.StartDate.Add(rc.Interval - rc.IntervalPrecision)
-
+		srci.Resource = fmt.Sprintf("%v-%v-%v",
+			srci.Resource,
+			srci.StartDate.Format("20060102"),
+			srci.EndDate.Format("20060102"),
+		)
 		reqi, err := parseRequestConfig(srci)
 		if err != nil {
 			return []Request{}, err

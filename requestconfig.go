@@ -79,9 +79,11 @@ func parseRequestConfig(rc interface{}) (Request, error) {
 		log.Printf("%v\n", err)
 		return Request{}, err
 	}
+	data := reflect.ValueOf(rc)
+	resource := reflect.Indirect(data).FieldByName("Resource").Interface().(string)
 	// fmt.Println(b)
 	r := Request{
-		Resource: "", //rc.Resource,
+		Resource: resource,
 		Method:   "GET",
 		Path:     p,
 		Query:    q,
