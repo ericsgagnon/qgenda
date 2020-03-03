@@ -13,8 +13,12 @@ type CompanyRequestConfig struct {
 }
 
 // NewCompanyRequestConfig returns a pointer to a CompanyRequestConfig with default values
-func NewCompanyRequestConfig() *CompanyRequestConfig {
-	cr := &CompanyRequestConfig{
+func NewCompanyRequestConfig(crc *CompanyRequestConfig) *CompanyRequestConfig {
+	if crc == nil {
+		crc = &CompanyRequestConfig{}
+	}
+
+	r := &CompanyRequestConfig{
 		Resource: "Company",
 		Route:    "/company",
 		Includes: "Profiles,Organizations",
@@ -23,13 +27,28 @@ func NewCompanyRequestConfig() *CompanyRequestConfig {
 		// OrderBy:  "",
 		// Expand:   "",
 	}
-	return cr
+
+	fillDefaults(crc, r)
+	return crc
 }
 
-// // Parse builds a *Request from a *RequestConfigurator
-// func (rc *CompanyRequestConfig) Parse() (*Request, error) {
-// 	return ParseRequestConfig(rc)
-// }
+// NewCompanyRequestResponse returns a pointer to a ScheduleRequestConfig with default values
+func NewCompanyRequestResponse(crc *CompanyRequestConfig) *RequestResponse {
+	rr := NewRequestResponse()
+	rr.RequestConfig = NewCompanyRequestConfig(crc)
+	return rr
+}
+
+// Parse parses the RequestConfig into one or more Requests
+func (crc CompanyRequestConfig) Parse() ([]Request, error) {
+	var req []Request
+	reqi, err := parseRequestConfig(crc)
+	if err != nil {
+		return []Request{}, err
+	}
+	req = append(req, reqi)
+	return req, nil
+}
 
 /*---------------------------------------------------------------------------------------*/
 

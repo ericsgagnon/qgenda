@@ -18,14 +18,17 @@ type Request3 struct {
 }
 
 // NewOpenShiftsRequestResponse returns a pointer to a OpenShiftsRequestConfig with default values
-func NewOpenShiftsRequestResponse() *RequestResponse {
+func NewOpenShiftsRequestResponse(rc *OpenShiftsRequestConfig) *RequestResponse {
 	rr := NewRequestResponse()
-	rr.RequestConfig = NewOpenShiftsRequestConfig()
+	rr.RequestConfig = NewOpenShiftsRequestConfig(rc)
 	return rr
 }
 
 // NewOpenShiftsRequestConfig returns a point to a OpenShiftsRequestConfig with default values
-func NewOpenShiftsRequestConfig() *OpenShiftsRequestConfig {
+func NewOpenShiftsRequestConfig(rc *OpenShiftsRequestConfig) *OpenShiftsRequestConfig {
+	if rc == nil {
+		rc = &OpenShiftsRequestConfig{}
+	}
 	r := &OpenShiftsRequestConfig{
 		Resource:          "OpenShifts",
 		Route:             "/OpenShifts",
@@ -40,7 +43,8 @@ func NewOpenShiftsRequestConfig() *OpenShiftsRequestConfig {
 		// OrderBy:  "",
 		// Expand:   "",
 	}
-	return r
+	fillDefaults(rc, r)
+	return rc
 }
 
 // OpenShiftsRequestConfig struct captures all available request arguments for
@@ -62,12 +66,12 @@ type OpenShiftsRequestConfig struct {
 }
 
 // Parse parses the RequestConfig into one or more Requests
-func (osrc OpenShiftsRequestConfig) Parse() ([]Request, error) {
+func (rc OpenShiftsRequestConfig) Parse() ([]Request, error) {
 	var req []Request
-	for i := osrc.StartDate; i.Before(osrc.EndDate); i = i.Add(osrc.Interval) {
-		srci := osrc
+	for i := rc.StartDate; i.Before(rc.EndDate); i = i.Add(rc.Interval) {
+		srci := rc
 		srci.StartDate = i
-		srci.EndDate = srci.StartDate.Add(osrc.Interval - osrc.IntervalPrecision)
+		srci.EndDate = srci.StartDate.Add(rc.Interval - rc.IntervalPrecision)
 
 		reqi, err := parseRequestConfig(srci)
 		if err != nil {

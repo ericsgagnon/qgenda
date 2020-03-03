@@ -4,15 +4,19 @@ import (
 	"github.com/google/uuid"
 )
 
-// NewStaffMemberRequestResponse returns a pointer to a StaffMemberRequestConfig with default values
-func NewStaffMemberRequestResponse() *RequestResponse {
+// NewStaffMemberRequestResponse returns a pointer to a ScheduleRequestConfig with default values
+func NewStaffMemberRequestResponse(smrc *StaffMemberRequestConfig) *RequestResponse {
 	rr := NewRequestResponse()
-	rr.RequestConfig = NewStaffMemberRequestConfig()
+	rr.RequestConfig = NewStaffMemberRequestConfig(smrc)
 	return rr
 }
 
-// NewStaffMemberRequestConfig returns a point to a StaffMemberRequestConfig with default values
-func NewStaffMemberRequestConfig() *StaffMemberRequestConfig {
+// NewStaffMemberRequestConfig returns a pointer to a StaffMemberRequestConfig with default values
+func NewStaffMemberRequestConfig(smrc *StaffMemberRequestConfig) *StaffMemberRequestConfig {
+	if smrc == nil {
+		smrc = &StaffMemberRequestConfig{}
+	}
+
 	r := &StaffMemberRequestConfig{
 		Resource: "StaffMember",
 		Route:    "/staffmember",
@@ -23,7 +27,8 @@ func NewStaffMemberRequestConfig() *StaffMemberRequestConfig {
 		// Expand:   "",
 	}
 
-	return r
+	fillDefaults(smrc, r)
+	return smrc
 }
 
 // StaffMemberRequestConfig struct captures all available request arguments for
@@ -41,11 +46,11 @@ type StaffMemberRequestConfig struct {
 // Parse parses the RequestConfig into one or more Requests
 func (smrc StaffMemberRequestConfig) Parse() ([]Request, error) {
 	var req []Request
-	var err error
-	req[0], err = parseRequestConfig(smrc)
+	reqi, err := parseRequestConfig(smrc)
 	if err != nil {
 		return []Request{}, err
 	}
+	req = append(req, reqi)
 	return req, nil
 }
 

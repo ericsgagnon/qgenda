@@ -54,14 +54,6 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	// scheduleRC := NewScheduleRequestConfig(&ScheduleRequestConfig{
-	// 	StartDate: time.Now().UTC().AddDate(-1, 0, 0),
-	// })
-	// scheduleR, err := scheduleRC.Parse()
-	// if err != nil {
-	// 	log.Fatalln(err)
-	// }
-
 	scheduleRR := NewScheduleRequestResponse(&ScheduleRequestConfig{
 		StartDate: time.Now().UTC().AddDate(0, -1, 0),
 	})
@@ -69,15 +61,37 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	PrintYAML(scheduleRR)
+	// PrintYAML(scheduleRR)
 	// preconfigure response slice capacity so we can index values and use goroutines
 	scheduleRR.Responses = make([]Response, len(scheduleRR.Requests))
 	for i := range scheduleRR.Requests {
-		if q.GetRequest(ctx, scheduleRR.Requests[i], &scheduleRR.Responses[i]) != nil {
+		if q.Get(ctx, scheduleRR.Requests[i], &scheduleRR.Responses[i]) != nil {
 			log.Fatalln(err)
 		}
 	}
-	PrintYAML(scheduleRR.Responses)
+	for _, v := range scheduleRR.Responses {
+		if v.ToJSONFile("") != nil {
+			log.Fatalln(err)
+		}
+	}
+
+	/*------------------------------------------------------------------------------*/
+	// Company
+	companyRR := NewCompanyRequestResponse(nil)
+	companyRR.Requests, err = companyRR.RequestConfig.Parse()
+	if err != nil {
+		log.Fatalln(err)
+	}
+	/*------------------------------------------------------------------------------*/
+	/*------------------------------------------------------------------------------*/
+	// StaffMembers
+
+	/*------------------------------------------------------------------------------*/
+	/*------------------------------------------------------------------------------*/
+	// OpenShifts
+
+	/*------------------------------------------------------------------------------*/
+	// PrintYAML(scheduleRR.Responses)
 	// request, err := ParseRequestConfig(scheduleRC)
 	// if err != nil {
 	// 	log.Fatal(err)

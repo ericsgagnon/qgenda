@@ -1,0 +1,53 @@
+// New[REPLACE]RequestConfig returns a pointer to a [REPLACE]RequestConfig with default values
+func New[REPLACE]RequestConfig(rc *[REPLACE]RequestConfig) *[REPLACE]RequestConfig {
+	if rc == nil {
+		rc = &[REPLACE]RequestConfig{}
+	}
+
+	r := &[REPLACE]RequestConfig{
+		########################################
+		########################################
+		########################################
+		########################################
+		########################################
+		########################################
+	}
+
+	fillDefaults(rc, r)
+	return rc
+}
+
+// New[REPLACE]RequestResponse returns a pointer to a [REPLACE]RequestConfig with default values
+func New[REPLACE]RequestResponse(rc *[REPLACE]RequestConfig) *RequestResponse {
+	rr := NewRequestResponse()
+	rr.RequestConfig = New[REPLACE]RequestConfig(rc)
+	return rr
+}
+
+// Parse parses the RequestConfig into one or more Requests
+func (rc [REPLACE]RequestConfig) Parse() ([]Request, error) {
+	var req []Request
+	reqi, err := parseRequestConfig(rc)
+	if err != nil {
+		return []Request{}, err
+	}
+	req = append(req, reqi)
+	return req, nil
+}
+
+// Parse parses the RequestConfig into one or more Requests
+func (rc [REPLACE]RequestConfig) Parse() ([]Request, error) {
+	var req []Request
+	for i := rc.StartDate; i.Before(rc.EndDate); i = i.Add(rc.Interval) {
+		rci := rc
+		rci.StartDate = i
+		rci.EndDate = rci.StartDate.Add(rc.Interval - rc.IntervalPrecision)
+
+		reqi, err := parseRequestConfig(rci)
+		if err != nil {
+			return []Request{}, err
+		}
+		req = append(req, reqi)
+	}
+	return req, nil
+}
