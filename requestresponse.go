@@ -20,3 +20,25 @@ func NewRequestResponse() *RequestResponse {
 	}
 	return rr
 }
+
+// Parse creates a RequestResponses Requests from its RequestConfig
+// It uses the Parse method of the RequestConfigurator
+func (rr *RequestResponse) Parse() error {
+	var err error
+	if rr.Requests, err = rr.RequestConfig.Parse(); err != nil {
+		return err
+	}
+	return nil
+}
+
+// ResponsesToJSONFile writes all of a RequestResponses' Responses to a file
+// if an empty string is passed as filename, it defaults to the 'Resource' from
+// the request, also defaults to the user's cache directory
+func (rr *RequestResponse) ResponsesToJSONFile(filename string) error {
+	for _, v := range rr.Responses {
+		if err := v.ToJSONFile(filename); err != nil {
+			return err
+		}
+	}
+	return nil
+}

@@ -84,16 +84,11 @@ func NewQgendaClient(qcc QgendaClientConfig) (*QgendaClient, error) {
 	return q, nil
 }
 
-// GetAll handles a *RequestResponse.Request and returns the data and metadata in
-// *RequestResponse.Response
-func (q *QgendaClient) GetAll(ctx context.Context, rr *RequestResponse) error {
-	if len(rr.Requests) != len(rr.Responses) {
-		rr.Responses = make([]Response, len(rr.Requests))
-	}
-	for i := range rr.Requests {
-		if err := q.Get(ctx, rr.Requests[i], &rr.Responses[i]); err != nil {
-			return err
-		}
+// Parse takes a RequestConfigurator and returns a RequestResponse with
+// one or more Requests
+func (q *QgendaClient) Parse(rr *RequestResponse) error {
+	if rr.Requests, err = rr.RequestConfig.Parse(); err != nil {
+		return err
 	}
 	return nil
 }
@@ -149,5 +144,19 @@ func (q *QgendaClient) Get(ctx context.Context, r Request, response *Response) e
 	response.Metadata = meta
 	response.Data = b
 
+	return nil
+}
+
+// GetAll handles a *RequestResponse.Request and returns the data and metadata in
+// *RequestResponse.Response
+func (q *QgendaClient) GetAll(ctx context.Context, rr *RequestResponse) error {
+	if len(rr.Requests) != len(rr.Responses) {
+		rr.Responses = make([]Response, len(rr.Requests))
+	}
+	for i := range rr.Requests {
+		if err := q.Get(ctx, rr.Requests[i], &rr.Responses[i]); err != nil {
+			return err
+		}
+	}
 	return nil
 }

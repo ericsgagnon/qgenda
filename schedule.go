@@ -75,3 +75,29 @@ func (src ScheduleRequestConfig) Parse() ([]Request, error) {
 	}
 	return req, nil
 }
+
+// Stop overoptimizing!!
+// func testIterationParse(rc RequestConfigurator) ([]Request, error) {
+// 	tag := "iteration"
+// 	var req []Request
+// 	d := reflect.ValueOf(rc)
+// 	dv := reflect.Indirect(d)
+
+// 	for i := 0; i < dv.NumField(); i++ {
+// 		structField := dv.Type().Field(i)
+// 		field := reflect.Indirect(dv.Field(i))
+// 		var iteratorConfig map[string]string
+// 		if value, ok := structField.Tag.Lookup(tag); ok {
+// 			switch value {
+// 			case "start":
+// 				iteratorConfig["start"] = field.Type().Name()
+// 			case "end":
+// 			case "interval":
+// 			case "precision":
+// 			default:
+
+// 			}
+// 		}
+// 	}
+
+// }

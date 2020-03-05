@@ -54,85 +54,130 @@ func main() {
 		log.Fatalln(err)
 	}
 
+	/* Company -------------------------------------------------------------------------*/
+
+	companyRR := NewCompanyRequestResponse(nil)
+	if err := companyRR.Parse(); err != nil {
+		log.Fatalln(err)
+	}
+	if err := q.GetAll(ctx, companyRR); err != nil {
+		log.Fatalln(err)
+	}
+	if err := companyRR.ResponsesToJSONFile(""); err != nil {
+		log.Fatalln(err)
+	}
+
+	/* StaffMembers --------------------------------------------------------------------*/
+	staffMemberRR := NewStaffMemberRequestResponse(nil)
+	if err := staffMemberRR.Parse(); err != nil {
+		log.Fatalln(err)
+	}
+	if err := q.GetAll(ctx, staffMemberRR); err != nil {
+		log.Fatalln(err)
+	}
+	if err := staffMemberRR.ResponsesToJSONFile(""); err != nil {
+		log.Fatalln(err)
+	}
+
+	/* Schedule ------------------------------------------------------------------------*/
 	scheduleRR := NewScheduleRequestResponse(&ScheduleRequestConfig{
 		StartDate: time.Now().UTC().AddDate(0, -1, 0),
 	})
-	scheduleRR.Requests, err = scheduleRR.RequestConfig.Parse()
-	if err != nil {
+	if err := scheduleRR.Parse(); err != nil {
 		log.Fatalln(err)
 	}
-	PrintYAML(scheduleRR)
-	// preconfigure response slice capacity so we can index values and use goroutines
-	scheduleRR.Responses = make([]Response, len(scheduleRR.Requests))
-	for i := range scheduleRR.Requests {
-		if q.Get(ctx, scheduleRR.Requests[i], &scheduleRR.Responses[i]) != nil {
-			log.Fatalln(err)
-		}
-	}
-	for _, v := range scheduleRR.Responses {
-		if v.ToJSONFile("") != nil {
-			log.Fatalln(err)
-		}
-	}
-
-	/*------------------------------------------------------------------------------*/
-	// Company
-	companyRR := NewCompanyRequestResponse(nil)
-	companyRR.Requests, err = companyRR.RequestConfig.Parse()
-	if err != nil {
+	if err := q.GetAll(ctx, scheduleRR); err != nil {
 		log.Fatalln(err)
 	}
-	/*------------------------------------------------------------------------------*/
-	/*------------------------------------------------------------------------------*/
-	// StaffMembers
+	if err := scheduleRR.ResponsesToJSONFile(""); err != nil {
+		log.Fatalln(err)
+	}
+	/* OpenShifts ----------------------------------------------------------------------*/
+	openShiftsRR := NewOpenShiftsRequestResponse(&OpenShiftsRequestConfig{
+		StartDate: time.Now().UTC().AddDate(0, -1, 0),
+	})
+	if err := openShiftsRR.Parse(); err != nil {
+		log.Fatalln(err)
+	}
+	if err := q.GetAll(ctx, openShiftsRR); err != nil {
+		log.Fatalln(err)
+	}
+	// for _, v := range openShiftsRR.Responses {
+	// 	fmt.Println(string(v.Data))
+	// }
+	if err := openShiftsRR.ResponsesToJSONFile(""); err != nil {
+		log.Fatalln(err)
+	}
 
-	/*------------------------------------------------------------------------------*/
-	/*------------------------------------------------------------------------------*/
-	// OpenShifts
-
-	/*------------------------------------------------------------------------------*/
-	// PrintYAML(scheduleRR.Responses)
-	// request, err := ParseRequestConfig(scheduleRC)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// PrintYAML(request)
-	// companyRC := NewCompanyRequestConfig()
-
-	// Initialize a *RequestResponse for company
-	// crr := NewCompanyRequestResponse()
-	// // parse the *RequestResponse.Request.Config
-	// if err := crr.Request.ParseRequest(); err != nil {
-	// 	log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
-	// }
-	// if err := q.Get(ctx, crr); err != nil {
-	// 	log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
-	// }
-	// if err := crr.Response.ToJSONFile(""); err != nil {
-	// 	log.Fatalln(err)
-	// }
-
-	// // Initialize a *RequestResponse for company
-	// smrr := NewStaffMemberRequestResponse()
-	// // parse the *RequestResponse.Request.Config
-	// if err := smrr.Request.ParseRequest(); err != nil {
-	// 	log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
-	// }
-	// if err := q.Get(ctx, smrr); err != nil {
-	// 	log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
-	// }
-	// if err := smrr.Response.ToJSONFile(""); err != nil {
-	// 	log.Fatalln(err)
-	// }
-
-	// scheduleRC = &ScheduleRequestConfig{
-	// 	EndDate:   time.Now().UTC(),
-	// 	StartDate: time.Now().UTC().AddDate(0, -2, 0),
-	// }
-
-	// fillDefaults(scheduleRC, NewScheduleRequestConfig(nil))
-	// PrintYAML(scheduleRC)
+	/* Rotations -----------------------------------------------------------------------*/
+	rotationsRR := NewRotationsRequestResponse(&RotationsRequestConfig{
+		RangeStartDate:    time.Now().UTC().AddDate(-1, 0, 0),
+		RangeEndDate:      time.Now(),
+		Interval:          time.Hour * 24 * 180,
+		IntervalPrecision: time.Hour * 24,
+	})
+	if err := rotationsRR.Parse(); err != nil {
+		log.Fatalln(err)
+	}
+	if err := q.GetAll(ctx, rotationsRR); err != nil {
+		log.Fatalln(err)
+	}
+	if err := rotationsRR.ResponsesToJSONFile(""); err != nil {
+		log.Fatalln(err)
+	}
 }
+
+/*------------------------------------------------------------------------------*/
+/*------------------------------------------------------------------------------*/
+// StaffMembers
+
+/*------------------------------------------------------------------------------*/
+/*------------------------------------------------------------------------------*/
+// OpenShifts
+
+/*------------------------------------------------------------------------------*/
+// PrintYAML(scheduleRR.Responses)
+// request, err := ParseRequestConfig(scheduleRC)
+// if err != nil {
+// 	log.Fatal(err)
+// }
+// PrintYAML(request)
+// companyRC := NewCompanyRequestConfig()
+
+// Initialize a *RequestResponse for company
+// crr := NewCompanyRequestResponse()
+// // parse the *RequestResponse.Request.Config
+// if err := crr.Request.ParseRequest(); err != nil {
+// 	log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
+// }
+// if err := q.Get(ctx, crr); err != nil {
+// 	log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
+// }
+// if err := crr.Response.ToJSONFile(""); err != nil {
+// 	log.Fatalln(err)
+// }
+
+// // Initialize a *RequestResponse for company
+// smrr := NewStaffMemberRequestResponse()
+// // parse the *RequestResponse.Request.Config
+// if err := smrr.Request.ParseRequest(); err != nil {
+// 	log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
+// }
+// if err := q.Get(ctx, smrr); err != nil {
+// 	log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
+// }
+// if err := smrr.Response.ToJSONFile(""); err != nil {
+// 	log.Fatalln(err)
+// }
+
+// scheduleRC = &ScheduleRequestConfig{
+// 	EndDate:   time.Now().UTC(),
+// 	StartDate: time.Now().UTC().AddDate(0, -2, 0),
+// }
+
+// fillDefaults(scheduleRC, NewScheduleRequestConfig(nil))
+
+// PrintYAML(scheduleRC)
 
 // PrintYAML is a convenience function to print yaml-ized versions of
 // variables to stdout (console). It is not meant for 'real' use.

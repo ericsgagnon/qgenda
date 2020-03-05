@@ -2,21 +2,8 @@ package main
 
 import (
 	"fmt"
-	"net/url"
 	"time"
 )
-
-// "github.com/google/uuid"
-
-// Request3 is light years ahead of Request2 and the entire length of the dying universe ahead of Request
-type Request3 struct {
-	Config interface{}
-	Parse  string
-	Method string
-	Path   string
-	Query  url.Values
-	Body   url.Values
-}
 
 // NewOpenShiftsRequestResponse returns a pointer to a OpenShiftsRequestConfig with default values
 func NewOpenShiftsRequestResponse(rc *OpenShiftsRequestConfig) *RequestResponse {
@@ -32,7 +19,7 @@ func NewOpenShiftsRequestConfig(rc *OpenShiftsRequestConfig) *OpenShiftsRequestC
 	}
 	r := &OpenShiftsRequestConfig{
 		Resource:          "OpenShifts",
-		Route:             "/OpenShifts",
+		Route:             "/schedule/openshifts",
 		Includes:          "StaffTags,TaskTags,LocationTags",
 		StartDate:         time.Now().Add(time.Hour * 168 * 2 * -1),
 		EndDate:           time.Now(),
