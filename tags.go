@@ -1,27 +1,25 @@
 package main
 
-// CompanyRequestConfig is intended to be used as inputs to
+// TagsRequestConfig is intended to be used as inputs to
 // api requests to the company endpoints
-type CompanyRequestConfig struct {
+type TagsRequestConfig struct {
 	Resource string `resource:"-"`
 	Route    string `path:"-"`
-	Includes string `query:"includes"`
 	Select   string `query:"$select"`
 	Filter   string `query:"$filter"`
 	OrderBy  string `query:"$orderby"`
 	Expand   string `query:"$expand"`
 }
 
-// NewCompanyRequestConfig returns a pointer to a CompanyRequestConfig with default values
-func NewCompanyRequestConfig(rc *CompanyRequestConfig) *CompanyRequestConfig {
+// NewTagsRequestConfig returns a pointer to a TagsRequestConfig with default values
+func NewTagsRequestConfig(rc *TagsRequestConfig) *TagsRequestConfig {
 	if rc == nil {
-		rc = &CompanyRequestConfig{}
+		rc = &TagsRequestConfig{}
 	}
 
-	r := &CompanyRequestConfig{
-		Resource: "Company",
-		Route:    "/company",
-		Includes: "Profiles,Organizations",
+	r := &TagsRequestConfig{
+		Resource: "Tags",
+		Route:    "/tags",
 		// Select:   "",
 		// Filter:   "",
 		// OrderBy:  "",
@@ -32,15 +30,15 @@ func NewCompanyRequestConfig(rc *CompanyRequestConfig) *CompanyRequestConfig {
 	return rc
 }
 
-// NewCompanyRequestResponse returns a pointer to a ScheduleRequestConfig with default values
-func NewCompanyRequestResponse(rc *CompanyRequestConfig) *RequestResponse {
+// NewTagsRequestResponse returns a pointer to a ScheduleRequestConfig with default values
+func NewTagsRequestResponse(rc *TagsRequestConfig) *RequestResponse {
 	rr := NewRequestResponse()
-	rr.RequestConfig = NewCompanyRequestConfig(rc)
+	rr.RequestConfig = NewTagsRequestConfig(rc)
 	return rr
 }
 
 // Parse parses the RequestConfig into one or more Requests
-func (rc CompanyRequestConfig) Parse() ([]Request, error) {
+func (rc TagsRequestConfig) Parse() ([]Request, error) {
 	var req []Request
 	reqi, err := parseRequestConfig(rc)
 	if err != nil {

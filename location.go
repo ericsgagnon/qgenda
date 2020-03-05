@@ -1,8 +1,8 @@
 package main
 
-// CompanyRequestConfig is intended to be used as inputs to
+// LocationRequestConfig is intended to be used as inputs to
 // api requests to the company endpoints
-type CompanyRequestConfig struct {
+type LocationRequestConfig struct {
 	Resource string `resource:"-"`
 	Route    string `path:"-"`
 	Includes string `query:"includes"`
@@ -12,16 +12,16 @@ type CompanyRequestConfig struct {
 	Expand   string `query:"$expand"`
 }
 
-// NewCompanyRequestConfig returns a pointer to a CompanyRequestConfig with default values
-func NewCompanyRequestConfig(rc *CompanyRequestConfig) *CompanyRequestConfig {
+// NewLocationRequestConfig returns a pointer to a LocationRequestConfig with default values
+func NewLocationRequestConfig(rc *LocationRequestConfig) *LocationRequestConfig {
 	if rc == nil {
-		rc = &CompanyRequestConfig{}
+		rc = &LocationRequestConfig{}
 	}
 
-	r := &CompanyRequestConfig{
-		Resource: "Company",
-		Route:    "/company",
-		Includes: "Profiles,Organizations",
+	r := &LocationRequestConfig{
+		Resource: "Location",
+		Route:    "/location",
+		Includes: "Tags",
 		// Select:   "",
 		// Filter:   "",
 		// OrderBy:  "",
@@ -32,15 +32,15 @@ func NewCompanyRequestConfig(rc *CompanyRequestConfig) *CompanyRequestConfig {
 	return rc
 }
 
-// NewCompanyRequestResponse returns a pointer to a ScheduleRequestConfig with default values
-func NewCompanyRequestResponse(rc *CompanyRequestConfig) *RequestResponse {
+// NewLocationRequestResponse returns a pointer to a ScheduleRequestConfig with default values
+func NewLocationRequestResponse(rc *LocationRequestConfig) *RequestResponse {
 	rr := NewRequestResponse()
-	rr.RequestConfig = NewCompanyRequestConfig(rc)
+	rr.RequestConfig = NewLocationRequestConfig(rc)
 	return rr
 }
 
 // Parse parses the RequestConfig into one or more Requests
-func (rc CompanyRequestConfig) Parse() ([]Request, error) {
+func (rc LocationRequestConfig) Parse() ([]Request, error) {
 	var req []Request
 	reqi, err := parseRequestConfig(rc)
 	if err != nil {

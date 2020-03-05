@@ -67,64 +67,141 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	/* StaffMembers --------------------------------------------------------------------*/
-	staffMemberRR := NewStaffMemberRequestResponse(nil)
-	if err := staffMemberRR.Parse(); err != nil {
-		log.Fatalln(err)
-	}
-	if err := q.GetAll(ctx, staffMemberRR); err != nil {
-		log.Fatalln(err)
-	}
-	if err := staffMemberRR.ResponsesToJSONFile(""); err != nil {
-		log.Fatalln(err)
-	}
+	// /* StaffMembers --------------------------------------------------------------------*/
+	// staffMemberRR := NewStaffMemberRequestResponse(nil)
+	// if err := staffMemberRR.Parse(); err != nil {
+	// 	log.Fatalln(err)
+	// }
+	// if err := q.GetAll(ctx, staffMemberRR); err != nil {
+	// 	log.Fatalln(err)
+	// }
+	// if err := staffMemberRR.ResponsesToJSONFile(""); err != nil {
+	// 	log.Fatalln(err)
+	// }
 
-	/* Schedule ------------------------------------------------------------------------*/
-	scheduleRR := NewScheduleRequestResponse(&ScheduleRequestConfig{
-		StartDate: time.Now().UTC().AddDate(0, -1, 0),
-	})
-	if err := scheduleRR.Parse(); err != nil {
-		log.Fatalln(err)
-	}
-	if err := q.GetAll(ctx, scheduleRR); err != nil {
-		log.Fatalln(err)
-	}
-	if err := scheduleRR.ResponsesToJSONFile(""); err != nil {
-		log.Fatalln(err)
-	}
-	/* OpenShifts ----------------------------------------------------------------------*/
-	openShiftsRR := NewOpenShiftsRequestResponse(&OpenShiftsRequestConfig{
-		StartDate: time.Now().UTC().AddDate(0, -1, 0),
-	})
-	if err := openShiftsRR.Parse(); err != nil {
-		log.Fatalln(err)
-	}
-	if err := q.GetAll(ctx, openShiftsRR); err != nil {
-		log.Fatalln(err)
-	}
-	// for _, v := range openShiftsRR.Responses {
+	// /* Schedule ------------------------------------------------------------------------*/
+	// scheduleRR := NewScheduleRequestResponse(&ScheduleRequestConfig{
+	// 	StartDate: time.Now().UTC().AddDate(0, -1, 0),
+	// })
+	// if err := scheduleRR.Parse(); err != nil {
+	// 	log.Fatalln(err)
+	// }
+	// if err := q.GetAll(ctx, scheduleRR); err != nil {
+	// 	log.Fatalln(err)
+	// }
+	// if err := scheduleRR.ResponsesToJSONFile(""); err != nil {
+	// 	log.Fatalln(err)
+	// }
+	// /* OpenShifts ----------------------------------------------------------------------*/
+	// openShiftsRR := NewOpenShiftsRequestResponse(&OpenShiftsRequestConfig{
+	// 	StartDate: time.Now().UTC().AddDate(0, -1, 0),
+	// })
+	// if err := openShiftsRR.Parse(); err != nil {
+	// 	log.Fatalln(err)
+	// }
+	// if err := q.GetAll(ctx, openShiftsRR); err != nil {
+	// 	log.Fatalln(err)
+	// }
+	// // for _, v := range openShiftsRR.Responses {
+	// // 	fmt.Println(string(v.Data))
+	// // }
+	// if err := openShiftsRR.ResponsesToJSONFile(""); err != nil {
+	// 	log.Fatalln(err)
+	// }
+
+	// /* Rotations -----------------------------------------------------------------------*/
+	// rotationsRR := NewRotationsRequestResponse(&RotationsRequestConfig{
+	// 	RangeStartDate:    time.Now().UTC().AddDate(-1, 0, 0),
+	// 	RangeEndDate:      time.Now(),
+	// 	Interval:          time.Hour * 24 * 180,
+	// 	IntervalPrecision: time.Hour * 24,
+	// })
+	// if err := rotationsRR.Parse(); err != nil {
+	// 	log.Fatalln(err)
+	// }
+	// if err := q.GetAll(ctx, rotationsRR); err != nil {
+	// 	log.Fatalln(err)
+	// }
+	// if err := rotationsRR.ResponsesToJSONFile(""); err != nil {
+	// 	log.Fatalln(err)
+	// }
+	// /* Requests ------------------------------------------------------------------------*/
+	// requestRR := NewRequestRequestResponse(&RequestRequestConfig{
+	// 	StartDate:         time.Now().UTC().AddDate(0, -1, 0),
+	// 	EndDate:           time.Now(),
+	// 	Interval:          time.Hour * 24 * 180,
+	// 	IntervalPrecision: time.Hour * 24,
+	// })
+	// if err := requestRR.Parse(); err != nil {
+	// 	log.Fatalln(err)
+	// }
+	// if err := q.GetAll(ctx, requestRR); err != nil {
+	// 	log.Fatalln(err)
+	// }
+	// if err := requestRR.ResponsesToJSONFile(""); err != nil {
+	// 	log.Fatalln(err)
+	// }
+	// /* Task ----------------------------------------------------------------------------*/
+	// taskRR := NewTaskRequestResponse(nil)
+	// if err := taskRR.Parse(); err != nil {
+	// 	log.Fatalln(err)
+	// }
+	// if err := q.GetAll(ctx, taskRR); err != nil {
+	// 	log.Fatalln(err)
+	// }
+	// if err := taskRR.ResponsesToJSONFile(""); err != nil {
+	// 	log.Fatalln(err)
+	// }
+	// /* TimeEvent ------------------------------------------------------------------------*/
+	// timeEventRR := NewTimeEventRequestResponse(&TimeEventRequestConfig{
+	// 	StartDate: time.Now().UTC().AddDate(0, -1, 0),
+	// })
+	// if err := timeEventRR.Parse(); err != nil {
+	// 	log.Fatalln(err)
+	// }
+	// if err := q.GetAll(ctx, timeEventRR); err != nil {
+	// 	log.Fatalln(err)
+	// }
+	// for _, v := range timeEventRR.Responses {
 	// 	fmt.Println(string(v.Data))
 	// }
-	if err := openShiftsRR.ResponsesToJSONFile(""); err != nil {
+	// PrintYAML(timeEventRR)
+	// if err := timeEventRR.ResponsesToJSONFile(""); err != nil {
+	// 	log.Fatalln(err)
+	// }
+	/* Location --------------------------------------------------------------------------*/
+	locationRR := NewLocationRequestResponse(nil)
+	if err := locationRR.Parse(); err != nil {
+		log.Fatalln(err)
+	}
+	// PrintYAML(locationRR.Requests)
+	if err := q.GetAll(ctx, locationRR); err != nil {
+		log.Fatalln(err)
+	}
+	for _, v := range locationRR.Responses {
+		fmt.Println(string(v.Data))
+	}
+	PrintYAML(locationRR)
+	// if err := locationRR.ResponsesToJSONFile(""); err != nil {
+	// 	log.Fatalln(err)
+	// }
+	/* Location --------------------------------------------------------------------------*/
+	tagsRR := NewTagsRequestResponse(nil)
+	if err := tagsRR.Parse(); err != nil {
+		log.Fatalln(err)
+	}
+	// PrintYAML(tagsRR.Requests)
+	if err := q.GetAll(ctx, tagsRR); err != nil {
+		log.Fatalln(err)
+	}
+	for _, v := range tagsRR.Responses {
+		fmt.Println(string(v.Data))
+	}
+	PrintYAML(tagsRR)
+	if err := tagsRR.ResponsesToJSONFile(""); err != nil {
 		log.Fatalln(err)
 	}
 
-	/* Rotations -----------------------------------------------------------------------*/
-	rotationsRR := NewRotationsRequestResponse(&RotationsRequestConfig{
-		RangeStartDate:    time.Now().UTC().AddDate(-1, 0, 0),
-		RangeEndDate:      time.Now(),
-		Interval:          time.Hour * 24 * 180,
-		IntervalPrecision: time.Hour * 24,
-	})
-	if err := rotationsRR.Parse(); err != nil {
-		log.Fatalln(err)
-	}
-	if err := q.GetAll(ctx, rotationsRR); err != nil {
-		log.Fatalln(err)
-	}
-	if err := rotationsRR.ResponsesToJSONFile(""); err != nil {
-		log.Fatalln(err)
-	}
 }
 
 /*------------------------------------------------------------------------------*/
