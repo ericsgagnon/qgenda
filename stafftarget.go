@@ -12,8 +12,8 @@ type StaffTargetConfig struct {
 	Expand   string `query:"$expand"`
 }
 
-// NewStaffTargetConfig returns a pointer to a StaffTargetConfig with default values
-func NewStaffTargetConfig(rc *StaffTargetConfig) *StaffTargetConfig {
+// NewStaffTargetRequestConfig returns a pointer to a StaffTargetConfig with default values
+func NewStaffTargetRequestConfig(rc *StaffTargetConfig) *StaffTargetConfig {
 	if rc == nil {
 		rc = &StaffTargetConfig{}
 	}
@@ -32,10 +32,10 @@ func NewStaffTargetConfig(rc *StaffTargetConfig) *StaffTargetConfig {
 	return rc
 }
 
-// NewStaffTargetResponse returns a pointer to a ScheduleRequestConfig with default values
-func NewStaffTargetResponse(rc *StaffTargetConfig) *RequestResponse {
+// NewStaffTargetRequestResponse returns a pointer to a ScheduleRequestConfig with default values
+func NewStaffTargetRequestResponse(rc *StaffTargetConfig) *RequestResponse {
 	rr := NewRequestResponse()
-	rr.RequestConfig = NewStaffTargetConfig(rc)
+	rr.RequestConfig = NewStaffTargetRequestConfig(rc)
 	return rr
 }
 
@@ -49,30 +49,3 @@ func (rc StaffTargetConfig) Parse() ([]Request, error) {
 	req = append(req, reqi)
 	return req, nil
 }
-
-/*---------------------------------------------------------------------------------------*/
-
-// // Company contains basic company info
-// type Company struct {
-// 	ID            uuid.UUID      `json:"CompanyKey"`
-// 	Name          string         `json:"CompanyName"`
-// 	Abbreviation  string         `json:"CompanyAbbr"`
-// 	CreatedTime   TimeUTC        `json:"DateCreatedUtc,omitempty"`
-// 	Location      string         `json:"CompanyLocation,omitempty"`
-// 	PhoneNumber   string         `json:"CompanyPhoneNumber,omitempty"`
-// 	Profiles      []Profile      `json:"Profiles,omitempty"`
-// 	Organizations []Organization `json:"Organizations,omitempty"`
-// }
-
-// // Profile appears to link a user role to a company...
-// type Profile struct {
-// 	Name  string    `json:"ProfileName"`
-// 	Key   uuid.UUID `json:"ProfileKey"`
-// 	Admin bool      `json:"IsAdmin"`
-// }
-
-// // Organization appears to linke multiple companies and users
-// type Organization struct {
-// 	Name string `json:"OrgName"`
-// 	Key  int    `json:"OrgKey"`
-// }

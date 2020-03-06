@@ -54,207 +54,185 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	/* Company -------------------------------------------------------------------------*/
-
-	companyRR := NewCompanyRequestResponse(nil)
-	if err := companyRR.Parse(); err != nil {
-		log.Fatalln(err)
-	}
-	if err := q.GetAll(ctx, companyRR); err != nil {
-		log.Fatalln(err)
-	}
-	if err := companyRR.ResponsesToJSONFile(""); err != nil {
-		log.Fatalln(err)
-	}
-
+	// /* Company -------------------------------------------------------------------------*/
+	// if err := q.DownloadAndSaveCompany(ctx, nil, ""); err != nil {
+	// 	log.Fatalln(err)
+	// }
 	// /* StaffMembers --------------------------------------------------------------------*/
-	// staffMemberRR := NewStaffMemberRequestResponse(nil)
-	// if err := staffMemberRR.Parse(); err != nil {
-	// 	log.Fatalln(err)
-	// }
-	// if err := q.GetAll(ctx, staffMemberRR); err != nil {
-	// 	log.Fatalln(err)
-	// }
-	// if err := staffMemberRR.ResponsesToJSONFile(""); err != nil {
+	// if err := q.DownloadAndSaveStaffMember(ctx, nil, ""); err != nil {
 	// 	log.Fatalln(err)
 	// }
 
 	// /* Schedule ------------------------------------------------------------------------*/
-	// scheduleRR := NewScheduleRequestResponse(&ScheduleRequestConfig{
-	// 	StartDate: time.Now().UTC().AddDate(0, -1, 0),
-	// })
-	// if err := scheduleRR.Parse(); err != nil {
-	// 	log.Fatalln(err)
+	// scheduleRC := &ScheduleRequestConfig{
+	// 	StartDate: time.Now().UTC().AddDate(-1, -3, 0),
+	// 	EndDate:   time.Now().UTC().AddDate(0, 6, 0),
 	// }
-	// if err := q.GetAll(ctx, scheduleRR); err != nil {
-	// 	log.Fatalln(err)
-	// }
-	// if err := scheduleRR.ResponsesToJSONFile(""); err != nil {
+	// if err := q.DownloadAndSaveSchedule(ctx, scheduleRC, ""); err != nil {
 	// 	log.Fatalln(err)
 	// }
 	// /* OpenShifts ----------------------------------------------------------------------*/
-	// openShiftsRR := NewOpenShiftsRequestResponse(&OpenShiftsRequestConfig{
-	// 	StartDate: time.Now().UTC().AddDate(0, -1, 0),
-	// })
-	// if err := openShiftsRR.Parse(); err != nil {
+	// openShiftsRC := &OpenShiftsRequestConfig{
+	// 	StartDate: time.Now().UTC().AddDate(-1, -3, 0),
+	// 	EndDate:   time.Now().UTC().AddDate(0, 6, 0),
+	// }
+	// if err := q.DownloadAndSaveOpenShifts(ctx, openShiftsRC, ""); err != nil {
 	// 	log.Fatalln(err)
 	// }
-	// if err := q.GetAll(ctx, openShiftsRR); err != nil {
-	// 	log.Fatalln(err)
-	// }
-	// // for _, v := range openShiftsRR.Responses {
-	// // 	fmt.Println(string(v.Data))
-	// // }
-	// if err := openShiftsRR.ResponsesToJSONFile(""); err != nil {
-	// 	log.Fatalln(err)
-	// }
-
 	// /* Rotations -----------------------------------------------------------------------*/
-	// rotationsRR := NewRotationsRequestResponse(&RotationsRequestConfig{
-	// 	RangeStartDate:    time.Now().UTC().AddDate(-1, 0, 0),
-	// 	RangeEndDate:      time.Now(),
+	// rotationsRC := &RotationsRequestConfig{
+	// 	RangeStartDate:    time.Now().UTC().AddDate(-1, -3, 0),
+	// 	RangeEndDate:      time.Now().UTC().AddDate(0, 6, 0),
 	// 	Interval:          time.Hour * 24 * 180,
 	// 	IntervalPrecision: time.Hour * 24,
-	// })
-	// if err := rotationsRR.Parse(); err != nil {
-	// 	log.Fatalln(err)
 	// }
-	// if err := q.GetAll(ctx, rotationsRR); err != nil {
-	// 	log.Fatalln(err)
-	// }
-	// if err := rotationsRR.ResponsesToJSONFile(""); err != nil {
+	// if err := q.DownloadAndSaveRotations(ctx, rotationsRC, ""); err != nil {
 	// 	log.Fatalln(err)
 	// }
 	// /* Requests ------------------------------------------------------------------------*/
-	// requestRR := NewRequestRequestResponse(&RequestRequestConfig{
-	// 	StartDate:         time.Now().UTC().AddDate(0, -1, 0),
-	// 	EndDate:           time.Now(),
+	// requestRC := &RequestRequestConfig{
+	// 	StartDate:         time.Now().UTC().AddDate(-1, -3, 0),
+	// 	EndDate:           time.Now().UTC().AddDate(0, 6, 0),
 	// 	Interval:          time.Hour * 24 * 180,
 	// 	IntervalPrecision: time.Hour * 24,
-	// })
-	// if err := requestRR.Parse(); err != nil {
+	// }
+	// if err := q.DownloadAndSaveRequests(ctx, requestRC, ""); err != nil {
 	// 	log.Fatalln(err)
 	// }
-	// if err := q.GetAll(ctx, requestRR); err != nil {
+	// /* Tasks ----------------------------------------------------------------------------*/
+	// if err := q.DownloadAndSaveTasks(ctx, nil, ""); err != nil {
 	// 	log.Fatalln(err)
 	// }
-	// if err := requestRR.ResponsesToJSONFile(""); err != nil {
-	// 	log.Fatalln(err)
-	// }
-	// /* Task ----------------------------------------------------------------------------*/
-	// taskRR := NewTaskRequestResponse(nil)
-	// if err := taskRR.Parse(); err != nil {
-	// 	log.Fatalln(err)
-	// }
-	// if err := q.GetAll(ctx, taskRR); err != nil {
-	// 	log.Fatalln(err)
-	// }
-	// if err := taskRR.ResponsesToJSONFile(""); err != nil {
-	// 	log.Fatalln(err)
-	// }
-	// /* TimeEvent ------------------------------------------------------------------------*/
-	// timeEventRR := NewTimeEventRequestResponse(&TimeEventRequestConfig{
-	// 	StartDate: time.Now().UTC().AddDate(0, -1, 0),
-	// })
-	// if err := timeEventRR.Parse(); err != nil {
-	// 	log.Fatalln(err)
-	// }
-	// if err := q.GetAll(ctx, timeEventRR); err != nil {
-	// 	log.Fatalln(err)
-	// }
-	// for _, v := range timeEventRR.Responses {
-	// 	fmt.Println(string(v.Data))
-	// }
-	// PrintYAML(timeEventRR)
-	// if err := timeEventRR.ResponsesToJSONFile(""); err != nil {
-	// 	log.Fatalln(err)
-	// }
-	/* Location --------------------------------------------------------------------------*/
-	locationRR := NewLocationRequestResponse(nil)
-	if err := locationRR.Parse(); err != nil {
-		log.Fatalln(err)
-	}
-	// PrintYAML(locationRR.Requests)
-	if err := q.GetAll(ctx, locationRR); err != nil {
-		log.Fatalln(err)
-	}
-	for _, v := range locationRR.Responses {
-		fmt.Println(string(v.Data))
-	}
-	PrintYAML(locationRR)
-	// if err := locationRR.ResponsesToJSONFile(""); err != nil {
-	// 	log.Fatalln(err)
-	// }
-	/* Location --------------------------------------------------------------------------*/
-	tagsRR := NewTagsRequestResponse(nil)
-	if err := tagsRR.Parse(); err != nil {
-		log.Fatalln(err)
-	}
-	// PrintYAML(tagsRR.Requests)
-	if err := q.GetAll(ctx, tagsRR); err != nil {
-		log.Fatalln(err)
-	}
-	for _, v := range tagsRR.Responses {
-		fmt.Println(string(v.Data))
-	}
-	PrintYAML(tagsRR)
-	if err := tagsRR.ResponsesToJSONFile(""); err != nil {
-		log.Fatalln(err)
-	}
+
+	// Reshape the data
 
 }
 
-/*------------------------------------------------------------------------------*/
-/*------------------------------------------------------------------------------*/
-// StaffMembers
+// DownloadAndSaveCompany is only intended to be used interactively in main
+func (q *QgendaClient) DownloadAndSaveCompany(ctx context.Context, rc *CompanyRequestConfig, filename string) error {
+	rr := NewCompanyRequestResponse(rc)
+	if err := rr.Parse(); err != nil {
+		log.Printf("Error parsing RequestConfig to Request: %v", err)
+		return err
+	}
+	if err := q.GetAll(ctx, rr); err != nil {
+		log.Printf("Error getting requests: %v", err)
+		return err
+	}
+	if err := rr.ResponsesToJSONFile(filename); err != nil {
+		log.Printf("Error writing to JSONFile: %v", err)
+		return err
+	}
+	return nil
+}
 
-/*------------------------------------------------------------------------------*/
-/*------------------------------------------------------------------------------*/
-// OpenShifts
+// DownloadAndSaveStaffMember is only intended to be used interactively in main
+func (q *QgendaClient) DownloadAndSaveStaffMember(ctx context.Context, rc *StaffMemberRequestConfig, filename string) error {
+	rr := NewStaffMemberRequestResponse(rc)
+	if err := rr.Parse(); err != nil {
+		log.Printf("Error parsing RequestConfig to Request: %v", err)
+		return err
+	}
+	if err := q.GetAll(ctx, rr); err != nil {
+		log.Printf("Error getting requests: %v", err)
+		return err
+	}
+	if err := rr.ResponsesToJSONFile(filename); err != nil {
+		log.Printf("Error writing to JSONFile: %v", err)
+		return err
+	}
+	return nil
+}
 
-/*------------------------------------------------------------------------------*/
-// PrintYAML(scheduleRR.Responses)
-// request, err := ParseRequestConfig(scheduleRC)
-// if err != nil {
-// 	log.Fatal(err)
-// }
-// PrintYAML(request)
-// companyRC := NewCompanyRequestConfig()
+// DownloadAndSaveSchedule is only intended to be used interactively in main
+func (q *QgendaClient) DownloadAndSaveSchedule(ctx context.Context, rc *ScheduleRequestConfig, filename string) error {
+	rr := NewScheduleRequestResponse(rc)
+	if err := rr.Parse(); err != nil {
+		log.Printf("Error parsing RequestConfig to Request: %v", err)
+		return err
+	}
+	if err := q.GetAll(ctx, rr); err != nil {
+		log.Printf("Error getting requests: %v", err)
+		return err
+	}
+	if err := rr.ResponsesToJSONFile(filename); err != nil {
+		log.Printf("Error writing to JSONFile: %v", err)
+		return err
+	}
+	return nil
+}
 
-// Initialize a *RequestResponse for company
-// crr := NewCompanyRequestResponse()
-// // parse the *RequestResponse.Request.Config
-// if err := crr.Request.ParseRequest(); err != nil {
-// 	log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
-// }
-// if err := q.Get(ctx, crr); err != nil {
-// 	log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
-// }
-// if err := crr.Response.ToJSONFile(""); err != nil {
-// 	log.Fatalln(err)
-// }
+// DownloadAndSaveOpenShifts is only intended to be used interactively in main
+func (q *QgendaClient) DownloadAndSaveOpenShifts(ctx context.Context, rc *OpenShiftsRequestConfig, filename string) error {
+	rr := NewOpenShiftsRequestResponse(rc)
+	if err := rr.Parse(); err != nil {
+		log.Printf("Error parsing RequestConfig to Request: %v", err)
+		return err
+	}
+	if err := q.GetAll(ctx, rr); err != nil {
+		log.Printf("Error getting requests: %v", err)
+		return err
+	}
+	if err := rr.ResponsesToJSONFile(filename); err != nil {
+		log.Printf("Error writing to JSONFile: %v", err)
+		return err
+	}
+	return nil
+}
 
-// // Initialize a *RequestResponse for company
-// smrr := NewStaffMemberRequestResponse()
-// // parse the *RequestResponse.Request.Config
-// if err := smrr.Request.ParseRequest(); err != nil {
-// 	log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
-// }
-// if err := q.Get(ctx, smrr); err != nil {
-// 	log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
-// }
-// if err := smrr.Response.ToJSONFile(""); err != nil {
-// 	log.Fatalln(err)
-// }
+// DownloadAndSaveRotations is only intended to be used interactively in main
+func (q *QgendaClient) DownloadAndSaveRotations(ctx context.Context, rc *RotationsRequestConfig, filename string) error {
+	rr := NewRotationsRequestResponse(rc)
+	if err := rr.Parse(); err != nil {
+		log.Printf("Error parsing RequestConfig to Request: %v", err)
+		return err
+	}
+	if err := q.GetAll(ctx, rr); err != nil {
+		log.Printf("Error getting requests: %v", err)
+		return err
+	}
+	if err := rr.ResponsesToJSONFile(filename); err != nil {
+		log.Printf("Error writing to JSONFile: %v", err)
+		return err
+	}
+	return nil
+}
 
-// scheduleRC = &ScheduleRequestConfig{
-// 	EndDate:   time.Now().UTC(),
-// 	StartDate: time.Now().UTC().AddDate(0, -2, 0),
-// }
+// DownloadAndSaveRequests is only intended to be used interactively in main
+func (q *QgendaClient) DownloadAndSaveRequests(ctx context.Context, rc *RequestRequestConfig, filename string) error {
+	rr := NewRequestRequestResponse(rc)
+	if err := rr.Parse(); err != nil {
+		log.Printf("Error parsing RequestConfig to Request: %v", err)
+		return err
+	}
+	if err := q.GetAll(ctx, rr); err != nil {
+		log.Printf("Error getting requests: %v", err)
+		return err
+	}
+	if err := rr.ResponsesToJSONFile(filename); err != nil {
+		log.Printf("Error writing to JSONFile: %v", err)
+		return err
+	}
+	return nil
+}
 
-// fillDefaults(scheduleRC, NewScheduleRequestConfig(nil))
-
-// PrintYAML(scheduleRC)
+// DownloadAndSaveTasks is only intended to be used interactively in main
+func (q *QgendaClient) DownloadAndSaveTasks(ctx context.Context, rc *TaskRequestConfig, filename string) error {
+	rr := NewTaskRequestResponse(rc)
+	if err := rr.Parse(); err != nil {
+		log.Printf("Error parsing RequestConfig to Request: %v", err)
+		return err
+	}
+	if err := q.GetAll(ctx, rr); err != nil {
+		log.Printf("Error getting requests: %v", err)
+		return err
+	}
+	if err := rr.ResponsesToJSONFile(filename); err != nil {
+		log.Printf("Error writing to JSONFile: %v", err)
+		return err
+	}
+	return nil
+}
 
 // PrintYAML is a convenience function to print yaml-ized versions of
 // variables to stdout (console). It is not meant for 'real' use.
@@ -266,121 +244,79 @@ func PrintYAML(in interface{}) {
 	fmt.Println(string(inYAML))
 }
 
-// defSF := def.Type().Field(i)
-// defFN := defSF.Name
-// defFT := defSF.Type.String()
-// defField := reflect.Indirect(def.Field(i))
-// defFV := defField.Interface()
-
-// isZero := defField.IsZero()
-// fmt.Printf("%#v\n", isZero)
-// switch {
-// case defFT == "time.Time" && !defFV.(time.Time).IsZero():
-// 	fmt.Printf("%v:\t%v\n", defFN, defFV)
-
-// default:
-// 	fmt.Sprint(defFV)
-// }
-// fmt.Println(defFN)
-// fmt.Printf("\n%#v\n", data)
-// iterate through names/values and compare with argument struct
-
-// replace argument fields with contstructor defaults if arguments are blank
-// or ??
-
-// blankSRC := ScheduleRequestConfig{}
-// e := reflect.ValueOf(blankSRC)
-// fmt.Printf("\n%#v\n", e)
-// d := reflect.ValueOf(data)
-// fmt.Printf("\n%#v\n", d)
-
-// // ev := reflect.Indirect(e)
-// // fmt.Printf("\n%#v\n", ev)
-// dv := reflect.Indirect(d)
-// // fmt.Printf("\n%#v\n", dv)
-
-// // fmt.Printf("\nblank:\t%#v\targument:%#v\n", ev.NumField(), dv.NumField())
-// // fmt.Printf("\nblank:\t%#v\targument:%#v\n", e.NumField(), d.NumField())
-// uv := url.Values{}
-// for i := 0; i < dv.NumField(); i++ {
-// 	structField := dv.Type().Field(i)
-// 	// fmt.Printf("\n%#v\n", structField)
-
-// 	// fmt.Println(structField.Name)
-
-// 	field := reflect.Indirect(dv.Field(i))
-// 	// fmt.Printf("\n%#v\n", field)
-// 	var val string
-// 	if query, ok := structField.Tag.Lookup(""); ok {
-// 		fieldType := field.Type().String()
-// 		fieldFormat := structField.Tag.Get("format")
-// 		fieldValue := field.Interface()
-// 		switch {
-// 		case fieldType == "time.Time" && !fieldValue.(time.Time).IsZero():
-// 			if fieldFormat != "" {
-// 				val = fieldValue.(time.Time).Format(fieldFormat)
-// 			} else {
-// 				val = fieldValue.(time.Time).Format(time.RFC3339)
-// 			}
-// 		default:
-// 			val = fmt.Sprint(fieldValue)
-// 		}
-// 		if val != "" {
-// 			uv.Add(query, val)
-// 		}
-// 	}
-// }
-// func printTime(x time.Time) {
-// 	fmt.Println(x)
-// 	wg.Done()
-// }
-
-// fmt.Println(crr.Request.String())
-// fmt.Println(crr.Request)
-
-// crrJSON, err := json.Marshal(crr)
-// if err != nil {
+// Don't seem to have access to these resources...
+// /* DailyCase -----------------------------------------------------------------------*/
+// dailyCaseRR := NewDailyCaseRequestResponse(nil)
+// if err := dailyCaseRR.Parse(); err != nil {
 // 	log.Fatalln(err)
 // }
-// fmt.Println(string(crrJSON))
-
-// crrYAML, err := yaml.Marshal(crr)
-// if err != nil {
+// if err := q.GetAll(ctx, dailyCaseRR); err != nil {
 // 	log.Fatalln(err)
 // }
-// fmt.Println(string(crrYAML))
-
-// fmt.Println(sprintRequestConfigurator(crr.Request.Config))
-
-// // Initialize a *RequestResponse for staffmembers
-// srr := NewStaffMemberRequestResponse()
-// // parse the *RequestResponse.Request.Config
-// if err := srr.Request.ParseRequest(); err != nil {
-// 	log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
-// }
-// if err := q.Get(ctx, srr); err != nil {
-// 	log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
-// }
-// if err := srr.Response.ToJSONFile(""); err != nil {
+// if err := dailyCaseRR.ResponsesToJSONFile(""); err != nil {
 // 	log.Fatalln(err)
 // }
 
-// src := NewScheduleRequestConfig()
-// fmt.Println(sprintRequestConfigurator2(src))
-// 	u, err := EncodeURLValues(src, "query")
-// 	if err != nil {
-// 		log.Fatalln(err)
-// 	}
-// 	for k, v := range u {
-// 		fmt.Printf("|%-25v|%-60v|\n", k, v)
-// 	}
-// x := &time.Time{}
-// fmt.Printf("\n%v\n", x.)
-// tagValue := dv.Type().Field(i).Tag.Get(tag)
-// fieldType := strings.Split(tagValue, ",")
-// fmt.Println(fieldType)
-// fmt.Println(dv.Type().Field(i).Tag.Get("format"))
-// fieldType := dv.Type().Field(i).Tag.Get("format")
-// fieldFormat := dv.Type().Field(i).Tag.Get("format")
-
-// fmt.Println(dv.Type().Field(i).Tag)
+// /* Facility ------------------------------------------------------------------------*/
+// facilityRR := NewFacilityRequestResponse(nil)
+// if err := facilityRR.Parse(); err != nil {
+// 	log.Fatalln(err)
+// }
+// if err := q.GetAll(ctx, facilityRR); err != nil {
+// 	log.Fatalln(err)
+// }
+// if err := facilityRR.ResponsesToJSONFile(""); err != nil {
+// 	log.Fatalln(err)
+// }
+// /* StaffTarget ---------------------------------------------------------------------*/
+// staffTargetRR := NewStaffTargetRequestResponse(nil)
+// if err := staffTargetRR.Parse(); err != nil {
+// 	log.Fatalln(err)
+// }
+// if err := q.GetAll(ctx, staffTargetRR); err != nil {
+// 	log.Fatalln(err)
+// }
+// if err := staffTargetRR.ResponsesToJSONFile(""); err != nil {
+// 	log.Fatalln(err)
+// }
+// /* TimeEvent ------------------------------------------------------------------------*/
+// timeEventRR := NewTimeEventRequestResponse(&TimeEventRequestConfig{
+// 	StartDate: time.Now().UTC().AddDate(0, -1, 0),
+// })
+// if err := timeEventRR.Parse(); err != nil {
+// 	log.Fatalln(err)
+// }
+// if err := q.GetAll(ctx, timeEventRR); err != nil {
+// 	log.Fatalln(err)
+// }
+// for _, v := range timeEventRR.Responses {
+// 	fmt.Println(string(v.Data))
+// }
+// if err := timeEventRR.ResponsesToJSONFile(""); err != nil {
+// 	log.Fatalln(err)
+// }
+// /* Location --------------------------------------------------------------------------*/
+// locationRR := NewLocationRequestResponse(nil)
+// if err := locationRR.Parse(); err != nil {
+// 	log.Fatalln(err)
+// }
+// if err := q.GetAll(ctx, locationRR); err != nil {
+// 	log.Fatalln(err)
+// }
+// for _, v := range locationRR.Responses {
+// 	fmt.Println(string(v.Data))
+// }
+// if err := locationRR.ResponsesToJSONFile(""); err != nil {
+// 	log.Fatalln(err)
+// }
+// /* Tags ------------------------------------------------------------------------------*/
+// tagsRR := NewTagsRequestResponse(nil)
+// if err := tagsRR.Parse(); err != nil {
+// 	log.Fatalln(err)
+// }
+// if err := q.GetAll(ctx, tagsRR); err != nil {
+// 	log.Fatalln(err)
+// }
+// if err := tagsRR.ResponsesToJSONFile(""); err != nil {
+// 	log.Fatalln(err)
+// }
