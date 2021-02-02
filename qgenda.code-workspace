@@ -1,11 +1,12 @@
 {
 	"folders": [
 		{
-			"path": "."
+			"uri": "vscode-remote://code.datascience.psu.edu/home/coder/dev/qgenda"
 		},
 		{
-			"path": "/home/ericsgagnon/.cache/qgenda"
+			"uri": "vscode-remote://code.datascience.psu.edu/home/coder/.cache/qgenda"
 		}
 	],
+	"remoteAuthority": "code.datascience.psu.edu",
 	"settings": {}
 }

@@ -54,55 +54,61 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	// /* Company -------------------------------------------------------------------------*/
-	// if err := q.DownloadAndSaveCompany(ctx, nil, ""); err != nil {
-	// 	log.Fatalln(err)
-	// }
-	// /* StaffMembers --------------------------------------------------------------------*/
+	/* Company -------------------------------------------------------------------------*/
+	if err := q.DownloadAndSaveCompany(ctx, nil, ""); err != nil {
+		log.Fatalln(err)
+	}
+	/* StaffMembers --------------------------------------------------------------------*/
 	// if err := q.DownloadAndSaveStaffMember(ctx, nil, ""); err != nil {
 	// 	log.Fatalln(err)
 	// }
+	if err := q.DownloadAndSaveStaffMember(ctx, nil, fmt.Sprintf("staffmember-%s.json", time.Now().Format("20060102150405Z0700"))); err != nil {
+		log.Fatalln(err)
+	}
 
-	// /* Schedule ------------------------------------------------------------------------*/
-	// scheduleRC := &ScheduleRequestConfig{
-	// 	StartDate: time.Now().UTC().AddDate(-1, -3, 0),
-	// 	EndDate:   time.Now().UTC().AddDate(0, 6, 0),
-	// }
-	// if err := q.DownloadAndSaveSchedule(ctx, scheduleRC, ""); err != nil {
-	// 	log.Fatalln(err)
-	// }
-	// /* OpenShifts ----------------------------------------------------------------------*/
-	// openShiftsRC := &OpenShiftsRequestConfig{
-	// 	StartDate: time.Now().UTC().AddDate(-1, -3, 0),
-	// 	EndDate:   time.Now().UTC().AddDate(0, 6, 0),
-	// }
-	// if err := q.DownloadAndSaveOpenShifts(ctx, openShiftsRC, ""); err != nil {
-	// 	log.Fatalln(err)
-	// }
-	// /* Rotations -----------------------------------------------------------------------*/
-	// rotationsRC := &RotationsRequestConfig{
-	// 	RangeStartDate:    time.Now().UTC().AddDate(-1, -3, 0),
-	// 	RangeEndDate:      time.Now().UTC().AddDate(0, 6, 0),
-	// 	Interval:          time.Hour * 24 * 180,
-	// 	IntervalPrecision: time.Hour * 24,
-	// }
-	// if err := q.DownloadAndSaveRotations(ctx, rotationsRC, ""); err != nil {
-	// 	log.Fatalln(err)
-	// }
-	// /* Requests ------------------------------------------------------------------------*/
-	// requestRC := &RequestRequestConfig{
-	// 	StartDate:         time.Now().UTC().AddDate(-1, -3, 0),
-	// 	EndDate:           time.Now().UTC().AddDate(0, 6, 0),
-	// 	Interval:          time.Hour * 24 * 180,
-	// 	IntervalPrecision: time.Hour * 24,
-	// }
-	// if err := q.DownloadAndSaveRequests(ctx, requestRC, ""); err != nil {
-	// 	log.Fatalln(err)
-	// }
-	// /* Tasks ----------------------------------------------------------------------------*/
+	/* Schedule ------------------------------------------------------------------------*/
+	scheduleRC := &ScheduleRequestConfig{
+		StartDate: time.Now().UTC().AddDate(-1, -3, 0),
+		EndDate:   time.Now().UTC().AddDate(0, 6, 0),
+	}
+	if err := q.DownloadAndSaveSchedule(ctx, scheduleRC, ""); err != nil {
+		log.Fatalln(err)
+	}
+	/* OpenShifts ----------------------------------------------------------------------*/
+	openShiftsRC := &OpenShiftsRequestConfig{
+		StartDate: time.Now().UTC().AddDate(-1, -3, 0),
+		EndDate:   time.Now().UTC().AddDate(0, 6, 0),
+	}
+	if err := q.DownloadAndSaveOpenShifts(ctx, openShiftsRC, ""); err != nil {
+		log.Fatalln(err)
+	}
+	/* Rotations -----------------------------------------------------------------------*/
+	rotationsRC := &RotationsRequestConfig{
+		RangeStartDate:    time.Now().UTC().AddDate(-1, -3, 0),
+		RangeEndDate:      time.Now().UTC().AddDate(0, 6, 0),
+		Interval:          time.Hour * 24 * 180,
+		IntervalPrecision: time.Hour * 24,
+	}
+	if err := q.DownloadAndSaveRotations(ctx, rotationsRC, ""); err != nil {
+		log.Fatalln(err)
+	}
+	/* Requests ------------------------------------------------------------------------*/
+	requestRC := &RequestRequestConfig{
+		StartDate:         time.Now().UTC().AddDate(-1, -3, 0),
+		EndDate:           time.Now().UTC().AddDate(0, 6, 0),
+		Interval:          time.Hour * 24 * 180,
+		IntervalPrecision: time.Hour * 24,
+	}
+	if err := q.DownloadAndSaveRequests(ctx, requestRC, ""); err != nil {
+		log.Fatalln(err)
+	}
+	/* Tasks ----------------------------------------------------------------------------*/
 	// if err := q.DownloadAndSaveTasks(ctx, nil, ""); err != nil {
 	// 	log.Fatalln(err)
 	// }
+	if err := q.DownloadAndSaveTasks(ctx, nil, fmt.Sprintf("tasks-%s.json", time.Now().Format("20060102150405Z0700"))); err != nil {
+		log.Fatalln(err)
+	}
 
 	// Reshape the data
 
