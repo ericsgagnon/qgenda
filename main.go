@@ -20,6 +20,7 @@ import (
 var err error
 var wg sync.WaitGroup
 
+// https://identity.getpostman.com/login?continue=https%3A%2F%2Fgo.postman.co%2Fnetwork%2Fimport%3Fcollection%3D1543481-097862de-81df-4145-a69e-2a328f02e487-S1TVYJ7R%26referrer%3Dhttps%253A%252F%252Frestapi.qgenda.com%252F%253Fversion%253Dlatest%2523e174c1d9-3793-4273-8c89-6194e363050a%26versionTag%3Dlatest%26environment%3D1543481-1a427bac-5902-4ebd-b709-06d4cef1d6ed-S1TVYJ7R%26traceId%3Dundefined
 // "https://api.qgenda.com/v2/schedule/openshifts?companyKey=00000000-0000-0000-0000-000000000000&startDate=1/1/2012&endDate=1/31/2012&includes=LocationTags"
 // "https://api.qgenda.com/v2/schedule/openshifts?companyKey=00000000-0000-0000-0000-000000000000&startDate=1/1/2014&endDate=1/31/2014&$select=Date,TaskAbbrev,OpenShiftCount&$filter=IsPublished&$orderby=Date,TaskAbbrev,OpenShiftCount&includes=Task"
 func main() {
@@ -122,31 +123,31 @@ func main() {
 		// srrs[i] = srr
 		wg.Wait()
 	}
-	// fmt.Println(i)
-	// go func(x time.Time) {
-	// 	fmt.Println(x)
-	// 	srrs[i].Request.Config = src
-	// 	wg.Done()
-	// }(i)
-	// parse the *RequestResponse.Request.Config
-
-	// fmt.Println(srr.Request.Config.(ScheduleRequestConfig).EndDate)
-
-	// startDate := time.Now().UTC().Add(time.Hour * 24 * 7 * 7 * -1)
-	// endDate := time.Now().UTC().AddDate(0, 0, 7*7)
-	// fmt.Println(startDate)
-	// fmt.Println(endDate)
-
-	// for i := startDate; i.Before(endDate); i = i.AddDate(0, 1, 7) {
-	// 	wg.Add(1)
-	// 	fmt.Println(i)
-	// 	go func(x time.Time) {
-	// 		fmt.Println(x)
-	// 		wg.Done()
-	// 	}(i)
-	// }
 }
 
+// fmt.Println(i)
+// go func(x time.Time) {
+// 	fmt.Println(x)
+// 	srrs[i].Request.Config = src
+// 	wg.Done()
+// }(i)
+// parse the *RequestResponse.Request.Config
+
+// fmt.Println(srr.Request.Config.(ScheduleRequestConfig).EndDate)
+
+// startDate := time.Now().UTC().Add(time.Hour * 24 * 7 * 7 * -1)
+// endDate := time.Now().UTC().AddDate(0, 0, 7*7)
+// fmt.Println(startDate)
+// fmt.Println(endDate)
+
+// for i := startDate; i.Before(endDate); i = i.AddDate(0, 1, 7) {
+// 	wg.Add(1)
+// 	fmt.Println(i)
+// 	go func(x time.Time) {
+// 		fmt.Println(x)
+// 		wg.Done()
+// 	}(i)
+// }
 // func printTime(x time.Time) {
 // 	fmt.Println(x)
 // 	wg.Done()
