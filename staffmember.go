@@ -72,6 +72,7 @@ type StaffMember struct {
 	TimeClockEndDate     Time      `json:"TimeClockEndDate"`
 	TimeClockKioskPIN    string    `json:"TimeClockKioskPIN"`
 	AutoApproveSwap      bool      `json:"IsAutoApproveSwap"`
+	DailyUnitAverage     float64   `json:"DailyUnitAverage"`
 	Viewable             bool      `json:"IsViewable"`
 	Schedulable          bool      `json:"IsSchedulable"`
 	Test                 Time      `json:"UserLastLoginDateTimeUtc"`
@@ -87,22 +88,9 @@ type StaffMember struct {
 		Source string  `json:"SourceOfLogin"`
 	}
 	SkillSet []SkillSet `json:"Skillset"`
-
-	// The don't appear to be used at our insitution, not sure if they are elsewhere
-	// omitting due to inability to validate
-	// `json:"Tags"`
-	// TTCMTags `json:"TTCMTags"`
-	// `json:"CategoryKey"`
-	// `json:"CategoryName"`
-	// Tags `json:"Tags"`
-	// `json:"Key"`
-	// `json:"Name"`
-	// `json:"EffectiveFromDate"`
-	// `json:"EffectiveToDate"`
-	// `json:"Profiles"`
-	// `json:"Name"`
-	// `json:"ProfileKey"`
-	// `json:"DailyUnitAverage"` // don't waste your time on this
+	Profiles []Profile  `json:"Profiles"`
+	// Tags     []Tag      `json:"Tags"`
+	// TTCMTags []Tag      `json:"TTCMTags"`
 }
 
 // SkillSet captures the staff to task relationship

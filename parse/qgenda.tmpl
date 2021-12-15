@@ -1,0 +1,202 @@
+
+{{- printf "package qgenda\n\n" -}}
+
+import (
+    "time"
+)
+{{- range $roName, $roValue := . -}}
+{{- printf "\n\ntype %s struct {\n" $roName -}}
+    {{- range $i, $field := $roValue -}}
+    {{- printf "\t%s\t%s\t%s\n" (index $field "name") (index $field "goType") (index $field "structTag") }}		
+    {{- end -}}
+{{- printf "}\n" -}}
+{{- end -}}
+
+type Organization struct {
+    Name string  `json:"OrgName"`
+    Key  int     `json:"OrgKey"`
+}
+
+type ContactEmail struct {
+	ContactName		string  `json:"ContactName"`
+	ContactEmail	string  `json:"ContactEmail"`
+}
+
+type DailyCase struct {
+	CompanyKey	string	`json:"CompanyKey"`
+	EmrID	string	`json:"EmrId"`
+	DailyCaseID	int	`json:"DailyCaseID"`
+	TaskKey	string	`json:"TaskKey"`
+	Task	string	`json:"Task"`
+	LocationName	string	`json:"LocationName"`
+	Date	time.Time	`json:"Date"`
+	StartTime	time.Time	`json:"StartTime"`
+	EndTime	time.Time	`json:"EndTime"`
+	Surgeon	string	`json:"Surgeon"`
+	Procedure	string	`json:"Procedure"`
+	SupStaffKey	string	`json:"SupStaffKey"`
+	SupStaffNpi	string	`json:"SupStaffNpi"`
+	SupStaff	string	`json:"SupStaff"`
+	DPStaffKey	string	`json:"DPStaffKey"`
+	DPStaff	string	`json:"DPStaff"`
+	DPStaffNpi	string	`json:"DPStaffNpi"`
+	CustomTextFields	string	`json:"CustomTextFields"`
+	CustomCheckboxFields	string	`json:"CustomCheckboxFields"`
+	Cancelled	bool	`json:"IsCancelled"`
+	Duration	float64	`json:"Duration"`
+	BaseUnits	float64	`json:"BaseUnits"`
+	ModifierUnits	float64	`json:"ModifierUnits"`
+	TimeUnits	float64	`json:"TimeUnits"`
+	PatientFirstName	string	`json:"PatientFirstName"`
+	PatientLastName	string	`json:"PatientLastName"`
+	PatientAge	string	`json:"PatientAge"`
+	PatientGender	string	`json:"PatientGender"`
+	PatientEmail	string	`json:"PatientEmail"`
+	PatientHomePhone	string	`json:"PatientHomePhone"`
+	PatientCellPhone	string	`json:"PatientCellPhone"`
+	PatientAlternatePhone	string	`json:"PatientAlternatePhone"`
+	PatientGuardianPhone	string	`json:"PatientGuardianPhone"`
+	PatientGuardianName	string	`json:"PatientGuardianName"`
+	PatientDOB	time.Time	`json:"PatientDOB"`
+	PatientMRN	string	`json:"PatientMRN"`
+	PatientClinicalNotes	string	`json:"PatientClinicalNotes"`
+	PatientExtraNotes	string	`json:"PatientExtraNotes"`
+	PatientAddress1	string	`json:"PatientAddress1"`
+	PatientAddress2	string	`json:"PatientAddress2"`
+	PatientCity	string	`json:"PatientCity"`
+	PatientState	string	`json:"PatientState"`
+	PatientPostalCode	string	`json:"PatientPostalCode"`
+	PatientPrimaryInsuranceID	string	`json:"PatientPrimaryInsuranceID"`
+	PatientSecondaryInsuranceID	string	`json:"PatientSecondaryInsuranceID"`
+	PatientSocialSecurityNumber	string	`json:"PatientSocialSecurityNumber"`
+	PatientMaritalStatus	string	`json:"PatientMaritalStatus"`
+}
+
+type Profile struct {
+	CompanyKey	    string	            `json:"CompanyKey"`
+	Name	        string	            `json:"ProfileName"`
+	Key	            string	            `json:"ProfileKey"`
+	StaffMembers	[]StaffMemberDetail	`json:"StaffMembers"`
+	Tasks	        []Task	            `json:"Tasks"`
+}
+
+// Room is a room, hopefully
+type Room struct {
+	RoomKey	string	`json:"RoomKey"`
+	RoomName	string	`json:"RoomName"`
+	RoomAbbreviation	string	`json:"RoomAbbreviation"`
+	RoomNumber	string	`json:"RoomNumber"`
+	RoomFloor	string	`json:"RoomFloor"`
+	LocationName	string	`json:"LocationName"`
+	LocationAbbreviation	string	`json:"LocationAbbreviation"`
+	LocationKey	float64	`json:"LocationKey"`
+	ExternalId1	string	`json:"ExternalId1"`
+	ExternalId2	string	`json:"ExternalId2"`
+	ExternalId3	string	`json:"ExternalId3"`
+	ExternalId4	string	`json:"ExternalId4"`
+	ExternalId5	string	`json:"ExternalId5"`
+	StartDate	time.Time	`json:"StartDate"`
+	EndDate	time.Time		`json:"EndDate"`
+	RoomShifts	[]interface{}	`json:"RoomShifts"`
+	RoomTags	[]Tag	`json:"RoomTags"`
+}
+
+
+// StaffMemberDetail represents staff, and possibly some other entities as well?
+type StaffMemberDetail struct {
+	Abbreviation         string    `json:"Abbrev"`
+	BackgroundColor      string    `json:"BgColor"`
+	BillingSystemID      string    `json:"BillSysId,omitempty"`
+	CalendarSyncID       string    `json:"CalSyncKey,omitempty"`
+	CompanyID            uuid.UUID `json:"CompKey,omitempty"`
+	Email                string    `json:"Email"`
+	EMRID                string    `json:"EmrId"`
+	ERPID                string    `json:"ErpId"`
+	EndDate              Time      `json:"EndDate"`
+	ExternalCallSystemID string    `json:"ExtCallSysId,omitempty"`
+	FirstName            string    `json:"FirstName"`
+	HomePhone            string    `json:"HomePhone"`
+	LastName             string    `json:"LastName"`
+	MobilePhone          string    `json:"MobilePhone"`
+	NPI                  string    `json:"Npi"`
+	PagerNumber          string    `json:"Pager"`
+	PayrollID            string    `json:"PayrollId"`
+	RegularHours         string    `json:"RegHours"`
+	Alias                string    `json:"StaffId"`
+	ID                   uuid.UUID `json:"StaffKey,omitempty"`
+	StartDate            Time      `json:"StartDate"`
+	TextColor            string    `json:"TextColor"`
+	Active               bool      `json:"IsActive"`
+	StaffType            string    `json:"StaffTypeKey"`
+	BillingType          string    `json:"BillingTypeKey"`
+	ProfileID            uuid.UUID `json:"UserProfileKey,omitempty"`
+	Profile              string    `json:"UserProfile"`
+	PayrollStartDate     Time      `json:"PayrollStartDate"`
+	PayrollEndDate       Time      `json:"PayrollEndDate"`
+	TimeClockStartDate   Time      `json:"TimeClockStartDate"`
+	TimeClockEndDate     Time      `json:"TimeClockEndDate"`
+	TimeClockKioskPIN    string    `json:"TimeClockKioskPIN"`
+	AutoApproveSwap      bool      `json:"IsAutoApproveSwap"`
+	DailyUnitAverage     float64   `json:"DailyUnitAverage"`
+	Viewable             bool      `json:"IsViewable"`
+	Schedulable          bool      `json:"IsSchedulable"`
+	Test                 Time      `json:"UserLastLoginDateTimeUtc"`
+	Address              struct {
+		Line1 string `json:"Addr1"`
+		Line2 string `json:"Addr2"`
+		City  string `json:"City"`
+		State string `json:"State"`
+		Zip   string `json:"Zip"`
+	}
+	LastLogin struct {
+		Time   TimeUTC `json:"UserLastLoginDateTimeUtc"`
+		Source string  `json:"SourceOfLogin"`
+	}
+	SkillSet []SkillSet `json:"Skillset"`
+	Profiles []Profile  `json:"Profiles"`
+	Tags     []Tag      `json:"Tags"`
+	TTCMTags []Tag      `json:"TTCMTags"`
+}
+
+// SkillSet captures the staff to task relationship
+type SkillSet struct {
+	Staff struct {
+		FirstName    string `json:"StaffFirstName"`
+		LastName     string `json:"StaffLastName"`
+		Abbreviation string `json:"StaffAbbreviation"`
+		Alias        string `json:"StaffId"`
+	}
+	Task struct {
+		Name         string `json:"TaskName"`
+		Abbreviation string `json:"TaskAbbrev"`
+		Alias        string `json:"TaskId"`
+	}
+	Monday struct {
+		Valid     bool   `json:"IsSkilledMon"`
+		Frequency string `json:"MonOccurrence"`
+	}
+	Tuesday struct {
+		Valid     bool   `json:"IsSkilledTue"`
+		Frequency string `json:"TueOccurrence"`
+	}
+	Wednesday struct {
+		Valid     bool   `json:"IsSkilledWed"`
+		Frequency string `json:"WedOccurrence"`
+	}
+	Thursday struct {
+		Valid     bool   `json:"IsSkilledThu"`
+		Frequency string `json:"ThuOccurrence"`
+	}
+	Friday struct {
+		Valid     bool   `json:"IsSkilledFri"`
+		Frequency string `json:"FriOccurrence"`
+	}
+	Saturday struct {
+		Valid     bool   `json:"IsSkilledSat"`
+		Frequency string `json:"SatOccurrence"`
+	}
+	Sunday struct {
+		Valid     bool   `json:"IsSkilledSun"`
+		Frequency string `json:"SunOccurrence"`
+	}
+}

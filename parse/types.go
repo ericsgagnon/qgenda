@@ -127,7 +127,6 @@ func (t *NullString) UnmarshalJSON(data []byte) error {
 }
 
 func (t NullString) MarshalJSON() ([]byte, error) {
-
 	return json.Marshal(t.String)
 }
 

@@ -11,8 +11,6 @@ import (
 	"os"
 	// "strings"
 	"time"
-
-	"gopkg.in/yaml.v2"
 )
 
 //https://restapi.qgenda.com/?version=latest
@@ -56,73 +54,114 @@ func main() {
 	}
 
 	// Initialize a *RequestResponse for company
-	crr := NewCompanyRequestResponse()
-	// parse the *RequestResponse.Request.Config
-	if err := crr.Request.ParseRequest(); err != nil {
-		log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
+	// crr := NewCompanyRequestResponse()
+	// // parse the *RequestResponse.Request.Config
+	// if err := crr.Request.ParseRequest(); err != nil {
+	// 	log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
+	// }
+	// if err := q.Get(ctx, crr); err != nil {
+	// 	log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
+	// }
+	// if err := crr.Response.ToJSONFile(""); err != nil {
+	// 	log.Fatalln(err)
+	// }
+
+	// // Initialize a *RequestResponse for company
+	// smrr := NewStaffMemberRequestResponse()
+	// // parse the *RequestResponse.Request.Config
+	// if err := smrr.Request.ParseRequest(); err != nil {
+	// 	log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
+	// }
+	// if err := q.Get(ctx, smrr); err != nil {
+	// 	log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
+	// }
+	// if err := smrr.Response.ToJSONFile(""); err != nil {
+	// 	log.Fatalln(err)
+	// }
+
+	// // Initialize a *RequestResponse for schedule
+	// src := NewScheduleRequestConfig()
+	// // grab a year of schedule
+	// src.EndDate = time.Now().UTC()
+	// src.StartDate = src.EndDate.AddDate(0, -2, 0)
+	// srcOut, err := yaml.Marshal(src)
+	// if err != nil {
+	// 	log.Fatalln(err)
+	// }
+	// fmt.Println(string(srcOut))
+	// // var srrs map[time.Time]*RequestResponse
+	// // var b []byte
+	// for i := src.StartDate; i.Before(src.EndDate); i = i.AddDate(0, 0, 7) {
+	// 	wg.Add(1)
+	// 	go func() {
+
+	// 		fmt.Println(i)
+	// 		srci := *src
+	// 		srci.StartDate = i
+	// 		srci.EndDate = srci.StartDate.AddDate(0, 0, 6)
+	// 		srr := NewScheduleRequestResponse()
+	// 		srr.Request.Config = srci
+
+	// 		if err := srr.Request.ParseRequest(); err != nil {
+	// 			log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
+	// 		}
+	// 		if err := q.Get(ctx, srr); err != nil {
+	// 			log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
+	// 		}
+	// 		// fmt.Println(srr)
+	// 		// dataJSON := string(*srr.Response.Data)
+	// 		// fmt.Printf("\n%v\n", dataJSON)
+
+	// 		filename := srci.Resource + srci.StartDate.Format("20060102") + ".json"
+	// 		if err := srr.Response.ToJSONFile(filename); err != nil {
+	// 			log.Fatalln(err)
+	// 		}
+	// 		wg.Done()
+	// 	}()
+	// 	// srrs[i] = srr
+	// 	wg.Wait()
+	// }
+
+	rr := NewRequestResponse()
+	rr.Request.Config = &struct {
+		Resource       string
+		Route          string    `path:"-"`
+		Includes       string    `query:"includes"`
+		Company        string    `query:"companyKey"`
+		IncludeDeletes bool      `query:"includeDeletes"`
+		Select         string    `query:"$select"`
+		Filter         string    `query:"$filter"`
+		OrderBy        string    `query:"$orderby"`
+		Expand         string    `query:"$expand"`
+		StartDate      time.Time `query:"startDate" format:"01/02/2006"`
+		EndDate        time.Time `query:"endDate" format:"01/02/2006"`
+		// SinceModifiedTimestamp time.Time `query:"sinceModifiedTimestamp" format:"2006-01-02T15:04:05Z"`
+	}{
+		Resource: "Test",
+		Route:    "/tags",
+
+		// Includes: "Skillset,Tags,Profiles,TTCMTags",
+		// Includes: "TaskShifts,Skillset,Tags,Profiles,TTCMTags,Locations,Staff",
+		// Company: q.Config.CompanyKey,
+		// IncludeDeletes: true,
+		// StartDate: time.Now().Add(time.Hour * 168 * 2 * -1),
+		// EndDate:   time.Now(),
+		// Select:         "Date,TaskAbbrev,StaffAbbrev",
+		// Filter:   "",
+		// OrderBy:  "",
+		// Expand:   "",
 	}
-	if err := q.Get(ctx, crr); err != nil {
-		log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
+
+	rr.Request.ParseRequest()
+	fmt.Println(rr.Request.Body)
+	if err := q.Get(ctx, rr); err != nil {
+		log.Fatalf("Error getting Generic RequestResponse: %v", err)
 	}
-	if err := crr.Response.ToJSONFile(""); err != nil {
+	fmt.Println(string(*rr.Response.Data))
+	if err := rr.Response.ToJSONFile("test.json"); err != nil {
 		log.Fatalln(err)
 	}
 
-	// Initialize a *RequestResponse for company
-	smrr := NewStaffMemberRequestResponse()
-	// parse the *RequestResponse.Request.Config
-	if err := smrr.Request.ParseRequest(); err != nil {
-		log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
-	}
-	if err := q.Get(ctx, smrr); err != nil {
-		log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
-	}
-	if err := smrr.Response.ToJSONFile(""); err != nil {
-		log.Fatalln(err)
-	}
-
-	// Initialize a *RequestResponse for schedule
-	src := NewScheduleRequestConfig()
-	// grab a year of schedule
-	src.EndDate = time.Now().UTC()
-	src.StartDate = src.EndDate.AddDate(0, -2, 0)
-	srcOut, err := yaml.Marshal(src)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	fmt.Println(string(srcOut))
-	// var srrs map[time.Time]*RequestResponse
-	// var b []byte
-	for i := src.StartDate; i.Before(src.EndDate); i = i.AddDate(0, 0, 7) {
-		wg.Add(1)
-		go func() {
-
-			fmt.Println(i)
-			srci := *src
-			srci.StartDate = i
-			srci.EndDate = srci.StartDate.AddDate(0, 0, 6)
-			srr := NewScheduleRequestResponse()
-			srr.Request.Config = srci
-
-			if err := srr.Request.ParseRequest(); err != nil {
-				log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
-			}
-			if err := q.Get(ctx, srr); err != nil {
-				log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
-			}
-			// fmt.Println(srr)
-			// dataJSON := string(*srr.Response.Data)
-			// fmt.Printf("\n%v\n", dataJSON)
-
-			filename := srci.Resource + srci.StartDate.Format("20060102") + ".json"
-			if err := srr.Response.ToJSONFile(filename); err != nil {
-				log.Fatalln(err)
-			}
-			wg.Done()
-		}()
-		// srrs[i] = srr
-		wg.Wait()
-	}
 }
 
 // fmt.Println(i)
