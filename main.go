@@ -1,243 +1,143 @@
 package main
 
 import (
-	"context"
 	"fmt"
-	"sync"
-
-	// "io/ioutil"
 	"log"
-	// "net/http"
-	"os"
-	// "strings"
+	"net/http"
+	"net/url"
 	"time"
+
+	"github.com/ericsgagnon/qgenda/pkg/qgenda"
+	"github.com/google/go-querystring/query"
 )
 
-//https://restapi.qgenda.com/?version=latest
+// steps:
+// export qgenda collection from postman to src/qgenda_restapi.postman_collection.json
+// cat src/qgenda_restapi.postman_collection.json | yq eval '
+//     .item.[] |
+//     select( .name == "API Calls" ) |
+//     .item.[].item.[] |
+//     select( .request.method == "GET" ) |
+//     [ select( .request.url.path.[] | contains( ":" ) | not ) ]
+// ' -P - > src/qgenda-api-get.yaml
+// note that either our login only has limited access or many endpoints aren't implemented for us
 
-var err error
-var wg sync.WaitGroup
-
-// https://identity.getpostman.com/login?continue=https%3A%2F%2Fgo.postman.co%2Fnetwork%2Fimport%3Fcollection%3D1543481-097862de-81df-4145-a69e-2a328f02e487-S1TVYJ7R%26referrer%3Dhttps%253A%252F%252Frestapi.qgenda.com%252F%253Fversion%253Dlatest%2523e174c1d9-3793-4273-8c89-6194e363050a%26versionTag%3Dlatest%26environment%3D1543481-1a427bac-5902-4ebd-b709-06d4cef1d6ed-S1TVYJ7R%26traceId%3Dundefined
-// "https://api.qgenda.com/v2/schedule/openshifts?companyKey=00000000-0000-0000-0000-000000000000&startDate=1/1/2012&endDate=1/31/2012&includes=LocationTags"
-// "https://api.qgenda.com/v2/schedule/openshifts?companyKey=00000000-0000-0000-0000-000000000000&startDate=1/1/2014&endDate=1/31/2014&$select=Date,TaskAbbrev,OpenShiftCount&$filter=IsPublished&$orderby=Date,TaskAbbrev,OpenShiftCount&includes=Task"
 func main() {
-	log.SetFlags(log.LstdFlags | log.LUTC)
+	fmt.Println(qgenda.Config{})
+	// fmt.Println("test")
+	x := qgenda.NewRequest()
+	// fmt.Println(x)
+	x.SetRangeEndDate(time.Now().UTC())
+	// x.StartDate = timePointer(time.Now().UTC().AddDate(0, 0, -5))
+	x.SetStartDate(time.Now().UTC().AddDate(0, 0, -5))
+	v, _ := query.Values(x.RequestQueryFields)
+	fmt.Println(v.Encode())
+	// fmt.Println(x.Parse().Encode())
+	y := qgenda.NewScheduleRequest(nil)
+	fmt.Println(y.ToHTTPRequest().URL.String())
 
-	ctx := context.Background()
-	// Set a duration.
-	// duration := 150 * time.Millisecond
+	z := int(3)
+	fmt.Println(z)
 
-	// // Create a context that is both manually cancellable and will signal
-	// // a cancel at the specified duration.
-	// ctx, cancel := context.WithTimeout(context.Background(), duration)
-	// defer cancel()
+	// zz := new(int)
+	// zz = int(3)
+	// fmt.Println(zz)
 
-	// use environment variables to provide credentials
-	q, err := NewQgendaClient(
-		QgendaClientConfig{
-			BaseURL:       "https://api.qgenda.com/v2",
-			ClientTimeout: time.Second * 10,
-			// grab credentials from environment variables
-			Email:      os.Getenv("QGENDA_EMAIL"),
-			CompanyKey: os.Getenv("QGENDA_COMPANY_KEY"),
-			Password:   os.Getenv("QGENDA_PASSWORD"),
-		},
-	)
+	zz := Parameters{}
+	zz["bool"] = true
+	zz["int"] = 3
+	zz["string"] = "string"
+	for k, v := range zz {
+		fmt.Printf("%#v[%T]:\t%#v\n", k, v, v)
+	}
+
+	us := "https://restapi.qgenda.com/v2/schedule/?CompanyKey=12345678&startDate=2021-12-01"
+	u1, err := url.Parse(us)
+	if err != nil {
+		log.Fatalln(err)
+
+	}
+	fmt.Printf("%#v\n", u1)
+
+	u2, err := url.ParseRequestURI(us)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	// initial login
-	err = q.Auth(ctx)
-	if err != nil {
-		log.Fatalln(err)
-	}
+	fmt.Printf("%#v\n", u2)
+	fmt.Println(u2)
 
-	// Initialize a *RequestResponse for company
-	// crr := NewCompanyRequestResponse()
-	// // parse the *RequestResponse.Request.Config
-	// if err := crr.Request.ParseRequest(); err != nil {
-	// 	log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
-	// }
-	// if err := q.Get(ctx, crr); err != nil {
-	// 	log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
-	// }
-	// if err := crr.Response.ToJSONFile(""); err != nil {
-	// 	log.Fatalln(err)
-	// }
-
-	// // Initialize a *RequestResponse for company
-	// smrr := NewStaffMemberRequestResponse()
-	// // parse the *RequestResponse.Request.Config
-	// if err := smrr.Request.ParseRequest(); err != nil {
-	// 	log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
-	// }
-	// if err := q.Get(ctx, smrr); err != nil {
-	// 	log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
-	// }
-	// if err := smrr.Response.ToJSONFile(""); err != nil {
-	// 	log.Fatalln(err)
-	// }
-
-	// // Initialize a *RequestResponse for schedule
-	// src := NewScheduleRequestConfig()
-	// // grab a year of schedule
-	// src.EndDate = time.Now().UTC()
-	// src.StartDate = src.EndDate.AddDate(0, -2, 0)
-	// srcOut, err := yaml.Marshal(src)
+	// u3, err := url.ParseQuery(us)
 	// if err != nil {
 	// 	log.Fatalln(err)
+
 	// }
-	// fmt.Println(string(srcOut))
-	// // var srrs map[time.Time]*RequestResponse
-	// // var b []byte
-	// for i := src.StartDate; i.Before(src.EndDate); i = i.AddDate(0, 0, 7) {
-	// 	wg.Add(1)
-	// 	go func() {
-
-	// 		fmt.Println(i)
-	// 		srci := *src
-	// 		srci.StartDate = i
-	// 		srci.EndDate = srci.StartDate.AddDate(0, 0, 6)
-	// 		srr := NewScheduleRequestResponse()
-	// 		srr.Request.Config = srci
-
-	// 		if err := srr.Request.ParseRequest(); err != nil {
-	// 			log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
-	// 		}
-	// 		if err := q.Get(ctx, srr); err != nil {
-	// 			log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
-	// 		}
-	// 		// fmt.Println(srr)
-	// 		// dataJSON := string(*srr.Response.Data)
-	// 		// fmt.Printf("\n%v\n", dataJSON)
-
-	// 		filename := srci.Resource + srci.StartDate.Format("20060102") + ".json"
-	// 		if err := srr.Response.ToJSONFile(filename); err != nil {
-	// 			log.Fatalln(err)
-	// 		}
-	// 		wg.Done()
-	// 	}()
-	// 	// srrs[i] = srr
-	// 	wg.Wait()
+	// fmt.Println(u3)
+	// for k, v := range u3 {
+	// 	fmt.Printf("%#v:\t%#v\n", k, v)
 	// }
-
-	rr := NewRequestResponse()
-	rr.Request.Config = &struct {
-		Resource       string
-		Route          string    `path:"-"`
-		Includes       string    `query:"includes"`
-		Company        string    `query:"companyKey"`
-		IncludeDeletes bool      `query:"includeDeletes"`
-		Select         string    `query:"$select"`
-		Filter         string    `query:"$filter"`
-		OrderBy        string    `query:"$orderby"`
-		Expand         string    `query:"$expand"`
-		StartDate      time.Time `query:"startDate" format:"01/02/2006"`
-		EndDate        time.Time `query:"endDate" format:"01/02/2006"`
-		// SinceModifiedTimestamp time.Time `query:"sinceModifiedTimestamp" format:"2006-01-02T15:04:05Z"`
-	}{
-		Resource: "Test",
-		Route:    "/tags",
-
-		// Includes: "Skillset,Tags,Profiles,TTCMTags",
-		// Includes: "TaskShifts,Skillset,Tags,Profiles,TTCMTags,Locations,Staff",
-		// Company: q.Config.CompanyKey,
-		// IncludeDeletes: true,
-		// StartDate: time.Now().Add(time.Hour * 168 * 2 * -1),
-		// EndDate:   time.Now(),
-		// Select:         "Date,TaskAbbrev,StaffAbbrev",
-		// Filter:   "",
-		// OrderBy:  "",
-		// Expand:   "",
-	}
-
-	rr.Request.ParseRequest()
-	fmt.Println(rr.Request.Body)
-	if err := q.Get(ctx, rr); err != nil {
-		log.Fatalf("Error getting Generic RequestResponse: %v", err)
-	}
-	fmt.Println(string(*rr.Response.Data))
-	if err := rr.Response.ToJSONFile("test.json"); err != nil {
-		log.Fatalln(err)
-	}
-
 }
 
-// fmt.Println(i)
-// go func(x time.Time) {
-// 	fmt.Println(x)
-// 	srrs[i].Request.Config = src
-// 	wg.Done()
-// }(i)
-// parse the *RequestResponse.Request.Config
+// Parameters is a key-value map to represent arguments
+// it is generally used to pass arguments for getting or sending
+// data in data models
+type Parameters map[any]any
 
-// fmt.Println(srr.Request.Config.(ScheduleRequestConfig).EndDate)
+type Inner struct {
+	Value string
+}
 
-// startDate := time.Now().UTC().Add(time.Hour * 24 * 7 * 7 * -1)
-// endDate := time.Now().UTC().AddDate(0, 0, 7*7)
-// fmt.Println(startDate)
-// fmt.Println(endDate)
+func (i *Inner) Print() {
+	fmt.Println("inner")
+}
 
-// for i := startDate; i.Before(endDate); i = i.AddDate(0, 1, 7) {
-// 	wg.Add(1)
-// 	fmt.Println(i)
-// 	go func(x time.Time) {
-// 		fmt.Println(x)
-// 		wg.Done()
-// 	}(i)
-// }
-// func printTime(x time.Time) {
-// 	fmt.Println(x)
-// 	wg.Done()
-// }
+/////////////////////////////////////////////
+type App struct {
+	Config      interface{}
+	Clients     []*http.Client
+	DataObjects []DataObject
+}
 
-// fmt.Println(crr.Request.String())
-// fmt.Println(crr.Request)
+type DataObject struct {
+	Schema    struct{}
+	Endpoints []Endpoint
+}
 
-// crrJSON, err := json.Marshal(crr)
-// if err != nil {
-// 	log.Fatalln(err)
-// }
-// fmt.Println(string(crrJSON))
+type Endpoint struct {
+	URL *url.URL
+}
 
-// crrYAML, err := yaml.Marshal(crr)
-// if err != nil {
-// 	log.Fatalln(err)
-// }
-// fmt.Println(string(crrYAML))
+func (e *Endpoint) Request(u *url.Values) *http.Request {
+	r := http.Request{}
+	return &r
+}
 
-// fmt.Println(sprintRequestConfigurator(crr.Request.Config))
+func (do *DataObject) Request(s string) *http.Request {
+	return &http.Request{}
+}
 
-// // Initialize a *RequestResponse for staffmembers
-// srr := NewStaffMemberRequestResponse()
-// // parse the *RequestResponse.Request.Config
-// if err := srr.Request.ParseRequest(); err != nil {
-// 	log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
-// }
-// if err := q.Get(ctx, srr); err != nil {
-// 	log.Fatalf("Error parsing *RequestResponse.Request.Config: %v", err)
-// }
-// if err := srr.Response.ToJSONFile(""); err != nil {
-// 	log.Fatalln(err)
-// }
+type Schedule struct {
+	QgendaScheduleEndpoint   Endpoint
+	QgendaScheduleRequest    struct{}
+	QgendaScheduleResponse   struct{}
+	Data                     interface{}
+	PostgresScheduleEndpoint Endpoint
+	PostgresScheduleRequest  struct{}
+	PostgresScheduleResponse struct{}
+	OracleScheduleEnpoint    Endpoint
+	OracleScheduleRequest    struct{}
+	OracleScheduleResponse   struct{}
+	ProtobufScheduleEndpoint Endpoint
+	ProtobufScheduleRequest  struct{}
+	ProtobufScheduleResponse struct{}
+}
 
-// src := NewScheduleRequestConfig()
-// fmt.Println(sprintRequestConfigurator2(src))
-// 	u, err := EncodeURLValues(src, "query")
-// 	if err != nil {
-// 		log.Fatalln(err)
-// 	}
-// 	for k, v := range u {
-// 		fmt.Printf("|%-25v|%-60v|\n", k, v)
-// 	}
-// x := &time.Time{}
-// fmt.Printf("\n%v\n", x.)
-// tagValue := dv.Type().Field(i).Tag.Get(tag)
-// fieldType := strings.Split(tagValue, ",")
-// fmt.Println(fieldType)
-// fmt.Println(dv.Type().Field(i).Tag.Get("format"))
-// fieldType := dv.Type().Field(i).Tag.Get("format")
-// fieldFormat := dv.Type().Field(i).Tag.Get("format")
-
-// fmt.Println(dv.Type().Field(i).Tag)
+// Model encapsulates the following elements:
+// - data: go representation of the data - prefers structs
+// - endpoints: translations to and from external representations or systems
+// - process: sequence of zero of more operations to validate/transform data
+type Model interface {
+	Endpoints() []Endpoint
+	Endpoint(s string) Endpoint
+	Data() *any
+	Process() error
+}

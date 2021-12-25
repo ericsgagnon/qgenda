@@ -1,6 +1,12 @@
-package main
+package qgenda
 
 import (
+	// "context"
+	// "encoding/json"
+	// "errors"
+	// "fmt"
+	// "io/ioutil"
+	// "log"
 	"context"
 	"encoding/json"
 	"errors"
@@ -10,9 +16,15 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"path/filepath"
+	"strings"
+
+	// "os"
+	// "path"
 	"time"
 
 	"golang.org/x/net/context/ctxhttp"
+	// "golang.org/x/net/context/ctxhttp"
 )
 
 // AuthToken holds the authorization: bearer token header and an expire timestamp
@@ -24,7 +36,7 @@ type AuthToken struct {
 // Auth is the top level authorization method, it checks the validity of an existing token
 // reads a cached token from disk into AuthToken, or logs in and retrieves a new token
 // as needed
-func (q *QgendaClient) Auth(ctx context.Context) error {
+func (q *Client) Auth(ctx context.Context) error {
 
 	log.Printf("----------------------------------------------------------------------------")
 	if q.Authorization.Valid(ctx) {
@@ -51,7 +63,7 @@ func (q *QgendaClient) Auth(ctx context.Context) error {
 	return err
 }
 
-// Valid checks if the AuthToken is valid
+// // Valid checks if the AuthToken is valid
 func (t *AuthToken) Valid(ctx context.Context) bool {
 
 	log.Printf("Check AuthToken validity")
@@ -80,32 +92,33 @@ func (t *AuthToken) Valid(ctx context.Context) bool {
 // CacheFile parses the input filename or default cache file, creates the directory if
 // necessary and returns the complete path/filename as a string
 func (t *AuthToken) CacheFile(ctx context.Context, filename string) (string, error) {
-	// var err error
-	// // parse path to cache directory or default to user's cache directory/qgenda/auth
-	// p := strings.TrimSuffix(filename, filepath.Base(filename))
-	// if p == "" || p == "." {
-	// 	if p, err = os.UserCacheDir(); err != nil {
-	// 		log.Printf("Error retrieving cache directory: %v", err)
-	// 		return "", err
-	// 	}
-	// 	p = p + "/qgenda/auth"
-	// }
-	// // make cache directory
-	// if err := os.MkdirAll(p, 0777); err != nil {
-	// 	log.Printf("Error making directory %v: %#v", p, err)
-	// 	return "", err
-	// }
+	var err error
+	// parse path to cache directory or default to user's cache directory/qgenda/auth
+	p := strings.TrimSuffix(filename, filepath.Base(filename))
+	if p == "" || p == "." {
+		if p, err = os.UserCacheDir(); err != nil {
+			log.Printf("Error retrieving cache directory: %v", err)
+			return "", err
+		}
+		p = p + "/qgenda/auth"
+	}
+	// make cache directory
+	if err := os.MkdirAll(p, 0777); err != nil {
+		log.Printf("Error making directory %v: %#v", p, err)
+		return "", err
+	}
 
-	// // parse filename or default to authtoken.json
-	// f := filepath.Base(filename)
-	// f = strings.ToLower(f)
-	// if f == "" || f == "*" || f == "." {
-	// 	f = "authtoken.json"
-	// }
-	// // compile absolute path + file name
-	// f = filepath.Join(p, f)
-	// return f, nil
+	// parse filename or default to authtoken.json
+	f := filepath.Base(filename)
+	f = strings.ToLower(f)
+	if f == "" || f == "*" || f == "." {
+		f = "authtoken.json"
+	}
+	// compile absolute path + file name
+	f = filepath.Join(p, f)
+	return f, nil
 	return CacheFile(filename, "/qgenda/auth", "authtoken.json")
+	return "", nil
 }
 
 // WriteCache writes the AuthToken to a file cache
@@ -177,7 +190,7 @@ func (t *AuthToken) ReadCache(ctx context.Context, filename string) error {
 }
 
 // Login submits credentials for authorization bearer token
-func (q *QgendaClient) Login(ctx context.Context) error {
+func (q *Client) Login(ctx context.Context) error {
 
 	// request URL
 	route := "/login"

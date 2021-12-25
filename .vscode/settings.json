@@ -1,2 +1,34 @@
 {
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"gopls": {
+    
+		},
+		"go.alternateTools": {
+
+	"go": "go1.18beta1",
+	"dlv": "dlv",        
+	"go-outline": "go-outline",
+	"gopkgs": "gopkgs",
+	"gopls": "gopls"
+		},
+		"go.autocompleteUnimportedPackages": true
+		// "terminal.integrated.env.linux": {
+		// "PATH": ""
+		// }
+		// "terminal.integrated.defaultProfile.linux": {}
+		// "terminal.integrated.profiles.linux": {
+		// 	"bash": {
+		// 	  "path": "bash",
+		// 	  "args": [""]
+		// 	}
+		//   }
+	},
+	"go.alternateTools": {
+	"go": "go1.18beta1"
+	}
 }
