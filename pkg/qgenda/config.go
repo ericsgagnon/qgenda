@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/spf13/viper"
+	"go.uber.org/zap"
 )
 
 // config manages configuration for the app
@@ -23,13 +24,13 @@ type Config struct {
 
 // AppConfig hold user defined inputs for the overall application
 type AppConfig struct {
-	LogLevel       string
-	CacheDirectory string
-	ItemLimit      int
-	Timeout        time.Duration
-	Retries        int
-	Timezone       string
-	Tags           map[string]string
+	Log       zap.Config
+	Cache     CacheConfig
+	ItemLimit int
+	Timeout   time.Duration
+	Retries   int
+	Timezone  string
+	Tags      map[string]string
 }
 
 // Endpoint is an attempt at a generic

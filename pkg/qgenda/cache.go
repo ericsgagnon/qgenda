@@ -1,23 +1,11 @@
 package qgenda
 
 import (
-	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
-	"io/ioutil"
-	"log"
-	"net/http"
 	"os"
 	"path/filepath"
-	"reflect"
 	"time"
 )
-
-// consolidate these somewhere
-func typeName(a any) string {
-	return reflect.TypeOf(a).Name()
-}
 
 type CacheConfig struct {
 	Dir           string
@@ -25,11 +13,15 @@ type CacheConfig struct {
 	Enable        bool
 }
 
-func NewCacheConfig() *CacheConfig {
+// NewCacheConfig returns a *CacheConfig that defaults
+// to os.UserCacheDir with subDir appended
+// and a 30 day valid duration
+func NewCacheConfig(subDir string) *CacheConfig {
 	dir, err := os.UserCacheDir()
 	if err != nil {
 		panic(err)
 	}
+	dir = filepath.Join(dir, subDir)
 	dur, err := time.ParseDuration("1h")
 	if err != nil {
 		panic(err)
@@ -41,28 +33,67 @@ func NewCacheConfig() *CacheConfig {
 	}
 }
 
+// CacheFile helps manage caches
 type CacheFile struct {
-	Name string
+	Name    string    // name of the file
+	Created time.Time // meant to capture cache create/recreate time
+	Expires time.Time
 	CacheConfig
 }
 
+// String returns the path/to/cache/file
 func (cf *CacheFile) String() string {
 	file := filepath.Join(cf.Dir, cf.Name)
 	file = filepath.Clean(file)
 	return file
 }
 
-func NewCacheFile(file string, cfg *CacheConfig) *CacheFile {
+// NewCacheFile returns a CacheFile based on *CacheConfig or
+// the default CacheConfig if none is provided
+func NewCacheFile(file string, subDir string, cfg *CacheConfig) *CacheFile {
 	if file == "" || !cfg.Enable {
 		return nil
 	}
 	if cfg == nil {
-		cfg = NewCacheConfig()
+		cfg = NewCacheConfig(subDir)
 	}
-	return &CacheFile{
+
+	cf := &CacheFile{
 		Name:        file,
+		Created:     time.Now().UTC(),
 		CacheConfig: *cfg,
 	}
+
+	if cfg.ValidDuration > 0 {
+		cf.Expires = cf.Created.Add(cfg.ValidDuration)
+	}
+	return cf
+}
+
+func (cf *CacheFile) CreateDir() error {
+	return CreateCacheDir(cf)
+}
+
+// Create handles creation of both the directory (if needed)
+// and the file
+func (cf *CacheFile) Create() error {
+	if err := cf.CreateDir(); err != nil {
+		return err
+	}
+	return CreateCacheFile(cf)
+}
+
+func (cf *CacheFile) Valid() bool {
+	return ValidCacheFile(cf)
+}
+
+// Read is a wrapper method for ReadCacheFile
+func (cf *CacheFile) Read(data []byte) error {
+	return ReadCacheFile(cf, data)
+}
+
+func (cf *CacheFile) Write(data []byte) error {
+	return WriteCacheFile(cf, data)
 }
 
 func CreateCacheDir(cf *CacheFile) error {
@@ -96,6 +127,7 @@ func CreateCacheFile(cf *CacheFile) error {
 	return nil
 }
 
+// FileExists only checks if the cache file exists
 func (cf *CacheFile) FileExists() bool {
 	_, err := os.Stat(cf.String())
 	return !os.IsNotExist(err)
@@ -105,23 +137,28 @@ func (cf *CacheFile) FileExists() bool {
 // to determine if it is 'valid'. It will always return false if it is unable
 // to stat the file, if CacheFile.Enable == false, or the file size is 0.
 func ValidCacheFile(cf *CacheFile) bool {
-	if !cf.Enable {
-		return false
-	}
+	now := time.Now().UTC()
 	fs, err := os.Stat(cf.String())
 	if err != nil {
 		return false
 	}
-	if time.Now().Sub(fs.ModTime()) > cf.ValidDuration {
+
+	switch {
+	case !cf.Enable:
 		return false
-	}
-	if fs.Size() == 0 {
+	case fs.Size() == 0:
+		return false
+	case now.Sub(fs.ModTime()) > cf.ValidDuration:
+		return false
+	case now.After(cf.Expires):
 		return false
 	}
 	return true
 }
 
-// ReadCacheFile is a wrapper for os.ReadFile
+// ReadCacheFile is a wrapper for os.ReadFile. It doesn't parse anything, just consumes
+// the file and writes it to data []byte. Note that, in keeping with os, it doesn't use
+// a context.Context
 func ReadCacheFile(cf *CacheFile, data []byte) error {
 	data, err := os.ReadFile(cf.String())
 	return err
@@ -131,51 +168,4 @@ func ReadCacheFile(cf *CacheFile, data []byte) error {
 func WriteCacheFile(cf *CacheFile, data []byte) error {
 	os.WriteFile(cf.String(), data, 0666)
 	return nil
-}
-
-
-
-// ReadCache reads the AuthToken from a file cache
-func (t *AuthToken) xReadCache(ctx context.Context, filename string) error {
-
-	log.Printf("Read cached AuthToken from file")
-	// get the file to write cache to
-	filename, err := t.CacheFile(ctx, filename)
-	if err != nil {
-		return err
-	}
-
-	f, err := os.Open(filename)
-	if err != nil {
-		log.Printf("Error opening AuthToken cache file %v: %v\n", filename, err)
-		return err
-	}
-	defer f.Close()
-
-	b, err := ioutil.ReadAll(f)
-	if err != nil {
-		log.Printf("Error reading AuthToken cache file %v: %v\n", filename, err)
-		return err
-	}
-
-	tkn := &AuthToken{
-		Token:   &http.Header{},
-		Expires: time.Time{},
-	}
-	if err := json.Unmarshal(b, tkn); err != nil {
-		log.Printf("Error unmarshalling cached AuthToken: %v", err)
-	}
-
-	if tkn.Expires.UTC().Before(t.Expires.UTC()) || tkn.Expires.UTC().Before(time.Now().UTC()) {
-		m := fmt.Sprintf("Cached AuthToken expired %v", tkn.Expires.UTC().String())
-		log.Printf(m)
-		return errors.New(m)
-	}
-	t.Token = tkn.Token
-	t.Expires = tkn.Expires
-	t = tkn
-
-	log.Printf("Cached AuthToken appears valid until %v", t.Expires.UTC().String())
-	return nil
-
 }

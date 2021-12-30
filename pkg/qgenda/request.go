@@ -1,8 +1,10 @@
 package qgenda
 
 import (
+	"bytes"
 	"net/http"
 	"net/url"
+	"path"
 	"time"
 
 	"github.com/google/go-querystring/query"
@@ -17,6 +19,7 @@ type Request struct {
 	Header http.Header
 	Host   string
 	Path   string
+	Body   []byte
 	RequestQueryFields
 }
 
@@ -47,11 +50,16 @@ func (r *Request) Encode() string {
 }
 
 func (r *Request) ToHTTPRequest() *http.Request {
-	hr, err := http.NewRequest(r.Method, r.Encode(), nil)
+	hr, err := http.NewRequest(r.Method, r.Encode(), bytes.NewReader(r.Body))
 	if err != nil {
 		panic(err)
 	}
 	return hr
+}
+
+// AppendPath is a convenience func to append sub-paths to a base path
+func (r *Request) AppendPath(p string) {
+	r.Path = path.Join(r.Path, p)
 }
 
 // RequestQueryFields is an experiment in using pointer members
@@ -188,9 +196,6 @@ func intPointer(i int) *int              { return &i }
 func boolPointer(b bool) *bool           { return &b }
 func timePointer(t time.Time) *time.Time { return &t }
 func floatPointer(f float64) *float64    { return &f }
-func ptr(a any) *any {
-	return &a
-}
 
 func stringFromPointer(s *string) string {
 	if s != nil {

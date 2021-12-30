@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 )
 
 func main() {
@@ -20,6 +21,11 @@ func main() {
 	fmt.Println(!os.IsNotExist(err))
 	fmt.Println(fs.ModTime())
 	fmt.Println(fs.Mode())
+
+	tt := Time{
+		Created: ptr(time.Now().UTC()),
+	}
+	fmt.Println(tt)
 }
 
 func FileExists(filepath string) bool {
@@ -31,4 +37,16 @@ func FileExists(filepath string) bool {
 	}
 	// Return false if the fileinfo says the file path is a directory.
 	return !fileinfo.IsDir()
+}
+
+func ptr(a any) *any {
+	return &a
+}
+
+func toTimePointer(a *any) *time.Time {
+	return time.Time(a)
+}
+
+type Time struct {
+	Created *time.Time
 }
