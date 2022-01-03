@@ -5,10 +5,9 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"time"
+	"os"
 
 	"github.com/ericsgagnon/qgenda/pkg/qgenda"
-	"github.com/google/go-querystring/query"
 )
 
 // steps:
@@ -23,58 +22,16 @@ import (
 // note that either our login only has limited access or many endpoints aren't implemented for us
 
 func main() {
-	fmt.Println(qgenda.Config{})
-	// fmt.Println("test")
-	x := qgenda.NewRequest()
-	// fmt.Println(x)
-	x.SetRangeEndDate(time.Now().UTC())
-	// x.StartDate = timePointer(time.Now().UTC().AddDate(0, 0, -5))
-	x.SetStartDate(time.Now().UTC().AddDate(0, 0, -5))
-	v, _ := query.Values(x.RequestQueryFields)
-	fmt.Println(v.Encode())
-	// fmt.Println(x.Parse().Encode())
-	y := qgenda.NewScheduleRequest(nil)
-	fmt.Println(y.ToHTTPRequest().URL.String())
 
-	z := int(3)
-	fmt.Println(z)
-
-	// zz := new(int)
-	// zz = int(3)
-	// fmt.Println(zz)
-
-	zz := Parameters{}
-	zz["bool"] = true
-	zz["int"] = 3
-	zz["string"] = "string"
-	for k, v := range zz {
-		fmt.Printf("%#v[%T]:\t%#v\n", k, v, v)
+	qcc := &qgenda.ClientConfig{
+		Email:    os.Getenv("QGENDA_EMAIL"),
+		Password: os.Getenv("QGENDA_PASSWORD"),
 	}
-
-	us := "https://restapi.qgenda.com/v2/schedule/?CompanyKey=12345678&startDate=2021-12-01"
-	u1, err := url.Parse(us)
-	if err != nil {
-		log.Fatalln(err)
-
-	}
-	fmt.Printf("%#v\n", u1)
-
-	u2, err := url.ParseRequestURI(us)
+	c, err := qgenda.NewClient(qcc)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	fmt.Printf("%#v\n", u2)
-	fmt.Println(u2)
-
-	// u3, err := url.ParseQuery(us)
-	// if err != nil {
-	// 	log.Fatalln(err)
-
-	// }
-	// fmt.Println(u3)
-	// for k, v := range u3 {
-	// 	fmt.Printf("%#v:\t%#v\n", k, v)
-	// }
+	c.Auth()
 }
 
 // Parameters is a key-value map to represent arguments
@@ -141,3 +98,56 @@ type Model interface {
 	Data() *any
 	Process() error
 }
+
+// fmt.Println(qgenda.Config{})
+// fmt.Println("test")
+// x := qgenda.NewRequest()
+// fmt.Println(x)
+// x.SetRangeEndDate(time.Now().UTC())
+// x.StartDate = timePointer(time.Now().UTC().AddDate(0, 0, -5))
+// x.SetStartDate(time.Now().UTC().AddDate(0, 0, -5))
+// v, _ := query.Values(x.RequestQueryFields)
+// fmt.Println(v.Encode())
+// fmt.Println(x.Parse().Encode())
+// y := qgenda.NewScheduleRequest(nil)
+// fmt.Println(y.ToHTTPRequest().URL.String())
+
+// z := int(3)
+// fmt.Println(z)
+
+// zz := new(int)
+// zz = int(3)
+// fmt.Println(zz)
+
+// zz := Parameters{}
+// zz["bool"] = true
+// zz["int"] = 3
+// zz["string"] = "string"
+// for k, v := range zz {
+// 	fmt.Printf("%#v[%T]:\t%#v\n", k, v, v)
+// }
+
+// us := "https://restapi.qgenda.com/v2/schedule/?CompanyKey=12345678&startDate=2021-12-01"
+// u1, err := url.Parse(us)
+// if err != nil {
+// 	log.Fatalln(err)
+
+// }
+// fmt.Printf("%#v\n", u1)
+
+// u2, err := url.ParseRequestURI(us)
+// if err != nil {
+// 	log.Fatalln(err)
+// }
+// fmt.Printf("%#v\n", u2)
+// fmt.Println(u2)
+
+// u3, err := url.ParseQuery(us)
+// if err != nil {
+// 	log.Fatalln(err)
+
+// }
+// fmt.Println(u3)
+// for k, v := range u3 {
+// 	fmt.Printf("%#v:\t%#v\n", k, v)
+// }

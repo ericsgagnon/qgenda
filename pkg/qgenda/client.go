@@ -2,15 +2,11 @@ package qgenda
 
 import (
 	// "context"
-	"context"
-	"errors"
-	"io/ioutil"
-	"log"
-	"path"
-	"reflect"
 
 	// "io/ioutil"
 	// "log"
+
+	"log"
 	"net/http"
 	"net/url"
 
@@ -22,139 +18,191 @@ import (
 // ClientConfig is used to pass all necessary
 // arguments to NewClient
 type ClientConfig struct {
-	BaseURL        string
+	URL            string
 	ClientTimeout  time.Duration
 	RequestTimeout time.Duration
 	Email          string
 	CompanyKey     string
 	Password       string
+	CacheConfig    *CacheConfig
 }
 
 // Client is the primary struct for handling client
 // interactions with the qgenda api
 type Client struct {
-	BaseURL       *url.URL
-	Client        *http.Client
-	Credentials   *url.Values
-	Values        *url.Values
-	Authorization *AuthToken
-	Config        ClientConfig
+	URL         *url.URL
+	Client      *http.Client
+	Credentials *url.Values
+	AuthToken   *AuthToken
+	CacheConfig *CacheConfig
 }
 
-// NewQgendaClient creates a QgendaClient from config values
-func NewClient(qcc ClientConfig) (*Client, error) {
+func NewClient(cc *ClientConfig) (*Client, error) {
+	// var cfg *ClientConfig
+	// cfg = cc
+	// fmt.Println(*cfg)
 
-	// parse base url from a string
-	bu, err := url.Parse(qcc.BaseURL)
+	urlString := "https://api.qgenda.com/v2"
+	// if cc.URL != "" {
+	// 	urlString = cc.URL
+	// }
+	u, err := url.Parse(urlString)
 	if err != nil {
 		return nil, err
 	}
 
+	cch, err := NewCacheConfig("qgenda")
+	// fmt.Printf("NewClient: %#v\n", cch)
+	if err != nil {
+		return nil, err
+	}
+	if cc.CacheConfig != nil {
+		cache := *cc.CacheConfig
+		cch = &cache
+	}
+
+	// fmt.Printf("NewClient: %#v\n", *cc.CacheConfig)
+	// cf, err := NewCacheFile("authtoken.json", "auth", cc.CacheConfig)
+	// if err != nil {
+	// 	log.Fatalln(err)
+	// }
+	// fmt.Printf("NewClient CacheFile: %s\n", cf)
+	// fmt.Printf("-------------------------------------------------")
+
+	// fmt.Printf("NewClient: %#v\n", cch)
+	// cf, err := NewCacheFile("authtoken.json", "auth", cch)
+	// if err != nil {
+	// 	log.Fatalln(err)
+	// }
+	// fmt.Printf("NewClient CacheFile: %s\n", cf)
+	// fmt.Printf("-------------------------------------------------")
+
+	cl := &http.Client{}
 	// provide reasonable default client timeout
-	var cto time.Duration
-	if time.Duration(qcc.ClientTimeout) < time.Second*1 {
-		cto = time.Second * 10
+	if time.Duration(cc.ClientTimeout) < time.Second*1 {
+		cl.Timeout = time.Second * 30
 	} else {
-		cto = qcc.ClientTimeout
+		cl.Timeout = cc.ClientTimeout
 	}
 
-	// check for non nil values of credentials
-	var email, password, companyKey string
-	for email = qcc.Email; email == ""; {
-		return nil, errors.New("Error: ClientConfig.Email cannot be empty")
-	}
-	for password = qcc.Password; password == ""; {
-		return nil, errors.New("Error: ClientConfig.Password cannot be empty")
-	}
-	for companyKey = qcc.CompanyKey; companyKey == ""; {
-		return nil, errors.New("Error: ClientConfig.CompanyKey cannot be empty")
+	cr := &url.Values{}
+	cr.Add("email", cc.Email)
+	cr.Add("password", cc.Password)
+	tkn, err := NewAuthToken(cch)
+	// fmt.Println(tkn.Cache)
+	if err != nil {
+		return nil, err
 	}
 
-	authToken := &AuthToken{
-		Token:   &http.Header{},
-		Expires: time.Time{},
+	client := &Client{
+		URL:         u,
+		Client:      cl,
+		Credentials: cr,
+		AuthToken:   tkn,
+		CacheConfig: cch,
 	}
-
-	q := &Client{
-		BaseURL: bu,
-		Client: &http.Client{
-			Timeout: cto,
-		},
-		Credentials: &url.Values{
-			"email":      {email},
-			"companyKey": {companyKey},
-			"password":   {password},
-		},
-		Values:        &url.Values{},
-		Authorization: authToken,
-		Config:        qcc,
-	}
-	return q, nil
+	return client, nil
 }
 
-func parseRequest(c *Client, r *http.Request) (*http.Request, error) {
-
-	return nil, nil
-}
-
-func ParseParameters(p ...Parameters) (*url.Values, error) {
-	
-}
-
-func get(c *Client, ctx context.Context, r *http.Request) (*http.Response, error) {
-
-	u := *c.BaseURL
-	// handle authorization
-	if err := c.Auth(ctx); err != nil {
-		log.Printf("Error authorizing get request to %v: %v", r.URL, err)
-		return err
-	}
-	r.Query.Add("companyKey", q.Credentials.Get("companyKey"))
-	// build and send http request
-	u.RawQuery = r.Query.Encode()
-	u.Path = path.Join(u.Path, r.Path)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+func (c *Client) Auth() error {
+	// fmt.Println(c.AuthToken.Cache)
+	tkn, err := AuthTokenFromCacheFile(c.AuthToken.Cache)
+	// if err == nil {
+	// 	fmt.Println("No issues with the cachefile")
+	// }
 	if err != nil {
-		log.Printf("Error in request to %v: %v", u, err)
-		return err
-	}
-	req.Header = q.Authorization.Token.Clone()
-	res, err := q.Client.Do(req)
-	if err != nil {
-		log.Printf("Error retrieving response from %v: %v", u, err)
-		return err
-	}
+		// fmt.Println("CacheFile didn't work so good")
+		log.Printf("(c *Client) Auth(): %s\n", err)
+		atreq, err := NewAuthRequest(c.Credentials)
+		if err != nil {
+			return err
+		}
+		req := atreq.ToHTTPRequest()
+		resp, err := c.Client.Do(req)
+		if err != nil {
+			return err
+		}
+		tkn, err = AuthTokenFromResponse(resp)
+		tkn.Cache = c.AuthToken.Cache
+		// fmt.Printf("Client.Auth: Client.AuthToken.Cache: %s\n", tkn.Cache)
+		if err != nil {
+			return err
+		}
+		c.AuthToken = tkn
+		err = c.AuthToken.WriteCacheFile()
 
-	// handle response
-	// TODO: improve reading response for larger requests
-	b, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		log.Printf("Error reading response from %v: %v", u, err)
-		return err
-	}
-	defer res.Body.Close()
-	resTime, err := http.ParseTime(res.Header.Get("Date"))
-	if err != nil {
-		log.Printf("Error parsing date header in response: %v", err)
-		// accept time.Now as a 'rough' estimate of now
-		resTime = time.Now()
-	}
+		if err != nil {
+			return err
+		}
 
-	requestConfig := reflect.ValueOf(r.Config)
-	resourceName := reflect.Indirect(requestConfig).FieldByName("Resource").Interface().(string)
-	// metadata to capture data heritage
-	meta := &Metadata{
-		APIVersion: "v2",
-		Kind:       "qgenda",
-		URL:        u.String(),
-		Name:       resourceName,
-		Timestamp:  resTime,
 	}
-	rr.Response.Metadata = meta
-	rr.Response.Data = &b
 
 	return nil
 }
+
+// func parseRequest(c *Client, r *http.Request) (*http.Request, error) {
+
+// 	return nil, nil
+// }
+
+// func ParseParameters(p ...Parameters) (*url.Values, error) {
+
+// }
+
+// func get(c *Client, ctx context.Context, r *http.Request) (*http.Response, error) {
+
+// 	u := *c.BaseURL
+// 	// handle authorization
+// 	if err := c.Auth(ctx); err != nil {
+// 		log.Printf("Error authorizing get request to %v: %v", r.URL, err)
+// 		return err
+// 	}
+// 	r.Query.Add("companyKey", q.Credentials.Get("companyKey"))
+// 	// build and send http request
+// 	u.RawQuery = r.Query.Encode()
+// 	u.Path = path.Join(u.Path, r.Path)
+// 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+// 	if err != nil {
+// 		log.Printf("Error in request to %v: %v", u, err)
+// 		return err
+// 	}
+// 	req.Header = q.Authorization.Token.Clone()
+// 	res, err := q.Client.Do(req)
+// 	if err != nil {
+// 		log.Printf("Error retrieving response from %v: %v", u, err)
+// 		return err
+// 	}
+
+// 	// handle response
+// 	// TODO: improve reading response for larger requests
+// 	b, err := ioutil.ReadAll(res.Body)
+// 	if err != nil {
+// 		log.Printf("Error reading response from %v: %v", u, err)
+// 		return err
+// 	}
+// 	defer res.Body.Close()
+// 	resTime, err := http.ParseTime(res.Header.Get("Date"))
+// 	if err != nil {
+// 		log.Printf("Error parsing date header in response: %v", err)
+// 		// accept time.Now as a 'rough' estimate of now
+// 		resTime = time.Now()
+// 	}
+
+// 	requestConfig := reflect.ValueOf(r.Config)
+// 	resourceName := reflect.Indirect(requestConfig).FieldByName("Resource").Interface().(string)
+// 	// metadata to capture data heritage
+// 	meta := &Metadata{
+// 		APIVersion: "v2",
+// 		Kind:       "qgenda",
+// 		URL:        u.String(),
+// 		Name:       resourceName,
+// 		Timestamp:  resTime,
+// 	}
+// 	rr.Response.Metadata = meta
+// 	rr.Response.Data = &b
+
+// 	return nil
+// }
 
 // // Get handles a *RequestResponse.Request and returns the data and metadata in
 // // *RequestResponse.Response

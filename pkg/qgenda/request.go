@@ -28,6 +28,7 @@ type Request struct {
 func NewRequest() *Request {
 	r := Request{
 		Scheme:             "https",
+		Header:             http.Header{},
 		Host:               "api.qgenda.com",
 		Path:               "v2",
 		RequestQueryFields: RequestQueryFields{},
@@ -53,6 +54,9 @@ func (r *Request) ToHTTPRequest() *http.Request {
 	hr, err := http.NewRequest(r.Method, r.Encode(), bytes.NewReader(r.Body))
 	if err != nil {
 		panic(err)
+	}
+	for k, v := range r.Header {
+		hr.Header[k] = v
 	}
 	return hr
 }

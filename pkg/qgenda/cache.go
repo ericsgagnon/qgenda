@@ -13,31 +13,31 @@ type CacheConfig struct {
 	Enable        bool
 }
 
-// NewCacheConfig returns a *CacheConfig that defaults
-// to os.UserCacheDir with subDir appended
-// and a 30 day valid duration
-func NewCacheConfig(subDir string) *CacheConfig {
+// NewCacheConfig returns a *CacheConfig that defaults to os.UserCacheDir
+// with subDir appended and a 30 day valid duration
+func NewCacheConfig(subDir string) (*CacheConfig, error) {
 	dir, err := os.UserCacheDir()
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	dir = filepath.Join(dir, subDir)
 	dur, err := time.ParseDuration("1h")
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return &CacheConfig{
+	cf := &CacheConfig{
 		Dir:           dir,
 		ValidDuration: (dur * 24 * 30),
 		Enable:        true,
 	}
+	return cf, nil
 }
 
 // CacheFile helps manage caches
 type CacheFile struct {
-	Name    string    // name of the file
-	Created time.Time // meant to capture cache create/recreate time
-	Expires time.Time
+	Name      string    // name of the file
+	Timestamp time.Time // meant to capture cache create/recreate time
+	Expires   time.Time
 	CacheConfig
 }
 
@@ -50,24 +50,24 @@ func (cf *CacheFile) String() string {
 
 // NewCacheFile returns a CacheFile based on *CacheConfig or
 // the default CacheConfig if none is provided
-func NewCacheFile(file string, subDir string, cfg *CacheConfig) *CacheFile {
-	if file == "" || !cfg.Enable {
-		return nil
+func NewCacheFile(file string, subDir string, cfg *CacheConfig) (*CacheFile, error) {
+	if file == "" || cfg == nil {
+		return nil, ErrMissing
 	}
-	if cfg == nil {
-		cfg = NewCacheConfig(subDir)
+	if !cfg.Enable {
+		return nil, ErrNope
 	}
-
+	cfg.Dir = filepath.Join(cfg.Dir, subDir)
 	cf := &CacheFile{
 		Name:        file,
-		Created:     time.Now().UTC(),
+		Timestamp:   time.Now().UTC(),
 		CacheConfig: *cfg,
 	}
 
 	if cfg.ValidDuration > 0 {
-		cf.Expires = cf.Created.Add(cfg.ValidDuration)
+		cf.Expires = cf.Timestamp.Add(cfg.ValidDuration)
 	}
-	return cf
+	return cf, nil
 }
 
 func (cf *CacheFile) CreateDir() error {
@@ -83,26 +83,23 @@ func (cf *CacheFile) Create() error {
 	return CreateCacheFile(cf)
 }
 
-func (cf *CacheFile) Valid() bool {
-	return ValidCacheFile(cf)
-}
-
 // Read is a wrapper method for ReadCacheFile
-func (cf *CacheFile) Read(data []byte) error {
-	return ReadCacheFile(cf, data)
+func (cf *CacheFile) Read() ([]byte, error) {
+	return ReadCacheFile(cf)
 }
 
 func (cf *CacheFile) Write(data []byte) error {
 	return WriteCacheFile(cf, data)
 }
 
+func (cf *CacheFile) Valid() bool {
+	return ValidCacheFile(cf)
+}
 func CreateCacheDir(cf *CacheFile) error {
 	if cf.Dir == "" || !cf.Enable {
 		return errors.New("Cache is disabled by CacheFile.Enable = false")
 	}
-
 	if err := os.MkdirAll(cf.Dir, 0777); err != nil {
-		// log.Printf("Error making directory %v: %#v", cf.Dir, err)
 		return err
 	}
 	return nil
@@ -113,17 +110,45 @@ func CreateCacheFile(cf *CacheFile) error {
 	if !cf.Enable {
 		return errors.New("Cache is disabled by CacheFile.Enable = false")
 	}
-
 	if err := CreateCacheDir(cf); err != nil {
 		return err
 	}
-
-	if !cf.FileExists() {
-		if _, err := os.Create(cf.String()); err != nil {
-			return err
-		}
+	if cf.FileExists() {
+		return nil
 	}
+	f, err := os.Create(cf.String())
+	if err != nil {
+		return err
+	}
+	fi, err := f.Stat()
+	if err != nil {
+		return err
+	}
+	cf.Timestamp = fi.ModTime().UTC()
+	if cf.ValidDuration > 0 {
+		cf.Expires = cf.Timestamp.Add(cf.ValidDuration)
+	}
+	return nil
+}
 
+// ReadCacheFile is a wrapper for os.ReadFile. It doesn't parse anything,
+// just consumes the file and writes it to data []byte. Note that, in
+// keeping with os, it doesn't use a context.Context
+func ReadCacheFile(cf *CacheFile) ([]byte, error) {
+	data, err := os.ReadFile(cf.String())
+
+	fi, err := os.Stat(cf.String())
+	if err != nil {
+		return nil, err
+	}
+	cf.Timestamp = fi.ModTime().UTC()
+	return data, err
+}
+
+// WriteCacheFile writes to the file and updates the CacheFile.Timestamp
+func WriteCacheFile(cf *CacheFile, data []byte) error {
+	os.WriteFile(cf.String(), data, 0666)
+	cf.Timestamp = time.Now().UTC()
 	return nil
 }
 
@@ -156,16 +181,10 @@ func ValidCacheFile(cf *CacheFile) bool {
 	return true
 }
 
-// ReadCacheFile is a wrapper for os.ReadFile. It doesn't parse anything, just consumes
-// the file and writes it to data []byte. Note that, in keeping with os, it doesn't use
-// a context.Context
-func ReadCacheFile(cf *CacheFile, data []byte) error {
-	data, err := os.ReadFile(cf.String())
-	return err
-}
-
-// WriteCacheFile is a wrapper for os.WriteFile with standard defaults
-func WriteCacheFile(cf *CacheFile, data []byte) error {
-	os.WriteFile(cf.String(), data, 0666)
-	return nil
+func CacheFileTimestamp(cf *CacheFile) time.Time {
+	fi, err := os.Stat(cf.String())
+	if err != nil {
+		panic(err)
+	}
+	return fi.ModTime().UTC()
 }
