@@ -1,11 +1,15 @@
 package main
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
+	"time"
 
 	"github.com/ericsgagnon/qgenda/pkg/qgenda"
 )
@@ -22,7 +26,7 @@ import (
 // note that either our login only has limited access or many endpoints aren't implemented for us
 
 func main() {
-
+	ctx := context.Background()
 	qcc := &qgenda.ClientConfig{
 		Email:    os.Getenv("QGENDA_EMAIL"),
 		Password: os.Getenv("QGENDA_PASSWORD"),
@@ -32,6 +36,33 @@ func main() {
 		log.Fatalln(err)
 	}
 	c.Auth()
+	scheduleStartDate := time.Now().UTC().Add(-1 * 14 * 24 * time.Hour)
+	scheduleEndDate := time.Now().UTC()
+	srrqf := &qgenda.RequestQueryFields{
+		ScheduleStartDate: &scheduleStartDate,
+		ScheduleEndDate:   &scheduleEndDate,
+	}
+	sr := qgenda.NewScheduleRequest(srrqf)
+	req := sr.ToHTTPRequest()
+	resp, err := c.Do(ctx, req)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	data, err := io.ReadAll(resp.Body)
+
+	var sch []qgenda.Schedule
+	if err := json.Unmarshal(data, &sch); err != nil {
+		log.Fatalln(err)
+	}
+	// fmt.Println(sch)
+	jsonOut, err := json.MarshalIndent(sch, "", "\t")
+	if err != nil {
+		log.Fatalln(err)
+	}
+	os.WriteFile("test.json", jsonOut, 0644)
+
+	// sch, err := qgenda.ScheduleFromHTTPResponse(resp)
+
 }
 
 // Parameters is a key-value map to represent arguments

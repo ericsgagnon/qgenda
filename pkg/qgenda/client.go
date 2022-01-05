@@ -6,6 +6,7 @@ import (
 	// "io/ioutil"
 	// "log"
 
+	"context"
 	"log"
 	"net/http"
 	"net/url"
@@ -61,22 +62,6 @@ func NewClient(cc *ClientConfig) (*Client, error) {
 		cch = &cache
 	}
 
-	// fmt.Printf("NewClient: %#v\n", *cc.CacheConfig)
-	// cf, err := NewCacheFile("authtoken.json", "auth", cc.CacheConfig)
-	// if err != nil {
-	// 	log.Fatalln(err)
-	// }
-	// fmt.Printf("NewClient CacheFile: %s\n", cf)
-	// fmt.Printf("-------------------------------------------------")
-
-	// fmt.Printf("NewClient: %#v\n", cch)
-	// cf, err := NewCacheFile("authtoken.json", "auth", cch)
-	// if err != nil {
-	// 	log.Fatalln(err)
-	// }
-	// fmt.Printf("NewClient CacheFile: %s\n", cf)
-	// fmt.Printf("-------------------------------------------------")
-
 	cl := &http.Client{}
 	// provide reasonable default client timeout
 	if time.Duration(cc.ClientTimeout) < time.Second*1 {
@@ -106,13 +91,18 @@ func NewClient(cc *ClientConfig) (*Client, error) {
 
 func (c *Client) Auth() error {
 	// fmt.Println(c.AuthToken.Cache)
+	if c.AuthToken.Valid() {
+		log.Println("Client.AuthToken is valid")
+		return nil
+	}
 	tkn, err := AuthTokenFromCacheFile(c.AuthToken.Cache)
 	// if err == nil {
 	// 	fmt.Println("No issues with the cachefile")
 	// }
 	if err != nil {
+		log.Println("Client.Auth(): No Valid cache - requesting new AuthToken")
 		// fmt.Println("CacheFile didn't work so good")
-		log.Printf("(c *Client) Auth(): %s\n", err)
+		// log.Printf("(c *Client) Auth(): %s\n", err)
 		atreq, err := NewAuthRequest(c.Credentials)
 		if err != nil {
 			return err
@@ -136,8 +126,14 @@ func (c *Client) Auth() error {
 		}
 
 	}
-
+	c.AuthToken = tkn
+	log.Printf("Client.Auth(): AuthToken cache is valid - expires: %s\n", c.AuthToken.Expires)
 	return nil
+}
+
+func (c *Client) Do(ctx context.Context, req *http.Request) (*http.Response, error) {
+	req = AddAuthToken(req, c.AuthToken).WithContext(ctx)
+	return c.Client.Do(req)
 }
 
 // func parseRequest(c *Client, r *http.Request) (*http.Request, error) {

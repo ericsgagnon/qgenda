@@ -59,6 +59,7 @@ func ReadAuthTokenCacheFile(cf *CacheFile) (*AuthToken, error) {
 		log.Printf("Error unmarshalling cached AuthToken: %v", err)
 		return nil, err
 	}
+
 	cache := *cf
 	tkn.Cache = &cache
 	return tkn, nil

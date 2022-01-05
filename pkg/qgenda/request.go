@@ -51,14 +51,14 @@ func (r *Request) Encode() string {
 }
 
 func (r *Request) ToHTTPRequest() *http.Request {
-	hr, err := http.NewRequest(r.Method, r.Encode(), bytes.NewReader(r.Body))
+	req, err := http.NewRequest(r.Method, r.Encode(), bytes.NewReader(r.Body))
 	if err != nil {
 		panic(err)
 	}
 	for k, v := range r.Header {
-		hr.Header[k] = v
+		req.Header[k] = v
 	}
-	return hr
+	return req
 }
 
 // AppendPath is a convenience func to append sub-paths to a base path
