@@ -31,11 +31,13 @@ type ClientConfig struct {
 // Client is the primary struct for handling client
 // interactions with the qgenda api
 type Client struct {
-	URL         *url.URL
-	Client      *http.Client
-	Credentials *url.Values
-	AuthToken   *AuthToken
-	CacheConfig *CacheConfig
+	URL          *url.URL
+	Client       *http.Client
+	Credentials  *url.Values
+	AuthToken    *AuthToken
+	CacheConfig  *CacheConfig
+	ClientConfig *ClientConfig
+	Parameters   *Parameters
 }
 
 func NewClient(cc *ClientConfig) (*Client, error) {
@@ -79,12 +81,19 @@ func NewClient(cc *ClientConfig) (*Client, error) {
 		return nil, err
 	}
 
+	cfg := *cc
+	p := Parameters{
+		"CompanyKey": cc.CompanyKey,
+	}
+
 	client := &Client{
-		URL:         u,
-		Client:      cl,
-		Credentials: cr,
-		AuthToken:   tkn,
-		CacheConfig: cch,
+		URL:          u,
+		Client:       cl,
+		Credentials:  cr,
+		AuthToken:    tkn,
+		CacheConfig:  cch,
+		ClientConfig: &cfg,
+		Parameters:   &p,
 	}
 	return client, nil
 }
@@ -131,10 +140,19 @@ func (c *Client) Auth() error {
 	return nil
 }
 
-func (c *Client) Do(ctx context.Context, req *http.Request) (*http.Response, error) {
+func (c *Client) Do(ctx context.Context, r *Request) (*http.Response, error) {
+
+	r.SetCompanyKey(c.ClientConfig.CompanyKey)
+	r.SetCompanyKey("8c44c075-d894-4b00-9ae7-3b3842226626")
+	req := r.ToHTTPRequest()
 	req = AddAuthToken(req, c.AuthToken).WithContext(ctx)
 	return c.Client.Do(req)
 }
+
+// func (c *Client) Do(ctx context.Context, req *http.Request) (*http.Response, error) {
+// 	req = AddAuthToken(req, c.AuthToken).WithContext(ctx)
+// 	return c.Client.Do(req)
+// }
 
 // func parseRequest(c *Client, r *http.Request) (*http.Request, error) {
 

@@ -291,3 +291,66 @@ func (t NullInt64) MarshalJSON() ([]byte, error) {
 
 // 	return nil
 // }
+
+type Date struct {
+	time.Time
+	Valid bool
+}
+
+type TimeOfDay struct {
+	time.Time
+	Valid bool
+}
+
+// WeirdTimeOfDay manages the special qgenda practice of using 12:03am to mean that no time is actually set...
+type WeirdTimeOfDay time.Time
+
+// WeirdTimeOfDay manages the special qgenda practice of using 12:03am to mean that no time is actually set...
+type TimeThereIsNo0003 time.Time
+
+// UnmarshalJSON satisfies the json.Unmarshaler interface
+func (t *TimeOfDay) UnmarshalJSON(data []byte) error {
+
+	location, err := time.LoadLocation("UTC")
+	if err != nil {
+		return err
+	}
+
+	ts := string(data)
+	// Ignore null, like in the main JSON package.
+	if ts == "null" {
+		return nil
+	}
+
+	//deal with qgenda's weird 12:03am == nil practice:
+	// if string(data) == "00:03:00" || string(data) == "00:03" || string(data) == "12:03:00"
+	var tt time.Time
+	tt, err = time.ParseInLocation(`"`+"15:04:05"+`"`, ts, location)
+	if err != nil {
+		tt, err = time.ParseInLocation(`"`+"15:04"+`"`, ts, location)
+		if err != nil {
+			return err
+		}
+	}
+	t.Time = tt
+	if t.IsZero() {
+		t.Valid = false
+	} else {
+		t.Valid = true
+	}
+	return err
+}
+
+// MarshalJSON satisfies the json.Marshaler interface
+func (t TimeOfDay) MarshalJSON() ([]byte, error) {
+	if t.Time.IsZero() || !t.Valid {
+		return []byte("null"), nil
+		// return nil, nil
+	}
+	return []byte(`"` + t.Time.Format("15:04:05") + `"`), nil
+}
+
+// func (d *Date) String() string {
+
+// }
+

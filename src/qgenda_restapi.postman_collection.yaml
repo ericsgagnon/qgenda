@@ -2797,7 +2797,7 @@ item:
                 query:
                   - key: includes
                     value: String
-                    description: 'If provided, as a comma separated list of entities the specified related entities will be returned with the response. (Examples: Profiles,Tags,TaskShifts)'
+                    description: 'If provided, as a comm a separated list of entities the specified related entities will be returned with the response. (Examples: Profiles,Tags,TaskShifts)'
                   - key: $select
                     value: OData Expression
                     description: |
