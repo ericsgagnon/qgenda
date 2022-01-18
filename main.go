@@ -36,15 +36,20 @@ func main() {
 		log.Fatalln(err)
 	}
 	c.Auth()
-	scheduleStartDate := time.Now().UTC().Add(-1 * 14 * 24 * time.Hour)
-	scheduleEndDate := time.Now().UTC()
-	srrqf := &qgenda.RequestQueryFields{
-		ScheduleStartDate: &scheduleStartDate,
-		ScheduleEndDate:   &scheduleEndDate,
-	}
+	// Schedule
+
+	// scheduleStartDate := time.Now().UTC().Add(-1 * 14 * 24 * time.Hour)
+	// scheduleEndDate := time.Now().UTC()
+	// srrqf := &qgenda.RequestQueryFields{
+	// 	ScheduleStartDate: &scheduleStartDate,
+	// 	ScheduleEndDate:   &scheduleEndDate,
+	// }
+	srrqf := &qgenda.RequestQueryFields{}
 	sr := qgenda.NewScheduleRequest(srrqf)
-	req := sr.ToHTTPRequest()
-	resp, err := c.Do(ctx, req)
+	sr.SetScheduleStartDate(time.Now().UTC().Add(-1 * 14 * 24 * time.Hour))
+	sr.SetScheduleEndDate(time.Now().UTC())
+
+	resp, err := c.Do(ctx, sr)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -59,7 +64,36 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	os.WriteFile("test.json", jsonOut, 0644)
+	os.WriteFile("schedule.json", jsonOut, 0644)
+
+	// ScheduleAuditLog
+	salrqf := &qgenda.RequestQueryFields{}
+	sal := qgenda.NewScheduleAuditLogRequest(salrqf)
+	sal.SetScheduleStartDate(time.Now().UTC().Add(-1 * 14 * 24 * time.Hour))
+	sal.SetScheduleEndDate(time.Now().UTC())
+
+	resp, err = c.Do(ctx, sal)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	data, err = io.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	os.WriteFile("scheduleAuditLog.json", data, 0644)
+
+	// Tag
+
+	tr := qgenda.NewTagRequest(nil)
+	resp, err = c.Do(ctx, tr)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	data, err = io.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	os.WriteFile("tags.json", data, 0644)
 
 	// sch, err := qgenda.ScheduleFromHTTPResponse(resp)
 
