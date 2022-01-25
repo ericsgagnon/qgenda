@@ -45,24 +45,30 @@ func main() {
 	// 	ScheduleEndDate:   &scheduleEndDate,
 	// }
 	srrqf := &qgenda.RequestQueryFields{}
+	srrqf.SetStartDate(time.Now().UTC().Add(-1 * 14 * 24 * time.Hour))
+	srrqf.SetEndDate(time.Now().UTC())
+	srrqf.SetSinceModifiedTimestamp(time.Now().UTC().Add(-1 * 14 * 24 * time.Hour))
 	sr := qgenda.NewScheduleRequest(srrqf)
-	sr.SetScheduleStartDate(time.Now().UTC().Add(-1 * 14 * 24 * time.Hour))
-	sr.SetScheduleEndDate(time.Now().UTC())
-
+	srJSON, err := json.MarshalIndent(sr, "", "\t")
+	if err != nil {
+		log.Println(err)
+	}
+	fmt.Println(string(srJSON))
 	resp, err := c.Do(ctx, sr)
 	if err != nil {
-		log.Fatalln(err)
+		log.Println(err)
 	}
 	data, err := io.ReadAll(resp.Body)
-
+	// fmt.Println(resp.Status)
+	// fmt.Println(string(data))
 	var sch []qgenda.Schedule
 	if err := json.Unmarshal(data, &sch); err != nil {
-		log.Fatalln(err)
+		log.Println(err)
 	}
 	// fmt.Println(sch)
 	jsonOut, err := json.MarshalIndent(sch, "", "\t")
 	if err != nil {
-		log.Fatalln(err)
+		log.Println(err)
 	}
 	os.WriteFile("schedule.json", jsonOut, 0644)
 
@@ -80,11 +86,12 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
+	fmt.Println("scheduleAuditLog success???")
 	os.WriteFile("scheduleAuditLog.json", data, 0644)
 
 	// Tag
-
-	tr := qgenda.NewTagRequest(nil)
+	talrqf := &qgenda.RequestQueryFields{}
+	tr := qgenda.NewTagRequest(talrqf)
 	resp, err = c.Do(ctx, tr)
 	if err != nil {
 		log.Fatalln(err)
@@ -93,6 +100,7 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
+	fmt.Println("tags success???")
 	os.WriteFile("tags.json", data, 0644)
 
 	// sch, err := qgenda.ScheduleFromHTTPResponse(resp)

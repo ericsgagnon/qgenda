@@ -5,46 +5,46 @@ import (
 )
 
 type Schedule struct {
-	ScheduleKey *string  `json:"ScheduleKey,omitempty"`
-	CallRole    *string  `json:"CallRole,omitempty"`
-	CompKey     *string  `json:"CompKey,omitempty"`
-	Credit      *float64 `json:"Credit,omitempty"`
-	// Date                   *time.Time `json:"Date,omitempty"`
-	// StartDateUTC           *time.Time `json:"StartDateUTC,omitempty"`
-	// EndDateUTC             *time.Time `json:"EndDateUTC,omitempty"`
-	// EndDate                *time.Time `json:"EndDate,omitempty"`
-	// EndTime                *time.Time `json:"EndTime,omitempty"`
-	Date              *string `json:"Date,omitempty"`
-	StartDateUTC      *string `json:"StartDateUTC,omitempty"`
-	EndDateUTC        *string `json:"EndDateUTC,omitempty"`
-	EndDate           *string `json:"EndDate,omitempty"`
-	EndTime           *string `json:"EndTime,omitempty"`
-	IsCred            *bool   `json:"IsCred,omitempty"`
-	IsPublished       *bool   `json:"IsPublished,omitempty"`
-	IsLocked          *bool   `json:"IsLocked,omitempty"`
-	IsStruck          *bool   `json:"IsStruck,omitempty"`
-	Notes             *string `json:"Notes,omitempty"`
-	IsNotePrivate     *bool   `json:"IsNotePrivate,omitempty"`
-	StaffAbbrev       *string `json:"StaffAbbrev,omitempty"`
-	StaffBillSysId    *string `json:"StaffBillSysId,omitempty"`
-	StaffEmail        *string `json:"StaffEmail,omitempty"`
-	StaffEmrId        *string `json:"StaffEmrId,omitempty"`
-	StaffErpId        *string `json:"StaffErpId,omitempty"`
-	StaffInternalId   *string `json:"StaffInternalId,omitempty"`
-	StaffExtCallSysId *string `json:"StaffExtCallSysId,omitempty"`
-	StaffFName        *string `json:"StaffFName,omitempty"`
-	StaffId           *string `json:"StaffId,omitempty"`
-	StaffKey          *string `json:"StaffKey,omitempty"`
-	StaffLName        *string `json:"StaffLName,omitempty"`
-	StaffMobilePhone  *string `json:"StaffMobilePhone,omitempty"`
-	StaffNpi          *string `json:"StaffNpi,omitempty"`
-	StaffPager        *string `json:"StaffPager,omitempty"`
-	StaffPayrollId    *string `json:"StaffPayrollId,omitempty"`
-	StaffTags         []any   `json:"StaffTags,omitempty"`
-	// StartDate              *time.Time `json:"StartDate,omitempty"`
-	// StartTime              *time.Time `json:"StartTime,omitempty"`
-	StartDate              *string `json:"StartDate,omitempty"`
-	StartTime              *string `json:"StartTime,omitempty"`
+	ScheduleKey  *string    `json:"ScheduleKey,omitempty"`
+	CallRole     *string    `json:"CallRole,omitempty"`
+	CompKey      *string    `json:"CompKey,omitempty"`
+	Credit       *float64   `json:"Credit,omitempty"`
+	Date         *Date      `json:"Date,omitempty"`
+	StartDateUTC *time.Time `json:"StartDateUTC,omitempty"`
+	EndDateUTC   *time.Time `json:"EndDateUTC,omitempty"`
+	EndDate      *Date      `json:"EndDate,omitempty"`
+	EndTime      *TimeOfDay `json:"EndTime,omitempty"`
+	// Date         *string    `json:"Date,omitempty"`
+	// StartDateUTC *string `json:"StartDateUTC,omitempty"`
+	// EndDateUTC   *string `json:"EndDateUTC,omitempty"`
+	// EndDate      *string    `json:"EndDate,omitempty"`
+	// EndTime           *string `json:"EndTime,omitempty"`
+	IsCred            *bool      `json:"IsCred,omitempty"`
+	IsPublished       *bool      `json:"IsPublished,omitempty"`
+	IsLocked          *bool      `json:"IsLocked,omitempty"`
+	IsStruck          *bool      `json:"IsStruck,omitempty"`
+	Notes             *string    `json:"Notes,omitempty"`
+	IsNotePrivate     *bool      `json:"IsNotePrivate,omitempty"`
+	StaffAbbrev       *string    `json:"StaffAbbrev,omitempty"`
+	StaffBillSysId    *string    `json:"StaffBillSysId,omitempty"`
+	StaffEmail        *string    `json:"StaffEmail,omitempty"`
+	StaffEmrId        *string    `json:"StaffEmrId,omitempty"`
+	StaffErpId        *string    `json:"StaffErpId,omitempty"`
+	StaffInternalId   *string    `json:"StaffInternalId,omitempty"`
+	StaffExtCallSysId *string    `json:"StaffExtCallSysId,omitempty"`
+	StaffFName        *string    `json:"StaffFName,omitempty"`
+	StaffId           *string    `json:"StaffId,omitempty"`
+	StaffKey          *string    `json:"StaffKey,omitempty"`
+	StaffLName        *string    `json:"StaffLName,omitempty"`
+	StaffMobilePhone  *string    `json:"StaffMobilePhone,omitempty"`
+	StaffNpi          *string    `json:"StaffNpi,omitempty"`
+	StaffPager        *string    `json:"StaffPager,omitempty"`
+	StaffPayrollId    *string    `json:"StaffPayrollId,omitempty"`
+	StaffTags         []any      `json:"StaffTags,omitempty"`
+	StartDate         *Date      `json:"StartDate,omitempty"`
+	StartTime         *TimeOfDay `json:"StartTime,omitempty"`
+	// StartDate *string    `json:"StartDate,omitempty"`
+	// StartTime              *string `json:"StartTime,omitempty"`
 	TaskAbbrev             *string `json:"TaskAbbrev,omitempty"`
 	TaskBillSysId          *string `json:"TaskBillSysId,omitempty"`
 	TaskContactInformation *string `json:"TaskContactInformation,omitempty"`

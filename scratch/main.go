@@ -134,13 +134,25 @@ func main() {
 	// fmt.Println(pgtodnull)
 	// xyz := fmt.Sprintf(`"%s"`, pgtod)
 	// fmt.Println(xyz)
-	// var todTest TODTest
-	// todTest.TOD.Set(time.Now().UTC())
-	// todJSON, err := json.Marshal(todTest)
+	var todTest TODTest
+	fmt.Printf("TODTest: %s\n", todTest.TOD)
+	tv, err := todTest.TOD.Value()
 	// if err != nil {
-	// 	log.Fatalln(err)
+	// 	log.Println(err)
 	// }
-	// fmt.Println(string(todJSON))
+	fmt.Printf("TODTest: %t\n", tv == nil)
+	todJSON, err := json.Marshal(todTest)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	fmt.Println(string(todJSON))
+	todTest.TOD.Set(time.Now().UTC())
+	todJSON, err = json.Marshal(todTest)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	fmt.Println(string(todJSON))
+
 	// q, err := GuessTimeOfDayFormat(`12:17:25.00402 AM`)
 	// if err != nil {
 	// 	log.Println(err)
@@ -158,6 +170,7 @@ func main() {
 		time.Kitchen,
 		`4:45:23`,
 		`00:03:23`,
+		`"00:03:00"`,
 	}
 	for _, v := range samples {
 		q, err := GuessTimeOfDayFormat(v)
@@ -171,7 +184,15 @@ func main() {
 		}
 		fmt.Printf("%25s%25s%25s\n", v, q, tod)
 	}
-	fmt.Println(TimeOfDay{})
+	bbb := TimeOfDay{}
+	fmt.Println(bbb.Value())
+
+	b, err = bbb.MarshalJSON()
+	if err != nil {
+		log.Println(err)
+	}
+	fmt.Println(string(b))
+
 }
 
 type TODTest struct {
@@ -311,9 +332,9 @@ func (tod *TimeOfDay) UnmarshalJSON(data []byte) error {
 }
 
 func (tod TimeOfDay) MarshalJSON() ([]byte, error) {
-	v, err := tod.Time.Value()
-	if err != nil {
-		return nil, err
+	v, _ := tod.Time.Value()
+	if v == nil {
+		return []byte("null"), nil
 	}
 	b := []byte(`"` + fmt.Sprint(v) + `"`)
 	return b, nil

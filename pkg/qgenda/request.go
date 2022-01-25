@@ -33,7 +33,7 @@ func NewRequest() *Request {
 		Path:               "v2",
 		RequestQueryFields: RequestQueryFields{},
 	}
-	r.SetDateFormat("yyyy-MM-ddTHH:mm:ssZ")
+	// r.SetDateFormat("yyyy-MM-ddTHH:mm:ssZ")
 	return &r
 }
 
@@ -77,7 +77,7 @@ type RequestQueryFields struct {
 	Select                  *string    `query:"$select,omitempty" url:"$select,omitempty"`
 	DailyConfigurationKey   *string    `query:"dailyConfigurationKey,omitempty" url:"dailyConfigurationKey,omitempty"`
 	DateFormat              *string    `query:"dateFormat,omitempty" url:"dateFormat,omitempty"`
-	EndDate                 *time.Time `query:"endDate,omitempty" url:"endDate,omitempty"`
+	EndDate                 *time.Time `query:"endDate,omitempty" url:"endDate,omitempty" layout:"01/02/2006"`
 	IgnoreHoliday           *bool      `query:"ignoreHoliday,omitempty" url:"ignoreHoliday,omitempty"`
 	IgnoreWeekend           *bool      `query:"ignoreWeekend,omitempty" url:"ignoreWeekend,omitempty"`
 	IncludeDeletes          *bool      `query:"includeDeletes,omitempty" url:"includeDeletes,omitempty"`
@@ -86,11 +86,11 @@ type RequestQueryFields struct {
 	IsUniversallyLocalDates *bool      `query:"IsUniversallyLocalDates,omitempty" url:"IsUniversallyLocalDates,omitempty"`
 	MaxResults              *int       `query:"maxResults,omitempty" url:"maxResults,omitempty"`
 	PageToken               *string    `query:"pageToken,omitempty" url:"pageToken,omitempty"`
-	RangeEndDate            *time.Time `query:"rangeEndDate,omitempty" url:"rangeEndDate,omitempty"`
-	RangeStartDate          *time.Time `query:"rangeStartDate,omitempty" url:"rangeStartDate,omitempty"`
-	ScheduleEndDate         *time.Time `query:"scheduleEndDate,omitempty" url:"scheduleEndDate,omitempty"`
-	ScheduleStartDate       *time.Time `query:"scheduleStartDate,omitempty" url:"scheduleStartDate,omitempty"`
-	SinceModifiedTimestamp  *time.Time `query:"sinceModifiedTimestamp,omitempty" url:"sinceModifiedTimestamp,omitempty"`
+	RangeEndDate            *time.Time `query:"rangeEndDate,omitempty" url:"rangeEndDate,omitempty" layout:"01/02/2006"`
+	RangeStartDate          *time.Time `query:"rangeStartDate,omitempty" url:"rangeStartDate,omitempty" layout:"01/02/2006"`
+	ScheduleEndDate         *time.Time `query:"scheduleEndDate,omitempty" url:"scheduleEndDate,omitempty" layout:"01/02/2006"`
+	ScheduleStartDate       *time.Time `query:"scheduleStartDate,omitempty" url:"scheduleStartDate,omitempty" layout:"01/02/2006"`
+	SinceModifiedTimestamp  *time.Time `query:"sinceModifiedTimestamp,omitempty" url:"sinceModifiedTimestamp,omitempty" layout:"2006-01-02T15:04:05Z"`
 	StartDate               *time.Time `query:"startDate,omitempty" url:"startDate,omitempty"`
 	SyncToken               *string    `query:"syncToken,omitempty" url:"syncToken,omitempty"`
 }
@@ -271,13 +271,14 @@ func NewRequestWithQueryField(requestPath string, allowableQueryFields []string,
 		if _, ok := aqfMap["DailyConfigurationKey"]; ok && rqf.DailyConfigurationKey != nil {
 			qf.SetDailyConfigurationKey(rqf.GetDailyConfigurationKey())
 		}
-		if _, ok := aqfMap["DateFormat"]; ok {
-			if rqf.DateFormat != nil {
-				qf.SetDateFormat(rqf.GetDateFormat())
-			} else {
-				qf.SetDateFormat("yyyy-MM-ddTHH:mm:ssZ")
-			}
-		}
+		// if _, ok := aqfMap["DateFormat"]; ok {
+		// 	if rqf.DateFormat != nil {
+		// 		qf.SetDateFormat(rqf.GetDateFormat())
+		// 	} else {
+		// 		// qf.SetDateFormat("yyyy-MM-ddTHH:mm:ssZ")
+		// 		qf.SetDateFormat("MM/dd/yyyy")
+		// 	}
+		// }
 		if _, ok := aqfMap["IgnoreHoliday"]; ok {
 			if rqf.IgnoreHoliday != nil {
 				qf.SetIgnoreHoliday(rqf.GetIgnoreHoliday())
@@ -380,7 +381,8 @@ func NewScheduleRequest(rqf *RequestQueryFields) *Request {
 	requestPath := "schedule"
 	queryFields := []string{
 		"CompanyKey",
-		"StartDate,EndDate",
+		"StartDate",
+		"EndDate",
 		"IncludeDeletes",
 		"SinceModifiedTimestamp",
 		"DateFormat",

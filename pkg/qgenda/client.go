@@ -7,6 +7,7 @@ import (
 	// "log"
 
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"net/url"
@@ -146,7 +147,27 @@ func (c *Client) Do(ctx context.Context, r *Request) (*http.Response, error) {
 	r.SetCompanyKey("8c44c075-d894-4b00-9ae7-3b3842226626")
 	req := r.ToHTTPRequest()
 	req = AddAuthToken(req, c.AuthToken).WithContext(ctx)
+
+	// yreq, err := yaml.Marshal(req)
+	// if err != nil {
+	// 	fmt.Println(err)
+	// }
+	// fmt.Println(string(yreq))
+	// fmt.Println(req.Method)
+	// header := req.Header
+	// for k, v := range header {
+	// 	fmt.Printf("Request: %25s %s\n", k, v)
+	// }
+	// fmt.Println(req.Header.Get("Authorization"))
+	// fmt.Println(req.Header)
+	// fmt.Println(req.Proto)
+	fmt.Println(req.URL.String())
+	// req.Header.Set("Authorization", "bearer eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2Q0JDLUhTNTEyIiwidHlwIjoiSldUIn0.Q_BPwbDlA7fCQInwhvoNoYTLpk0zkrBi2FxQw1l3XbHGLrpTO8Z9lPsA7ToAtUKyMd6cPx4Gda4syO8jIFAQNvN2XQydPqbh.7ba2Gz1TESWEZL7F1qWXsg.v6na2rp2dEesCq7vS_lT8qzCOrawNpoGRJVsBr5jFzXq_srlOo-mA4_JUO3RRRG8AfUJyQsykYgCp7ZihhMGVE-iH6K5wNTqkBQykGLMEmG0sWXLI3Znhy8clXoYw5FMv438pjyGE-VmXs4IjwU47nXbWu4qv2S5WmQZxYHUbgbULl8rqSjvijJylMySP7-nM4ypxLMEPRU25AiIR3IKhvFFnnZai1oED1VaI3Pq8wUstuJVelfe-uon0UjZp4HZquY3FVmfxMIz7HoaGdDnSpFuYXX0_7EfSsMtOgO_8aIAT4sd3Uhg5y0FoI8xjvRArf6AjnWjKHxlhmUJzOMc7fgKgJM3b1PCkbcXkqEyPejy9QZzw0GXBFwCQ4tiHCIm8n2wryb4kkW0Nvjfsmft2q1WxgtWwrEmHkyIj_kpYSpP8Xvk4NcR_4hct_U0-iIGeUFCs4-_Y-9Eyq0E7jRWI11JobPORa41Td5G8q-lGj-vlutlreP8IagI_oh6VYsFelNNmw-4G7-KNrbcnGsalDKXHt0E2bwXW6XKby2R5bgVUonY4BV0pRCg1qQBhgH7yeu1i42s_RxJe1BllSYzKOpAaLUpCpipUka9KycjvZl31Siool3ybE30Vk4BKlKlDu1rcBGOs53vYLIRjY3-QP0MpMnu-NCjBcrGqZWMR9BeS2qeEIn0yfX6Z6QB3U2uVFtIJ67nZLPoLl4k9__gwA.zL9gWN-Hyt6e_AMY4ALsNZiNvjoWNv7jXa_PrN6fFT0")
+	// fmt.Println(req.Header.Get("Authorization"))
+	// fmt.Println()
+
 	return c.Client.Do(req)
+	// return &http.Response{}, nil
 }
 
 // func (c *Client) Do(ctx context.Context, req *http.Request) (*http.Response, error) {
