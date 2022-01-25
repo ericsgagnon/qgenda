@@ -11,19 +11,83 @@ type Processor interface {
 	Process() error
 }
 
-func Process(a any) error {
-	var p Processor
-	if ImplementsInterface[Processor](a) {
-		// fmt.Printf("%T is a Processor!!\n", a)
-		p = a.(Processor)
+func IsProcessor(a any) bool {
+	return ImplementsInterface[Processor](a)
+}
 
-		fmt.Printf("%T is settable: %t\n", a, reflect.ValueOf(a).Elem().CanSet())
-		return p.Process()
-	} else if IsStruct(a) {
-		// fmt.Printf("%T is a struct\n", a)
-		ProcessStructFields(a)
+func AsProcessor(a any) Processor {
+	if IsProcessor(a) {
+		return a.(Processor)
 	}
-	return errors.New(fmt.Sprintf("%T is not a Processor", a))
+	return nil
+}
+
+func CanSet(a any) bool {
+	v := IndirectReflectionValue(a)
+	k := v.Kind()
+	if k == reflect.Invalid || !v.CanSet() {
+		return false
+	}
+	return v.CanSet()
+}
+
+func Process(a any) error {
+	switch {
+	case IsProcessor(a):
+		return a.(Processor).Process()
+	case IsStruct(a):
+		return ProcessStruct(a)
+	case IsSlice(a):
+		return ProcessSlice(a)
+	case IsMap(a):
+		return ProcessMap(a)
+	default:
+		// Process ignores any fields that dont' need processing
+		return nil
+	}
+	// return errors.New(fmt.Sprintf("%T is not a Processor", a))
+}
+
+// ProcessStruct doesn't attempt to check/use the struct's Process method.
+//  Instead it iterates through each member and attempts to Process them.
+// It also makes no effort to process members that are nil pointers or
+// otherwise result in reflect.Kind() == reflect.Invalid.
+func ProcessStruct(a any) error {
+	v := IndirectReflectionValue(a)
+	fields := StructFields(v)
+	for i := 0; i < v.NumField(); i++ {
+		f := IndirectReflectionValue(v.Field(i))
+		sf := fields[i]
+		// if f.Kind() == reflect.Invalid {
+		// 	f = v.Field(i)
+		// }
+		// f := (v.Field(i))
+		// f = reflect.Indirect(f)
+		// if f.Kind() == reflect.Map {
+		// 	err := ProcessMap(f)
+		// 	if err != nil {
+		// 		return err
+		// 	}
+		// } else
+		if CanSet(f) && sf.IsExported() {
+			err := Process(f)
+			if err != nil {
+				return err
+			}
+		}
+		// else if f.Kind() == reflect.Invalid {
+		// 	nv := reflect.New(v.Field(i).Type())
+		// 	fmt.Printf("New Value: %T\n", nv.Type().Name())
+		// }
+		if sf.IsExported() {
+			fmt.Printf("%20s %T:  %s is settable: %t\n", fields[i].Name, f, f.Kind(), f.CanSet())
+			fmt.Println("--------------------------------------")
+
+		}
+		// fmt.Println(f.CanAddr())
+
+	}
+	return nil
 }
 
 func ProcessStructFields(a any) {
@@ -85,9 +149,6 @@ func ProcessSlice(a any) error {
 	v := reflect.Indirect(reflect.ValueOf(a))
 	switch v.Kind() {
 	case reflect.Array, reflect.Slice:
-		// v = reflect.Indirect(v)
-		// v = v.Slice(0, 0)
-		// fmt.Printf("%T: let's get this done - canset: %t\n", v.Kind(), v.CanSet())
 		for i := 0; i < v.Len(); i++ {
 			f := v.Index(i)
 			fv := f.Interface()
@@ -131,42 +192,89 @@ func ProcessSlice(a any) error {
 	return nil
 }
 
-func ProcessMap(m reflect.Value) error {
+func MapTest(a any) error {
+	v := reflect.ValueOf(a)
+	// ve := reflect.Indirect(v)
+	nm := reflect.MakeMap(v.Type())
+	iter := v.MapRange()
+	for iter.Next() {
+		mk := iter.Key()
+		mv := iter.Value()
+		// mvi := reflect.Indirect(mv)
+		mvt := mv.Type()
+		// mva := mv.Interface()
+		nv := reflect.New(mvt)
+		// var p Processor
+		p := (nv.Interface()).(Processor)
+		// fmt.Println(nv)
+		if err := p.Process(); err != nil {
+			return err
+		}
+		// fmt.Println(p)
+		nm.SetMapIndex(mk, reflect.ValueOf(p).Elem())
+		// nm.SetMapIndex(mk, reflect.ValueOf(p).Elem())
+		// fmt.Println(mk, mv, mvi, mvt, mva, nv.Type(), nv.Elem().CanSet(), nv.Elem().Type(), nv.Interface())
+	}
+	out := reflect.ValueOf(&a).Elem()
+	out.Set(nm)
+	// fmt.Println(out)
+	// ve.Set(nm)
+	return nil
+}
 
-	if m.Kind() != reflect.Map {
+func ProcessMap(a any) error {
+	v := IndirectReflectionValue(a)
+	fmt.Printf("%s\n", reflect.ValueOf(a).Pointer())
+	if v.Kind() != reflect.Map {
 		return errors.New("Value is not a map")
 	}
-	iter := reflect.ValueOf(m).MapRange()
+	iter := v.MapRange()
 	for iter.Next() {
-		k := iter.Key()
-		v := iter.Value()
-		fmt.Printf("%s: %s\n", k, v)
+		// mk := iter.Key()
+		mv := iter.Value()
+		mvi := mv.Interface()
+		err := (mvi).(Processor).Process()
+		// err := Process(mv)
+		if err != nil {
+			return err
+		}
+		// fmt.Printf("%s: %s - %T\n", mk, mv, mv)
 	}
 	return nil
 }
 
-// func something(f interface{}) error {
-//     v := reflect.ValueOf(f)
-//     if v.Kind() != reflect.Ptr  {
-//         return fmt.Errorf("not ptr; is %T", f)
-//     }
-//     v := v.Elem() // dereference the pointer
-//     if v.Kind() != reflect.Struct  {
-//         return fmt.Errorf("not struct; is %T", f)
-//     }
-//     t := v.Type()
-//     for i := 0; i < t.NumField(); i++ {
-//         sf := t.Field(i)
-//         fmt.Println(sf.Name, v.Field(i).Interface())
-//     }
-//     return nil
-// }
+// IndirectReflectionValue attempts to convert a to
+// an indirect reflection value and return it
+func IndirectReflectionValue(a any) reflect.Value {
+	var v reflect.Value
+	if reflect.ValueOf(a).Type().String() != "reflect.Value" {
+		v = reflect.ValueOf(a)
+	} else { // reflect.Value.Type == "reflect.Value"
+		v = a.(reflect.Value)
+	}
+	if v.Kind() == reflect.Pointer {
+		v = reflect.Indirect(v)
+	}
+	return v
+}
+
+// IndirectReflectionKind attempts to convert a to
+// an indirect reflection kind and return it
+func IndirectReflectionKind(a any) reflect.Kind {
+	return IndirectReflectionValue(a).Kind()
+}
 
 // IsKind returns true if a's reflect.Kind == t
 func IsKind(a any, t string) bool {
-	v := reflect.Indirect(reflect.ValueOf(a))
+	// v := reflect.Indirect(reflect.ValueOf(a))
+	v := IndirectReflectionValue(a)
 	k := v.Type().Kind()
 	return (k.String() == t)
+}
+
+// IsMap returns true if a's kind is a map (or the ill-advised pointer to a map)
+func IsMap(a any) bool {
+	return IsKind(a, "map")
 }
 
 // IsSlice returns true if a's kind is a slice/array or pointer to a slice/array
@@ -182,17 +290,14 @@ func IsSlice(a any) bool {
 // IsStruct returns true if a's kind is a struct or a pointer to a struct
 func IsStruct(a any) bool {
 	return IsKind(a, "struct")
-	// v := reflect.Indirect(reflect.ValueOf(a))
-	// k := v.Type().Kind()
-	// return (k.String() == "struct")
 }
 
 // StructFields de-references as
 func StructFields(a any) []reflect.StructField {
 	var structFields []reflect.StructField
 	if IsStruct(a) {
-
-		v := reflect.Indirect(reflect.ValueOf(a))
+		v := IndirectReflectionValue(a)
+		// v := reflect.Indirect(reflect.ValueOf(a))
 		t := v.Type()
 		for i := 0; i < t.NumField(); i++ {
 			f := t.Field(i)
@@ -205,7 +310,8 @@ func StructFields(a any) []reflect.StructField {
 func StructFieldNames(a any) []string {
 	var fieldNames []string
 	if IsStruct(a) {
-		v := reflect.Indirect(reflect.ValueOf(a))
+		// v := reflect.Indirect(reflect.ValueOf(a))
+		v := IndirectReflectionValue(a)
 		t := v.Type()
 		for i := 0; i < t.NumField(); i++ {
 			f := t.Field(i).Name
@@ -239,4 +345,5 @@ func StructFieldByName(a any, s string) reflect.StructField {
 func ImplementsInterface[Reference any](value interface{}) bool {
 	_, ok := value.(Reference)
 	return ok
+
 }
