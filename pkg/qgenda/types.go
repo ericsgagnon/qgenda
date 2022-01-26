@@ -18,6 +18,12 @@ type Time struct {
 	Valid bool
 }
 
+// Pointer simply returns a pointer to a value. It is useful
+// when using literals for pointer assignments.
+func Pointer[T any](t T) *T {
+	return &t
+}
+
 // UnmarshalJSON satisfies the json.Unmarshaler interface
 func (t *Time) UnmarshalJSON(data []byte) error {
 
