@@ -638,9 +638,10 @@ func (t *TimeOfDay) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (t *TimeOfDay) Process() error {
-
-	// tod := *t
+// ProcessTimeOfDay is the underlying function used to handle any 'in-flight' processing
+// before loading to a destinatino. It should be wrapped to satisfy any Processor type
+// interfaces.
+func ProcessTimeOfDay(t TimeOfDay) (TimeOfDay, error) {
 	// a qgenda time of day with value `00:03:00` is actually null
 	// look near https://restapi.qgenda.com/#cecf3cdc-b32b-4b2c-8604-bd6fb59d7655
 	todNull, err := ParseTimeOfDay(`00:03:00`)
@@ -653,13 +654,17 @@ func (t *TimeOfDay) Process() error {
 		t.Status = pgtype.Null
 	}
 
-	return nil
+	return t, nil
 }
 
-/////////////////////////////////
-/////////////////////////////////
-/////////////////////////////////
-/////////////////////////////////
-/////////////////////////////////
-/////////////////////////////////
-//
+// ProcessValue satisfies the ValueProcessor interface
+func (t TimeOfDay) ProcessValue() (TimeOfDay, error) {
+	return ProcessTimeOfDay(t)
+}
+
+// Process satisfies the Processor interface
+func (t *TimeOfDay) Process() error {
+	tod, err := ProcessTimeOfDay(*t)
+	*t = tod
+	return err
+}

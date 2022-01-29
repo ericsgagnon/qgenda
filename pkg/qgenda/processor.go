@@ -23,15 +23,6 @@ func AsProcessor[T any](a T) (Processor, error) {
 	return nil, errors.New(fmt.Sprintf("%T does not implement Processor", a))
 }
 
-func CanSet(a any) bool {
-	v := IndirectReflectionValue(a)
-	k := v.Kind()
-	if k == reflect.Invalid || !v.CanSet() {
-		return false
-	}
-	return v.CanSet()
-}
-
 func Process(a any) error {
 	switch {
 	case IsProcessor(a):
@@ -47,6 +38,104 @@ func Process(a any) error {
 		return nil
 	}
 	// return errors.New(fmt.Sprintf("%T is not a Processor", a))
+}
+
+type ValueProcessor[T any] interface {
+	ProcessValue() (T, error)
+}
+
+func IsValueProcessor[T any](a T) bool {
+	var iv interface{} = a
+	_, ok := iv.(ValueProcessor[T])
+	return ok
+}
+
+func AsValueProcessor[T any](a T) (ValueProcessor[T], error) {
+	if IsProcessor(a) {
+		var iv interface{} = a
+		return (iv).(ValueProcessor[T]), nil
+	}
+	return nil, errors.New(fmt.Sprintf("%T does not implement ValueProcessor", a))
+}
+
+func ProcessValue[T any](a T) (T, error) {
+	switch {
+	case IsValueProcessor(a):
+		p, err := AsValueProcessor(a)
+		if err != nil {
+			return *new(T), err
+		}
+		return p.ProcessValue()
+	case IsStruct(a):
+		return ProcessStructValue(a)
+	case IsSlice(a):
+		return ProcessSliceValue(a)
+	case IsMap(a):
+		return ProcessMapValue(a)
+	default:
+		// Process ignores any fields that dont' need processing
+		return *new(T), nil
+	}
+	// return errors.New(fmt.Sprintf("%T is not a Processor", a))
+}
+
+func ProcessStructValue[T any](a T) (T, error) {
+	// sf := StructFields(a)
+
+	return a, nil
+}
+
+// ProcessSliceValue is a helper function that takes a slice as any and returns it as
+// it's dynamic slice value
+func ProcessSliceValue[T any](a T) (T, error) {
+	v := reflect.ValueOf(a)
+	if reflect.TypeOf(a).Kind() != reflect.Slice {
+		return *new(T), errors.New(fmt.Sprintf("%T is not a slice", a))
+	}
+	sliceType := reflect.TypeOf(a).Elem()
+	slicer := reflect.MakeSlice(reflect.SliceOf(sliceType), v.Len(), v.Len())
+	// slicer = reflect.Indirect(slicer)
+	// var vs T
+	for i := 0; i < v.Len(); i++ {
+		f := v.Index(i)
+		fmt.Printf("f.CanSet: %t\n", f.CanSet())
+		fmt.Printf("IsValueProcessor(f.Interface()): %t\n", IsValueProcessor(f.Interface()))
+		fmt.Printf("IsProcessor(f.Interface()): %t\n", IsProcessor(f.Interface()))
+		fmt.Printf("f is type %T\n", f.Interface())
+		if f.CanSet() && IsValueProcessor(f.Interface()) {
+			fv, err := f.Interface().(ValueProcessor[T]).ProcessValue()
+			fmt.Printf("PostProcessing of fv: %s\n", fv)
+			if err != nil {
+				return *new(T), err
+			}
+			slicer.Index(i).Set(reflect.ValueOf(fv))
+			// vs = append(vs, fv)
+		}
+		// z := reflect.Zero(f.Type())
+		// f.Set(z)
+		// fmt.Printf("v.Index(%d) implements Processor: %t\n", i, IsProcessor(f.Interface()))
+		// fmt.Printf("v.Index(%d): %s %t\n", i, f, f.CanSet())
+		// fv := f.Interface()
+	}
+	iv, ok := slicer.Interface().(T)
+	if !ok {
+		return *new(T), errors.New(fmt.Sprintf("%T doesn't implement %T\n", iv, *new(T)))
+	}
+	// return vs, nil
+	return iv, nil
+}
+
+func ProcessMapValue[T any](a T) (T, error) {
+	return a, nil
+}
+
+func CanSet(a any) bool {
+	v := IndirectReflectionValue(a)
+	k := v.Kind()
+	if k == reflect.Invalid || !v.CanSet() {
+		return false
+	}
+	return v.CanSet()
 }
 
 // ProcessRecursively dive's into any member or element processing.
@@ -270,6 +359,32 @@ func IsMap(a any) bool {
 	return IsKind(a, "map")
 }
 
+func Mappinator[M map[string]any, T any](a T) M {
+	fmt.Printf("%T %s\n", a, a)
+	// out, ok := reflect.ValueOf(a).Interface().(M)
+	out, ok := IndirectReflectionValue(a).Interface().(M)
+	if ok {
+		return out
+	}
+	return nil
+}
+
+func SliceTest[T any](a []T) []T {
+	t := *new(T)
+	for i, _ := range a {
+		a[i] = t
+	}
+	return a
+}
+
+func MapTest[M map[string]T, T any](a M) M {
+	t := *new(T)
+	for k, _ := range a {
+		a[k] = t
+	}
+	return a
+}
+
 // IsSlice returns true if a's kind is a slice/array or pointer to a slice/array
 func IsSlice(a any) bool {
 	isSlice := IsKind(a, "slice")
@@ -298,6 +413,21 @@ func StructFields(a any) []reflect.StructField {
 		}
 	}
 	return structFields
+}
+
+// func StructFieldValues(a any) []reflect.Value {
+// 	if !IsStruct(a) {
+// 		return nil
+// 	}
+// 	v := reflect.ValueOf(a)
+
+// }
+
+func StructFieldProcess[T any](a T) {
+	v := reflect.ValueOf(a)
+	fmt.Printf("reflect.ValueOf(a).Kind(): %s\n", v.Kind())
+	fmt.Printf("reflect.ValueOf(a).Type(): %s\n", v.Type())
+	fmt.Printf("reflect.ValueOf(a).Type().Kind(): %s\n", v.Type().Kind())
 }
 
 func StructFieldNames(a any) []string {
@@ -386,80 +516,35 @@ func MapProcess(a any) error {
 	return nil
 }
 
-func ReflectionStuff[T any, S []T](a T) (T, error) {
-	fmt.Println("----------------------------------------------------")
-	fmt.Printf("a's type is %T\n", a)
+// SliceProcess is a helper function that takes a slice as any and returns it as
+// it's dynamic slice value
+func SliceProcess[T any](a T) (T, error) {
 	v := reflect.ValueOf(a)
-	fmt.Printf("Valueof: %s\n", v.String())
-	fmt.Printf("Valueof.Kind: %s\n", v.Kind())
-	t := v.Type()
-	fmt.Printf("Valueof.Type: %s\n", t.String())
-	fmt.Printf("Valueof.Type.Kind: %s\n", t.Kind())
-	vi := reflect.Indirect(v)
-	fmt.Printf("Indirect(ValueOf): %s\n", vi)
-	fmt.Printf("Indirect(ValueOf).Type: %s\n", vi.Type())
-	// goal: make a []T from a
-	var iv interface{} = &a
-	fmt.Printf("iv's type is %T\n", iv)
-	// fmt.Println(iv)
-	out, ok := (iv).(T)
-	fmt.Println(ok)
-	fmt.Printf("out: %T\n", out)
-	fmt.Printf("%T\n", out)
-	fmt.Println("------------")
-	rs := reflect.SliceOf(t)
-	fmt.Printf("reflect.SliceOf(reflect.ValueOf(a).Type()): %v\n", rs)
-	fmt.Println("------------")
-	TypeTest(a)
-	fmt.Println("------------")
-	// TypeTest[T](out)
-	return out, nil
-}
-
-func TypeTest[T any](a T) (T, error) {
-	// func TypeTest(a interface{}) (any, error) {
-	// fmt.Println("------------------------------------------------------------")
-	// fmt.Printf("Type of T: %T\n", new(T))
-	// fmt.Printf("Type of S: %T\n", new(S))
-	v := reflect.ValueOf(a)
-	// fmt.Printf("Valueof: %s\n", v.String())
-	// fmt.Printf("ValueOf.Elem: %s\n", v.Elem())
-	// fmt.Printf("Valueof.Kind: %s\n", v.Kind())
-	// fmt.Printf("Valueof.Index(0): %s\n", v.Index(0))
-	// fmt.Printf("reflect.TypeOf(a).Elem(): %s\n", reflect.TypeOf(a).Elem())
-	// sliceType := v.Index(0).Type()
-	sliceType := reflect.TypeOf(a).Elem()
-	// fmt.Printf("slicer type: %s\n", sliceType)
-	// fmt.Printf("Valueof.Index(0).Type: %s\n", v.Index(0).Type())
-	slicer := reflect.MakeSlice(reflect.SliceOf(sliceType), v.Len(), v.Len())
-	fmt.Printf("slicer: %s\n", slicer.Type())
-	t := v.Type()
-	fmt.Printf("Valueof.Type: %s\n", t.String())
-	fmt.Printf("Valueof.Type.Kind: %s\n", t.Kind())
-	// rvi := reflect.Indirect(v)
-	// fmt.Printf("Indirect(ValueOf): %s\n", rvi)
-	// fmt.Printf("Indirect(ValueOf).Type: %s\n", rvi.Type())
-	// fmt.Printf("Indirect(ValueOf).Kind: %s\n", rvi.Kind())
-	// fmt.Printf("Indirect(ValueOf).Type.Kind: %s\n", rvi.Type().Kind())
-
-	// var vi interface{} = a
-	// fmt.Printf("vi: %#v\n", vi)
-	// return (vi).(S), nil
-	fmt.Println("------------")
-	switch v.Kind() {
-	case reflect.Array, reflect.Slice:
-		// fmt.Println("I'm a little slicey-dicey")
-		for i := 0; i < v.Len(); i++ {
-			f := v.Index(i)
-			fmt.Sprintf("v.Index(%d): %s\n", i, f)
-			// fv := f.Interface()
-		}
-	default:
-		// return errors.New(fmt.Sprintf("%s is not a slice", v.Kind()))
+	if reflect.TypeOf(a).Kind() != reflect.Slice {
+		return *new(T), errors.New(fmt.Sprintf("%T is not a slice", a))
 	}
-	fmt.Println("------------------------------------------------------------")
-	return slicer.Interface().(T), nil
-	// return nil, nil
+	sliceType := reflect.TypeOf(a).Elem()
+	slicer := reflect.MakeSlice(reflect.SliceOf(sliceType), v.Len(), v.Len())
+	// slicer = reflect.Indirect(slicer)
+
+	for i := 0; i < v.Len(); i++ {
+		f := v.Index(i)
+		if f.CanSet() && IsProcessor(f.Interface()) {
+			if err := f.Interface().(Processor).Process(); err != nil {
+				return *new(T), err
+			}
+		}
+		// z := reflect.Zero(f.Type())
+		// f.Set(z)
+		// fmt.Printf("v.Index(%d) implements Processor: %t\n", i, IsProcessor(f.Interface()))
+		// fmt.Printf("v.Index(%d): %s %t\n", i, f, f.CanSet())
+		// fv := f.Interface()
+	}
+	iv, ok := slicer.Interface().(T)
+	if !ok {
+		return *new(T), errors.New(fmt.Sprintf("%T doesn't implement %T\n", iv, *new(T)))
+	}
+	return iv, nil
 }
 
 // v := reflect.Indirect(reflect.ValueOf(a))
@@ -482,23 +567,23 @@ func TypeTest[T any](a T) (T, error) {
 // // fmt.Println("I'm a slice")
 // return nil
 
-func SliceProcess[T any](a []T) ([]T, error) {
-	// v := reflect.ValueOf(a[0])
-	// fmt.Printf("Kind is %s\n", v.Kind())
-	fmt.Println(IsStruct(a[0]))
-	if !IsProcessor(a[0]) {
-		return a, errors.New(fmt.Sprintf("%T does not implement processor", a[0]))
-	}
-	for i, v := range a {
-		var iv interface{} = v
-		p := (iv).(Processor)
-		if err := p.Process(); err != nil {
-			return nil, err
-		}
-		a[i] = p.(T)
-	}
-	return a, nil
-}
+// func SliceProcess[T any](a []T) ([]T, error) {
+// 	// v := reflect.ValueOf(a[0])
+// 	// fmt.Printf("Kind is %s\n", v.Kind())
+// 	fmt.Println(IsStruct(a[0]))
+// 	if !IsProcessor(a[0]) {
+// 		return a, errors.New(fmt.Sprintf("%T does not implement processor", a[0]))
+// 	}
+// 	for i, v := range a {
+// 		var iv interface{} = v
+// 		p := (iv).(Processor)
+// 		if err := p.Process(); err != nil {
+// 			return nil, err
+// 		}
+// 		a[i] = p.(T)
+// 	}
+// 	return a, nil
+// }
 
 func StructProcess[T any](a T) (T, error) {
 	return a, nil
@@ -524,3 +609,205 @@ func ProcessTest[T any](a T) (T, error) {
 // if v.Kind() == reflect.Pointer {
 // 	v = reflect.Indirect(v)
 // }
+// func ReflectionStuff[T any, S []T](a T) (T, error) {
+// 	fmt.Println("----------------------------------------------------")
+// 	fmt.Printf("a's type is %T\n", a)
+// 	v := reflect.ValueOf(a)
+// 	fmt.Printf("Valueof: %s\n", v.String())
+// 	fmt.Printf("Valueof.Kind: %s\n", v.Kind())
+// 	t := v.Type()
+// 	fmt.Printf("Valueof.Type: %s\n", t.String())
+// 	fmt.Printf("Valueof.Type.Kind: %s\n", t.Kind())
+// 	vi := reflect.Indirect(v)
+// 	fmt.Printf("Indirect(ValueOf): %s\n", vi)
+// 	fmt.Printf("Indirect(ValueOf).Type: %s\n", vi.Type())
+// 	// goal: make a []T from a
+// 	var iv interface{} = &a
+// 	fmt.Printf("iv's type is %T\n", iv)
+// 	// fmt.Println(iv)
+// 	out, ok := (iv).(T)
+// 	fmt.Println(ok)
+// 	fmt.Printf("out: %T\n", out)
+// 	fmt.Printf("%T\n", out)
+// 	fmt.Println("------------")
+// 	rs := reflect.SliceOf(t)
+// 	fmt.Printf("reflect.SliceOf(reflect.ValueOf(a).Type()): %v\n", rs)
+// 	fmt.Println("------------")
+// 	// TypeTest(a)
+// 	// fmt.Println("------------")
+// 	// TypeTest[T](out)
+// 	return out, nil
+// }
+
+// func TypeTest[T any](a T) (T, error) {
+// 	v := reflect.ValueOf(a)
+// 	sliceType := reflect.TypeOf(a).Elem()
+// 	slicer := reflect.MakeSlice(reflect.SliceOf(sliceType), v.Len(), v.Len())
+// 	// fmt.Printf("slicer: %s\n", slicer.Type())
+// 	// t := v.Type()
+// 	switch v.Kind() {
+// 	case reflect.Array, reflect.Slice:
+// 		// fmt.Println("I'm a little slicey-dicey")
+// 		for i := 0; i < v.Len(); i++ {
+// 			f := v.Index(i)
+// 			fmt.Sprintf("v.Index(%d): %s\n", i, f)
+// 			// fv := f.Interface()
+// 		}
+// 	default:
+// 		// return errors.New(fmt.Sprintf("%s is not a slice", v.Kind()))
+// 	}
+// 	// fmt.Println("------------------------------------------------------------")
+// 	return slicer.Interface().(T), nil
+// 	// return nil, nil
+// }
+
+// type PipelineProcessor[T any] interface {
+// 	PP() (PipelineProcessor[T], error)
+// }
+
+// func PP[T any, P PipelineProcessor[T]](pp P, err error) (PipelineProcessor[T], error) {
+// 	return pp.PP()
+// }
+
+// func PPTimeOfDay[T any, TOD TimeOfDay]()
+
+// func (t *TimeOfDay) PP() (PipelineProcessor[T any](), error) {
+
+// }
+
+func ToSlice[T any](a T) {
+	// v := reflect.ValueOf(a)
+	k := reflect.TypeOf(a).Kind()
+	if k != reflect.Slice {
+		fmt.Printf("%T: %s is not a slice, let's correct that!\n", a, k)
+		// sliceType := reflect.TypeOf(a).Elem()
+		// slicer := reflect.MakeSlice(reflect.SliceOf(sliceType), v.Len(), v.Len())
+
+	}
+
+}
+
+func ProcessSliceValue99[T any](a T) (T, error) {
+	v := reflect.ValueOf(a)
+	if reflect.TypeOf(a).Kind() != reflect.Slice {
+		return *new(T), errors.New(fmt.Sprintf("%T is not a slice", a))
+	}
+	sliceType := reflect.TypeOf(a).Elem()
+	slicer := reflect.MakeSlice(reflect.SliceOf(sliceType), v.Len(), v.Len())
+	// slicer = reflect.Indirect(slicer)
+	// var vs T
+	for i := 0; i < v.Len(); i++ {
+		f := v.Index(i)
+		fmt.Printf("f.CanSet: %t\n", f.CanSet())
+		fmt.Printf("IsValueProcessor(f.Interface()): %t\n", IsValueProcessor(f.Interface()))
+		fmt.Printf("IsProcessor(f.Interface()): %t\n", IsProcessor(f.Interface()))
+		fmt.Printf("f is type %T\n", f.Interface())
+		if f.CanSet() && IsValueProcessor(f.Interface()) {
+			fv, err := f.Interface().(ValueProcessor[T]).ProcessValue()
+			fmt.Printf("PostProcessing of fv: %s\n", fv)
+			if err != nil {
+				return *new(T), err
+			}
+			slicer.Index(i).Set(reflect.ValueOf(fv))
+			// vs = append(vs, fv)
+		}
+		// z := reflect.Zero(f.Type())
+		// f.Set(z)
+		// fmt.Printf("v.Index(%d) implements Processor: %t\n", i, IsProcessor(f.Interface()))
+		// fmt.Printf("v.Index(%d): %s %t\n", i, f, f.CanSet())
+		// fv := f.Interface()
+	}
+	iv, ok := slicer.Interface().(T)
+	if !ok {
+		return *new(T), errors.New(fmt.Sprintf("%T doesn't implement %T\n", iv, *new(T)))
+	}
+	// return vs, nil
+	return iv, nil
+}
+
+// t.Elem panics if t is not Array, Chan, Map, Pointer, or Slice
+func ReflectionInfo[T any](a T) {
+	// value
+	v := reflect.ValueOf(a)
+	vt := v.Type() // == fmt.Printf("%T", a) == reflect.TypeOf(a)
+	vk := v.Kind() // if v is zero Value, v.Kind() == reflect.Invalid
+	vtk := vt.Kind()
+	vString := fmt.Sprintf("v<%3s %-6.6s %-20.20s>", " ", vk.String(), vt)
+
+	// indirect
+	iv := reflect.Indirect(v)
+	ivt := iv.Type()
+	ivtk := ivt.Kind()
+	if vk == reflect.Pointer {
+		vString = fmt.Sprintf("v<%3s %-6.6s %-20.20s>", vk.String(), " ", vt)
+	}
+
+	ivString := fmt.Sprintf("iv<%-6.6s %-20.20s %-5t>", ivtk, ivt, iv.CanSet())
+
+	// v.Elem panics if v is not interface or pointer
+	ve := reflect.Value{}
+	if vtk == reflect.Interface || vtk == reflect.Pointer {
+		ve = v.Elem()
+	}
+	veString := fmt.Sprintf("%37s", " ")
+	if ve.IsValid() {
+		veString = fmt.Sprintf("el<%-6.6s %-20.20s %-5t>", ve.Kind(), ve.Type(), ve.CanSet())
+	}
+
+	fmt.Println(
+		vString,
+		ivString,
+		veString,
+		StructReflectionInfo(iv),
+		SliceReflection(iv),
+	)
+
+}
+
+func StructReflectionInfo(v reflect.Value) string {
+	if v.Kind() != reflect.Struct {
+		// fmt.Println("Not a struct")
+		return ""
+	}
+	sfString := ""
+	if v.NumField() > 0 {
+		f := v.Field(0)
+		// iv := reflect.Indirect(f)
+
+		sfString = fmt.Sprintf("sf<%3s %-6.6s %-20.20s %-5t iv-set %-5t>", " ", f.Kind(), f.Type(), f.CanSet(), reflect.Indirect(f).CanSet())
+		if f.Kind() == reflect.Pointer {
+			sfString = fmt.Sprintf("sf<%3s %-6.6s %-20.20s %-5t iv-set %-5t>", f.Kind(), " ", f.Type(), f.CanSet(), reflect.Indirect(f).CanSet())
+
+		}
+	}
+	return sfString
+}
+
+func SliceReflection(v reflect.Value) string {
+	if v.Kind() != reflect.Slice {
+		return ""
+	}
+
+	seString := ""
+	if v.Len() > 0 {
+		f := v.Index(0)
+		iv := reflect.Indirect(f)
+		seString = fmt.Sprintf("se<%3s %-6.6s %-20.20s %-5t iv-set %-5t>", " ", f.Kind(), f.Type(), f.CanSet(), iv.CanSet())
+		if f.Kind() == reflect.Pointer {
+			seString = fmt.Sprintf("se<%3s %-6.6s %-20.20s %-5t iv-set %-5t>", f.Kind(), " ", f.Type(), f.CanSet(), iv.CanSet())
+
+		}
+	}
+	return seString
+
+}
+
+// PointerProcesser can 'set' their receiver values
+func PointerProcesser[T any](a *T) {
+
+}
+
+// ValueProcessor can take any type of 'receiver' and returns values rather than setting them
+func VP[T any](a T) {
+
+}
