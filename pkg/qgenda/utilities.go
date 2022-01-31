@@ -6,6 +6,10 @@ import (
 	"reflect"
 )
 
+func Value[T any](a *T) T {
+	return *a
+}
+
 func ToSlice[T any](a T) []any {
 	v := reflect.ValueOf(a)
 	var s []any
@@ -87,4 +91,70 @@ func MapToAny[M map[K]V, T any, K comparable, V any](m M, a T) T {
 		log.Printf("Could not convert %T to %T\n", out, a)
 	}
 	return outValue
+}
+
+// IndirectReflectionValue attempts to convert a to
+// an indirect reflection value and return it
+func IndirectReflectionValue(a any) reflect.Value {
+	var v reflect.Value
+	if reflect.ValueOf(a).Type().String() != "reflect.Value" {
+		v = reflect.ValueOf(a)
+	} else { // reflect.Value.Type == "reflect.Value"
+		v = a.(reflect.Value)
+	}
+	if v.Kind() == reflect.Pointer {
+		v = reflect.Indirect(v)
+	}
+	return v
+}
+
+// IndirectReflectionKind attempts to convert a to
+// an indirect reflection kind and return it
+func IndirectReflectionKind(a any) reflect.Kind {
+	return IndirectReflectionValue(a).Kind()
+}
+
+// IsKind returns true if a's reflect.Kind == t
+func IsKind(a any, t string) bool {
+	// v := reflect.Indirect(reflect.ValueOf(a))
+	v := IndirectReflectionValue(a)
+	k := v.Type().Kind()
+	return (k.String() == t)
+}
+
+// IsMap returns true if a's kind is a map (or the ill-advised pointer to a map)
+func IsMap(a any) bool {
+	return IsKind(a, "map")
+}
+
+// IsSlice returns true if a's kind is a slice/array or pointer to a slice/array
+func IsSlice(a any) bool {
+	isSlice := IsKind(a, "slice")
+	isArray := IsKind(a, "array")
+	return isSlice || isArray
+	// v := reflect.Indirect(reflect.ValueOf(a))
+	// k := v.Type().Kind()
+	// return (k.String() == "struct")
+}
+
+// IsStruct returns true if a's kind is a struct or a pointer to a struct
+func IsStruct(a any) bool {
+	return IsKind(a, "struct")
+}
+
+// ImplementsInterface returns true if value implements Reference interface
+// note: Reference must be passed as a type parameter
+func ImplementsInterface[Reference any](value any) bool {
+	_, ok := value.(Reference)
+	return ok
+
+}
+
+func CanSet(a any) bool {
+	v := IndirectReflectionValue(a)
+	k := v.Kind()
+	if k == reflect.Invalid || !v.CanSet() {
+		return false
+	}
+	return v.CanSet()
 }

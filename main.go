@@ -49,11 +49,11 @@ func main() {
 	srrqf.SetEndDate(time.Now().UTC())
 	srrqf.SetSinceModifiedTimestamp(time.Now().UTC().Add(-1 * 14 * 24 * time.Hour))
 	sr := qgenda.NewScheduleRequest(srrqf)
-	srJSON, err := json.MarshalIndent(sr, "", "\t")
-	if err != nil {
-		log.Println(err)
-	}
-	fmt.Println(string(srJSON))
+	// srJSON, err := json.MarshalIndent(sr, "", "\t")
+	// if err != nil {
+	// 	log.Println(err)
+	// }
+	// fmt.Println(string(srJSON))
 	resp, err := c.Do(ctx, sr)
 	if err != nil {
 		log.Println(err)
@@ -66,6 +66,7 @@ func main() {
 		log.Println(err)
 	}
 	// fmt.Println(sch)
+	qgenda.Process(sch)
 	jsonOut, err := json.MarshalIndent(sch, "", "\t")
 	if err != nil {
 		log.Println(err)
@@ -86,7 +87,7 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	fmt.Println("scheduleAuditLog success???")
+	// fmt.Println("scheduleAuditLog success???")
 	os.WriteFile("scheduleAuditLog.json", data, 0644)
 
 	// Tag
