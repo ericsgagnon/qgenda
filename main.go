@@ -1,9 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/ericsgagnon/qgenda/pkg/qgenda"
+	"github.com/jackc/pgx/v4"
+	_ "github.com/lib/pq"
 )
 
 // steps:
@@ -26,7 +28,16 @@ import (
 // note that either our login only has limited access or many endpoints aren't implemented for us
 
 func main() {
+
 	ctx := context.Background()
+	// pgx way
+	db, err := pgx.Connect(ctx, os.Getenv("PG_CONNECTION_STRING"))
+	if err != nil {
+		log.Fatalln(err)
+	}
+	err = db.Ping(ctx)
+	defer db.Close(ctx)
+
 	qcc := &qgenda.ClientConfig{
 		Email:    os.Getenv("QGENDA_EMAIL"),
 		Password: os.Getenv("QGENDA_PASSWORD"),
@@ -38,88 +49,206 @@ func main() {
 	c.Auth()
 	// Schedule
 
-	// scheduleStartDate := time.Now().UTC().Add(-1 * 14 * 24 * time.Hour)
-	// scheduleEndDate := time.Now().UTC()
-	// srrqf := &qgenda.RequestQueryFields{
-	// 	ScheduleStartDate: &scheduleStartDate,
-	// 	ScheduleEndDate:   &scheduleEndDate,
-	// }
+	// configure request
 	srrqf := &qgenda.RequestQueryFields{}
 	srrqf.SetStartDate(time.Now().UTC().Add(-1 * 14 * 24 * time.Hour))
 	srrqf.SetEndDate(time.Now().UTC())
 	srrqf.SetSinceModifiedTimestamp(time.Now().UTC().Add(-1 * 14 * 24 * time.Hour))
 	sr := qgenda.NewScheduleRequest(srrqf)
-	// srJSON, err := json.MarshalIndent(sr, "", "\t")
-	// if err != nil {
-	// 	log.Println(err)
-	// }
-	// fmt.Println(string(srJSON))
+
+	// get data
 	resp, err := c.Do(ctx, sr)
 	if err != nil {
 		log.Println(err)
 	}
 	data, err := io.ReadAll(resp.Body)
-	// fmt.Println(resp.Status)
-	// fmt.Println(string(data))
+	// data2 := *&data
 	var sch []qgenda.Schedule
 	if err := json.Unmarshal(data, &sch); err != nil {
 		log.Println(err)
 	}
-	// fmt.Println(sch)
+
+	// process data
 	qgenda.Process(sch)
+
+	// load data
 	jsonOut, err := json.MarshalIndent(sch, "", "\t")
 	if err != nil {
 		log.Println(err)
 	}
 	os.WriteFile("schedule.json", jsonOut, 0644)
 
-	// ScheduleAuditLog
-	salrqf := &qgenda.RequestQueryFields{}
-	sal := qgenda.NewScheduleAuditLogRequest(salrqf)
-	sal.SetScheduleStartDate(time.Now().UTC().Add(-1 * 14 * 24 * time.Hour))
-	sal.SetScheduleEndDate(time.Now().UTC())
+	// var rawscheduledata []byte
+	// if err := json.Unmarshal(data, &sch); err != nil {
+	// 	log.Println(err)
+	// }
+	// load data
+	// jsonOut2, err := json.MarshalIndent(data2, "", "\t")
+	// if err != nil {
+	// 	log.Println(err)
+	// }
+	// fmt.Println(string(data))
+	os.WriteFile("rawschedule.json", data, 0644)
 
-	resp, err = c.Do(ctx, sal)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	data, err = io.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	// fmt.Println("scheduleAuditLog success???")
-	os.WriteFile("scheduleAuditLog.json", data, 0644)
+	// var locationdata []byte
+	// lrqf := &qgenda.RequestQueryFields{}
+	// lr := qgenda.NewLocationRequest(lrqf)
+	// resp, err = c.Do(ctx, lr)
+	// if err != nil {
+	// 	log.Println(err)
+	// }
+	// data, err = io.ReadAll(resp.Body)
+	// if err != nil {
+	// 	log.Println(err)
+	// }
+	// var out bytes.Buffer
+	// if err := json.Indent(&out, data, "", "\t"); err != nil {
+	// 	log.Println(err)
+	// }
+	// if err := os.WriteFile("locations.json", out.Bytes(), 0644); err != nil {
+	// 	log.Println(err)
+	// }
 
-	// Tag
-	talrqf := &qgenda.RequestQueryFields{}
-	tr := qgenda.NewTagRequest(talrqf)
-	resp, err = c.Do(ctx, tr)
-	if err != nil {
-		log.Fatalln(err)
+	if err := MakeItHappen(ctx, c, qgenda.NewCompanyRequest(&qgenda.RequestQueryFields{}), "company.json"); err != nil {
+		log.Println(err)
 	}
-	data, err = io.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatalln(err)
+	// if err := MakeItHappen(ctx, c, qgenda.NewDailyCaseRequest(&qgenda.RequestQueryFields{}), "dailycase.json"); err != nil {
+	// 	log.Println(err)
+	// }
+	// if err := MakeItHappen(ctx, c, qgenda.NewDailyDailyConfigurationRequest(&qgenda.RequestQueryFields{}), "dailydailyconfiguration.json"); err != nil {
+	// 	log.Println(err)
+	// }
+	// if err := MakeItHappen(ctx, c, qgenda.NewDailyPatientEncounterRequest(&qgenda.RequestQueryFields{}), "dailypatientencounter.json"); err != nil {
+	// 	log.Println(err)
+	// }
+	// if err := MakeItHappen(ctx, c, qgenda.NewDailyRoomRequest(&qgenda.RequestQueryFields{}), "dailyroom.json"); err != nil {
+	// 	log.Println(err)
+	// }
+	// if err := MakeItHappen(ctx, c, qgenda.NewLocationRequest(&qgenda.RequestQueryFields{}), "locations.json"); err != nil {
+	// 	log.Println(err)
+	// }
+	// if err := MakeItHappen(ctx, c, qgenda.NewLocationStaffRequest(&qgenda.RequestQueryFields{}), "locationstaff.json"); err != nil {
+	// 	log.Println(err)
+	// }
+	// if err := MakeItHappen(ctx, c, qgenda.NewLocationTasksRequest(&qgenda.RequestQueryFields{}), "locationtasks.json"); err != nil {
+	// 	log.Println(err)
+	// }
+	if err := MakeItHappen(ctx, c, qgenda.NewOpenShiftsRequest(&qgenda.RequestQueryFields{}), "openshifts.json"); err != nil {
+		log.Println(err)
 	}
-	fmt.Println("tags success???")
-	os.WriteFile("tags.json", data, 0644)
+	// if err := MakeItHappen(ctx, c, qgenda.NewOrganizationRequest(&qgenda.RequestQueryFields{}), "organization.json"); err != nil {
+	// 	log.Println(err)
+	// }
+	// if err := MakeItHappen(ctx, c, qgenda.NewPayRateRequest(&qgenda.RequestQueryFields{}), "payrate.json"); err != nil {
+	// 	log.Println(err)
+	// }
+	if err := MakeItHappen(ctx, c, qgenda.NewProfileRequest(&qgenda.RequestQueryFields{}), "profile.json"); err != nil {
+		log.Println(err)
+	}
+	// if err := MakeItHappen(ctx, c, qgenda.NewRequestApprovedRequest(&qgenda.RequestQueryFields{}), "requestapproved.json"); err != nil {
+	// 	log.Println(err)
+	// }
+	if err := MakeItHappen(ctx, c, qgenda.NewRequestRequest(&qgenda.RequestQueryFields{}), "request.json"); err != nil {
+		log.Println(err)
+	}
+	// if err := MakeItHappen(ctx, c, qgenda.NewStaffMemberLocationRequest(&qgenda.RequestQueryFields{}), "staffmemberlocation.json"); err != nil {
+	// 	log.Println(err)
+	// }
+	if err := MakeItHappen(ctx, c, qgenda.NewScheduleAuditLogRequest(&qgenda.RequestQueryFields{}), "scheduleauditlog.json"); err != nil {
+		log.Println(err)
+	}
+	if err := MakeItHappen(ctx, c, qgenda.NewStaffMemberRequest(&qgenda.RequestQueryFields{}), "staffmember.json"); err != nil {
+		log.Println(err)
+	}
+	// if err := MakeItHappen(ctx, c, qgenda.NewStaffMemberRequestLimitRequest(&qgenda.RequestQueryFields{}), "staffmemberrequestlimit.json"); err != nil {
+	// 	log.Println(err)
+	// }
+	// if err := MakeItHappen(ctx, c, qgenda.NewStaffMemberStaffIdRequest(&qgenda.RequestQueryFields{}), "staffmemberstaffid.json"); err != nil {
+	// 	log.Println(err)
+	// }
+	// if err := MakeItHappen(ctx, c, qgenda.NewStaffTargetRequest(&qgenda.RequestQueryFields{}), "stafftarget.json"); err != nil {
+	// 	log.Println(err)
+	// }
+	if err := MakeItHappen(ctx, c, qgenda.NewTagsRequest(&qgenda.RequestQueryFields{}), "tags.json"); err != nil {
+		log.Println(err)
+	}
+
+	// if err := MakeItHappen(ctx, c, qgenda.NewTaskLocationRequest(&qgenda.RequestQueryFields{}), "tasklocation.json"); err != nil {
+	// 	log.Println(err)
+	// }
+	if err := MakeItHappen(ctx, c, qgenda.NewTaskRequest(&qgenda.RequestQueryFields{}), "task.json"); err != nil {
+		log.Println(err)
+	}
+	// if err := MakeItHappen(ctx, c, qgenda.NewTimeEventRequest(&qgenda.RequestQueryFields{}), "timeevent.json"); err != nil {
+	// 	log.Println(err)
+	// }
+	if err := MakeItHappen(ctx, c, qgenda.NewUserRequest(&qgenda.RequestQueryFields{}), "user.json"); err != nil {
+		log.Println(err)
+	}
+	// // ScheduleAuditLog
+	// salrqf := &qgenda.RequestQueryFields{}
+	// sal := qgenda.NewScheduleAuditLogRequest(salrqf)
+	// sal.SetScheduleStartDate(time.Now().UTC().Add(-1 * 14 * 24 * time.Hour))
+	// sal.SetScheduleEndDate(time.Now().UTC())
+
+	// resp, err = c.Do(ctx, sal)
+	// if err != nil {
+	// 	log.Fatalln(err)
+	// }
+	// data, err = io.ReadAll(resp.Body)
+	// if err != nil {
+	// 	log.Fatalln(err)
+	// }
+
+	// // fmt.Println("scheduleAuditLog success???")
+	// jsonOut, err = json.MarshalIndent(data, "", "\t")
+	// if err != nil {
+	// 	log.Println(err)
+	// }
+	// // fmt.Println(string(jsonOut))
+	// os.WriteFile("scheduleAuditLog.json", jsonOut, 0644)
+
+	// // Tag
+	// talrqf := &qgenda.RequestQueryFields{}
+	// tr := qgenda.NewTagRequest(talrqf)
+	// resp, err = c.Do(ctx, tr)
+	// if err != nil {
+	// 	log.Fatalln(err)
+	// }
+	// data, err = io.ReadAll(resp.Body)
+	// if err != nil {
+	// 	log.Fatalln(err)
+	// }
+	// fmt.Println("tags success???")
+	// os.WriteFile("tags.json", data, 0644)
 
 	// sch, err := qgenda.ScheduleFromHTTPResponse(resp)
 
+}
+
+func MakeItHappen(ctx context.Context, c *qgenda.Client, r *qgenda.Request, file string) error {
+	resp, err := c.Do(ctx, r)
+	if err != nil {
+		return err
+	}
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	var out bytes.Buffer
+	if err := json.Indent(&out, data, "", "\t"); err != nil {
+		return err
+	}
+	if err := os.WriteFile(file, out.Bytes(), 0644); err != nil {
+		return err
+	}
+	return nil
 }
 
 // Parameters is a key-value map to represent arguments
 // it is generally used to pass arguments for getting or sending
 // data in data models
 type Parameters map[any]any
-
-type Inner struct {
-	Value string
-}
-
-func (i *Inner) Print() {
-	fmt.Println("inner")
-}
 
 /////////////////////////////////////////////
 type App struct {
@@ -146,21 +275,21 @@ func (do *DataObject) Request(s string) *http.Request {
 	return &http.Request{}
 }
 
-type Schedule struct {
-	QgendaScheduleEndpoint   Endpoint
-	QgendaScheduleRequest    struct{}
-	QgendaScheduleResponse   struct{}
-	Data                     interface{}
-	PostgresScheduleEndpoint Endpoint
-	PostgresScheduleRequest  struct{}
-	PostgresScheduleResponse struct{}
-	OracleScheduleEnpoint    Endpoint
-	OracleScheduleRequest    struct{}
-	OracleScheduleResponse   struct{}
-	ProtobufScheduleEndpoint Endpoint
-	ProtobufScheduleRequest  struct{}
-	ProtobufScheduleResponse struct{}
-}
+// type Schedule struct {
+// 	QgendaScheduleEndpoint   Endpoint
+// 	QgendaScheduleRequest    struct{}
+// 	QgendaScheduleResponse   struct{}
+// 	Data                     interface{}
+// 	PostgresScheduleEndpoint Endpoint
+// 	PostgresScheduleRequest  struct{}
+// 	PostgresScheduleResponse struct{}
+// 	OracleScheduleEnpoint    Endpoint
+// 	OracleScheduleRequest    struct{}
+// 	OracleScheduleResponse   struct{}
+// 	ProtobufScheduleEndpoint Endpoint
+// 	ProtobufScheduleRequest  struct{}
+// 	ProtobufScheduleResponse struct{}
+// }
 
 // Model encapsulates the following elements:
 // - data: go representation of the data - prefers structs

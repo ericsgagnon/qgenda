@@ -10,6 +10,12 @@ func Value[T any](a *T) T {
 	return *a
 }
 
+// Pointer simply returns a pointer to a value. It is useful
+// when using literals for pointer assignments.
+func Pointer[T any](t T) *T {
+	return &t
+}
+
 func ToSlice[T any](a T) []any {
 	v := reflect.ValueOf(a)
 	var s []any
@@ -157,4 +163,52 @@ func CanSet(a any) bool {
 		return false
 	}
 	return v.CanSet()
+}
+
+// StructFields de-references as
+func StructFields(a any) []reflect.StructField {
+	var structFields []reflect.StructField
+	if IsStruct(a) {
+		v := IndirectReflectionValue(a)
+		// v := reflect.Indirect(reflect.ValueOf(a))
+		t := v.Type()
+		for i := 0; i < t.NumField(); i++ {
+			f := t.Field(i)
+			structFields = append(structFields, f)
+		}
+	}
+	return structFields
+}
+
+func StructFieldNames(a any) []string {
+	var fieldNames []string
+	if IsStruct(a) {
+		// v := reflect.Indirect(reflect.ValueOf(a))
+		v := IndirectReflectionValue(a)
+		t := v.Type()
+		for i := 0; i < t.NumField(); i++ {
+			f := t.Field(i).Name
+			fieldNames = append(fieldNames, f)
+
+			// fv := reflect.ValueOf(f)
+			// if _, ok := afMap[f.Name]; ok {
+			// 	fmt.Printf("%2d:\t%s\t%t\n", i, f.Name, v.Field(i).IsNil())
+			// }
+		}
+
+	}
+	return fieldNames
+}
+
+func StructFieldByName(a any, s string) reflect.StructField {
+	if IsStruct(a) {
+		v := reflect.Indirect(reflect.ValueOf(a))
+		f, ok := v.Type().FieldByName(s)
+		if !ok {
+			log.Printf("Type %s doesn't have a field %#v\n", v.Type().String(), s)
+		}
+		return f
+
+	}
+	return reflect.StructField{}
 }
