@@ -165,6 +165,13 @@ func CanSet(a any) bool {
 	return v.CanSet()
 }
 
+// func StructFieldValues[St any](st St) []reflect.Value {
+// 	var v reflect.Value
+// 	if IsStruct(st) {
+
+// 	}
+// }
+
 // StructFields de-references as
 func StructFields(a any) []reflect.StructField {
 	var structFields []reflect.StructField
@@ -211,4 +218,11 @@ func StructFieldByName(a any, s string) reflect.StructField {
 
 	}
 	return reflect.StructField{}
+}
+
+func DynamicType(v reflect.Value) reflect.Type {
+	if v.Kind() == reflect.Pointer {
+		return reflect.TypeOf(v.Interface()).Elem()
+	}
+	return v.Type()
 }

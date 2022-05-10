@@ -1,11 +1,20 @@
 package qgenda
 
 import (
-	"time"
+	"bytes"
+	"context"
+	"database/sql"
+	"log"
+	"strings"
+	"text/template"
+
+	"github.com/jmoiron/sqlx"
 )
 
 type Schedule struct {
-	ScheduleKey            *string       `json:"ScheduleKey,omitempty"`
+	// RawMessage        *string    `json:"-" db:"_raw_message"`
+	// ExtractDateTime   *Time      `json:"-" db:"_extract_date_time"`
+	ScheduleKey            *string       `json:"ScheduleKey,omitempty" primarykey:"true"`
 	CallRole               *string       `json:"CallRole,omitempty"`
 	CompKey                *string       `json:"CompKey,omitempty"`
 	Credit                 *float64      `json:"Credit,omitempty"`
@@ -35,7 +44,7 @@ type Schedule struct {
 	StaffNpi               *string       `json:"StaffNpi,omitempty"`
 	StaffPager             *string       `json:"StaffPager,omitempty"`
 	StaffPayrollId         *string       `json:"StaffPayrollId,omitempty"`
-	StaffTags              []TagCategory `json:"StaffTags,omitempty"`
+	StaffTags              []ScheduleTag `json:"StaffTags,omitempty"`
 	StartDate              *Date         `json:"StartDate,omitempty"`
 	StartTime              *TimeOfDay    `json:"StartTime,omitempty"`
 	TaskAbbrev             *string       `json:"TaskAbbrev,omitempty"`
@@ -53,133 +62,398 @@ type Schedule struct {
 	TaskIsPrintStart       *bool         `json:"TaskIsPrintStart,omitempty"`
 	TaskShiftKey           *string       `json:"TaskShiftKey,omitempty"`
 	TaskType               *string       `json:"TaskType,omitempty"`
-	TaskTags               []TagCategory `json:"TaskTags,omitempty"`
+	TaskTags               []ScheduleTag `json:"TaskTags,omitempty"`
 	LocationName           *string       `json:"LocationName,omitempty"`
 	LocationAbbrev         *string       `json:"LocationAbbrev,omitempty"`
 	LocationID             *string       `json:"LocationID,omitempty"`
 	LocationAddress        *string       `json:"LocationAddress,omitempty"`
 	TimeZone               *string       `json:"TimeZone,omitempty"`
-	LastModifiedDateUTC    *Time         `json:"LastModifiedDateUTC,omitempty"`
+	LastModifiedDateUTC    *Time         `json:"LastModifiedDateUTC,omitempty" primarykey:"true"`
 	LocationTags           []Location    `json:"LocationTags,omitempty"`
 	IsRotationTask         *bool         `json:"IsRotationTask"`
 }
 
-type ScheduleAuditLog struct {
-	StaffFirstName            *string       `json:"StaffFirstName,omitempty"`
-	StaffLastName             *string       `json:"StaffLastName,omitempty"`
-	StaffAbbreviation         *string       `json:"StaffAbbreviation,omitempty"`
-	StaffKey                  *string       `json:"StaffKey,omitempty"`
-	TaskName                  *string       `json:"TaskName,omitempty"`
-	TaskAbbreviation          *string       `json:"TaskAbbreviation,omitempty"`
-	TaskKey                   *string       `json:"TaskKey,omitempty"`
-	ScheduleEntryDate         *Date         `json:"ScheduleEntryDate,omitempty"`
-	ScheduleEntryStartTimeUTC *Time         `json:"ScheduleEntryStartTimeUTC,omitempty"`
-	ScheduleEntryStartTime    *TimeOfDay    `json:"ScheduleEntryStartTime,omitempty"`
-	ScheduleEntryEndTimeUTC   *Time         `json:"ScheduleEntryEndTimeUTC,omitempty"`
-	ScheduleEntryEndTime      *string       `json:"ScheduleEntryEndTime,omitempty"`
-	ScheduleEntryKey          *string       `json:"ScheduleEntryKey,omitempty"`
-	ActivityType              *string       `json:"ActivityType,omitempty"`
-	SourceType                *string       `json:"SourceType,omitempty"`
-	UserFirstName             *string       `json:"UserFirstName,omitempty"`
-	UserLastName              *string       `json:"UserLastName,omitempty"`
-	UserKey                   *string       `json:"UserKey,omitempty"`
-	TimestampUTC              *string       `json:"TimestampUTC,omitempty"`
-	Timestamp                 *string       `json:"Timestamp,omitempty"`
-	AdditionalInformation     *string       `json:"AdditionalInformation,omitempty"`
-	Locations                 []interface{} `json:"Locations,omitempty"`
-	IPAddress                 *string       `json:"IPAddress,omitempty"`
+type ScheduleTag struct {
+	ScheduleKey         *string `json:"ScheduleKey,omitempty" nullable:"false"`
+	LastModifiedDateUTC *Time   `json:"LastModifiedDateUTC,omitempty" nullable:"false"`
+	CategoryKey         *int64  `json:"CategoryKey" nullable:"false"`
+	CategoryName        *string `json:"CategoryName" nullable:"false"`
+	Tags                []struct {
+		Key  *int64  `json:"Key" db:"tagkey" nullable:"false"`
+		Name *string `json:"Name" db:"tagname" nullable:"false"`
+	}
 }
 
-type OpenShift struct {
-	CompanyKey             *string    `json:"CompanyKey,omitempty"`
-	ScheduleKey            *string    `json:"ScheduleKey,omitempty"`
-	OpenShiftCount         *int64     `json:"OpenShiftCount,omitempty"`
-	CallRole               *string    `json:"CallRole,omitempty"`
-	Credit                 *float64   `json:"Credit,omitempty"`
-	Date                   *time.Time `json:"Date,omitempty"`
-	StartDate              *time.Time `json:"StartDate,omitempty"`
-	StartDateUTC           *time.Time `json:"StartDateUTC,omitempty"`
-	StartTime              *time.Time `json:"StartTime,omitempty"`
-	EndDate                *time.Time `json:"EndDate,omitempty"`
-	EndDateUTC             *time.Time `json:"EndDateUTC,omitempty"`
-	EndTime                *time.Time `json:"EndTime,omitempty"`
-	IsCred                 *bool      `json:"IsCred,omitempty"`
-	IsSaved                *bool      `json:"IsSaved,omitempty"`
-	IsPublished            *bool      `json:"IsPublished,omitempty"`
-	IsLocked               *bool      `json:"IsLocked,omitempty"`
-	IsStruck               *bool      `json:"IsStruck,omitempty"`
-	Notes                  *string    `json:"Notes,omitempty"`
-	IsNotePrivate          *bool      `json:"IsNotePrivate,omitempty"`
-	TaskAbbrev             *string    `json:"TaskAbbrev,omitempty"`
-	TaskId                 *string    `json:"TaskId,omitempty"`
-	TaskEmrId              *string    `json:"TaskEmrId,omitempty"`
-	TaskIsPrintStart       *bool      `json:"TaskIsPrintStart,omitempty"`
-	TaskIsPrintEnd         *bool      `json:"TaskIsPrintEnd,omitempty"`
-	TaskExtCallSysId       *string    `json:"TaskExtCallSysId,omitempty"`
-	TaskKey                *string    `json:"TaskKey,omitempty"`
-	TaskName               *string    `json:"TaskName,omitempty"`
-	TaskBillSysId          *string    `json:"TaskBillSysId,omitempty"`
-	TaskPayrollId          *string    `json:"TaskPayrollId,omitempty"`
-	TaskShiftKey           *string    `json:"TaskShiftKey,omitempty"`
-	TaskType               *string    `json:"TaskType,omitempty"`
-	TaskContactInformation *string    `json:"TaskContactInformation,omitempty"`
-	TaskTags               []any      `json:"TaskTags,omitempty"`
-	LocationKey            *string    `json:"LocationKey,omitempty"`
-	LocationName           *string    `json:"LocationName,omitempty"`
-	LocationAbbrev         *string    `json:"LocationAbbrev,omitempty"`
-	LocationAddress        *string    `json:"LocationAddress,omitempty"`
-	LocationTags           []any      `json:"LocationTags,omitempty"`
-	TimeZone               *string    `json:"TimeZone,omitempty"`
+func NewScheduleRequest(rqf *RequestQueryFields) *Request {
+	requestPath := "schedule"
+	queryFields := []string{
+		"CompanyKey",
+		"StartDate",
+		"EndDate",
+		"IncludeDeletes",
+		"SinceModifiedTimestamp",
+		"DateFormat",
+		"Includes",
+		"Select",
+		"Filter",
+		"OrderBy",
+		"Expand",
+	}
+	if rqf != nil {
+		if rqf.Includes == nil {
+			rqf.SetIncludes("StaffTags,TaskTags,LocationTags")
+		}
+	}
+	r := NewRequestWithQueryField(requestPath, queryFields, rqf)
+	return r
 }
 
-type Location struct {
-	CompanyKey  *string       `json:"CompanyKey,omitempty"`
-	LocationKey *int64        `json:"LocationKey,omitempty"`
-	ID          *string       `json:"Id,omitempty"`
-	Name        *string       `json:"Name,omitempty"`
-	Address     *string       `json:"Address,omitempty"`
-	Abbrev      *string       `json:"Abbrev,omitempty"`
-	Notes       *string       `json:"Notes,omitempty"`
-	TimeZone    *string       `json:"TimeZone,omitempty"`
-	Tags        []TagCategory `json:"Tags,omitempty"`
+func xxPGCreateScheduleTagTableStatement(schema, table string) string {
+	if table == "" {
+		table = "scheduletag"
+	}
+
+	tplValues := struct {
+		Schema     string
+		Table      string
+		Fields     []string
+		PrimaryKey []string
+	}{
+		Schema: schema,
+		Table:  table,
+		// Fields:     sqlFieldDefs,
+		// PrimaryKey: primaryKey,
+	}
+
+	tpl := `
+	CREATE TABLE IF NOT EXISTS {{ .Schema -}}{{- .Table }} (
+        schedulekey text  not null,
+        lastmodifieddateutc timestamp with time zone not null,
+        categorykey text,
+        categoryname text,
+		tagkey text,
+		tagname text
+	)
+	`
+	var buf bytes.Buffer
+
+	if err := template.Must(template.
+		New("").
+		Funcs(template.FuncMap{"join": strings.Join}).
+		Parse(tpl)).
+		Execute(&buf, tplValues); err != nil {
+		log.Println(err)
+		panic(err)
+	}
+	return buf.String()
+
 }
 
-type TagCompany struct {
-	CompanyName   *string       `json:"CompanyName"`
-	CompanyKey    *string       `json:"CompanyKey"`
-	TagCategories []TagCategory `json:"Tags"`
+// func PGCreateScheduleTable(ctx context.Context, db sqlx.DB, schema string, table string) (sql.Result, error) {
+// 	return db.ExecContext(ctx, PGCreateScheduleTableStatement(schema, table))
+// }
+
+func xxPGCreateScheduleTagTable(ctx context.Context, db sqlx.DB, schema string, table string) (sql.Result, error) {
+	return db.ExecContext(ctx, xxPGCreateScheduleTagTableStatement(schema, table))
 }
 
-type TagCategory struct {
-	CategoryKey                    *int64  `json:"CategoryKey"`
-	CategoryName                   *string `json:"CategoryName"`
-	CategoryDateCreated            *Time   `json:"CategoryDateCreated,omitempty"`
-	CategoryDateLastModified       *Time   `json:"CategoryDateLastModified,omitempty"`
-	IsAvailableForCreditAllocation *bool   `json:"IsAvailableForCreditAllocation,omitempty"`
-	IsAvailableForLDailySum        *bool   `json:"IsAvailableForLDailySum,omitempty"`
-	IsAvailableForHoliday          *bool   `json:"IsAvailableForHoliday,omitempty"`
-	IsAvailableForLocation         *bool   `json:"IsAvailableForLocation,omitempty"`
-	IsAvailableForProfile          *bool   `json:"IsAvailableForProfile,omitempty"`
-	IsAvailableForSeries           *bool   `json:"IsAvailableForSeries,omitempty"`
-	IsAvailableForStaff            *bool   `json:"IsAvailableForStaff,omitempty"`
-	IsAvailableForStaffLocation    *bool   `json:"IsAvailableForStaffLocation,omitempty"`
-	IsAvailableForStaffTarget      *bool   `json:"IsAvailableForStaffTarget,omitempty"`
-	IsAvailableForRequestLimit     *bool   `json:"IsAvailableForRequestLimit,omitempty"`
-	IsAvailableForTask             *bool   `json:"IsAvailableForTask,omitempty"`
-	IsTTCMCategory                 *bool   `json:"IsTTCMCategory,omitempty"`
-	IsSingleTaggingOnly            *bool   `json:"IsSingleTaggingOnly,omitempty"`
-	IsPermissionCategory           *bool   `json:"IsPermissionCategory,omitempty"`
-	IsUsedForStats                 *bool   `json:"IsUsedForStats,omitempty"`
-	CategoryBackgroundColor        *string `json:"CategoryBackgroundColor,omitempty"`
-	CategoryTextColor              *string `json:"CategoryTextColor,omitempty"`
-	Tags                           []Tag   `json:"Tags"`
+//
+func xxPGInsertScheduleStatement(schema, table string) string {
+	if table == "" {
+		table = "scheduletag"
+	}
+
+	tplValues := struct {
+		Schema     string
+		Table      string
+		Fields     []string
+		PrimaryKey []string
+	}{
+		Schema: schema,
+		Table:  table,
+		// Fields:     sqlFieldDefs,
+		// PrimaryKey: primaryKey,
+	}
+	tpl := `
+	INSERT INTO {{ .Schema -}}{{- .Table }} (
+	) VALUES (
+		:first_name, 
+		:last_name, 
+		:email
+	)
+	CREATE TABLE IF NOT EXISTS {{ .Schema -}}{{- .Table }} (
+		schedulekey text  not null,
+        lastmodifieddateutc timestamp with time zone not null,
+        categorykey text,
+        categoryname text,
+		tagkey text,
+		tagname text
+	)
+	`
+	var buf bytes.Buffer
+
+	if err := template.Must(template.
+		New("").
+		Funcs(template.FuncMap{"join": strings.Join}).
+		Parse(tpl)).
+		Execute(&buf, tplValues); err != nil {
+		log.Println(err)
+		panic(err)
+	}
+	return buf.String()
 }
 
-type Tag struct {
-	Key              *int64  `json:"Key"`
-	Name             *string `json:"Name"`
-	DateCreated      *Time   `json:"DateCreated,omitempty"`
-	DateLastModified *Time   `json:"DateLastModified,omitempty"`
-	BackgroundColor  *string `json:"BackgroundColor,omitempty"`
-	TextColor        *string `json:"TextColor,omitempty"`
+func PGCreateScheduleTableStatement(schema, table string) string {
+	PGCreateTableStatement(ScheduleTag{}, "", "scheduletag")
+	return ""
 }
+
+func PGCreateScheduleTagStatement(schema, table string) string {
+	return ""
+}
+
+func PGInsertScheduleStatement(schema, table string) string {
+	return ""
+}
+
+func PGInsertScheduleTagStatement(schema, table string) string {
+	return ""
+}
+
+// var pgSQLColumnSpecTpl = `
+// {{- range  $index, $field := .Fields -}}
+// {{- if ne $index 0 -}},{{- end }}
+// 	{{ $field -}}
+// {{- end -}}
+// {{- $primarykey := join .PrimaryKey  ", " -}}
+// {{ if ne $primarykey "" }},
+// 	PRIMARY KEY ( {{ $primarykey }} ) {{ end }}
+// `
+
+// func XXPGCreateTableStatement[T any](schema, table string) string {
+// 	return createSQLStatement[T](schema, table, pgCreateTableTpl)
+// }
+
+// func SQLTest[T any](schema string, table string) string {
+
+// 	return createSQLStatement[T](schema, table, pgSQLColumnSpecTpl)
+// }
+
+// func XCreateScheduleTableSQL() string {
+// 	// CreateTableSQL[Schedule]()
+// 	return ""
+// }
+
+// func InsertScheduleRowSQL(schema, table string) string {
+// 	return createSQLStatement[Schedule](schema, table, pgInsertRowsTpl)
+// }
+
+// func InsertScheduleTaskTagRowSQL(schema, table string)
+
+//
+// func InsertSchedulePG(db sqlx.DB, sch []Schedule) (sql.Result, error) {
+
+// 	result, err := db.NamedExec(PGInsertScheduleStatement("", ""), sch)
+// 	if err != nil {
+// 		return result, err
+// 	}
+// 	type scheduleTagForSQL struct {
+// 		ScheduleKey         *string `json:"ScheduleKey,omitempty" sql:",not null"`
+// 		LastModifiedDateUTC *Time   `json:"LastModifiedDateUTC,omitempty" sql:",not null"`
+// 		CategoryKey         *string
+// 		CategoryName        *string
+// 		TagKey              *string
+// 		TagName             *string
+// 	}
+
+// 	var scht []scheduleTagForSQL
+// 	for _, sc := range sch {
+// 		schedulekey := sc.ScheduleKey
+// 		lastmodifieddateutc := sc.LastModifiedDateUTC
+// 		for _, ttcat := range sc.TaskTags {
+// 			for _, tt := range ttcat.Tags {
+// 				var stfs scheduleTagForSQL
+// 				stfs.ScheduleKey = schedulekey
+// 				stfs.LastModifiedDateUTC = lastmodifieddateutc
+// 				stfs.CategoryKey = ttcat.CategoryKey
+// 				stfs.CategoryName = ttcat.CategoryName
+// 				stfs.TagKey = tt.Key
+// 				stfs.TagName = tt.Name
+// 				scht = append(scht, stfs)
+// 			}
+
+// 		}
+// 	}
+// 	result, err = db.NamedExec(PGInsertScheduleTagStatement("", ""), scht)
+
+// 	return result, err
+// }
+
+// `
+// INSERT INTO (
+// _raw_message,
+// _extract_date_time,
+// schedulekey,
+// callrole,
+// compkey,
+// credit,
+// date,
+// startdateutc,
+// enddateutc,
+// enddate,
+// endtime,
+// iscred,
+// ispublished,
+// islocked,
+// isstruck,
+// notes,
+// isnoteprivate,
+// staffabbrev,
+// staffbillsysid,
+// staffemail,
+// staffemrid,
+// stafferpid,
+// staffinternalid,
+// staffextcallsysid,
+// stafffname,
+// staffid,
+// staffkey,
+// stafflname,
+// staffmobilephone,
+// staffnpi,
+// staffpager,
+// staffpayrollid,
+// startdate,
+// starttime,
+// taskabbrev,
+// taskbillsysid,
+// taskcontactinformation,
+// taskextcallsysid,
+// taskid,
+// taskkey,
+// taskname,
+// taskpayrollid,
+// taskemrid,
+// taskcallpriority,
+// taskdepartmentid,
+// taskisprintend,
+// taskisprintstart,
+// taskshiftkey,
+// tasktype,
+// locationname,
+// locationabbrev,
+// locationid,
+// locationaddress,
+// timezone,
+// lastmodifieddateutc,
+// isrotationtask ,
+// `
+
+// `
+// _raw_message,
+// _extract_date_time,
+// schedulekey,
+// callrole,
+// compkey,
+// credit,
+// date,
+// startdateutc,
+// enddateutc,
+// enddate,
+// endtime,
+// iscred,
+// ispublished,
+// islocked,
+// isstruck,
+// notes,
+// isnoteprivate,
+// staffabbrev,
+// staffbillsysid,
+// staffemail,
+// staffemrid,
+// stafferpid,
+// staffinternalid,
+// staffextcallsysid,
+// stafffname,
+// staffid,
+// staffkey,
+// stafflname,
+// staffmobilephone,
+// staffnpi,
+// staffpager,
+// staffpayrollid,
+// startdate,
+// starttime,
+// taskabbrev,
+// taskbillsysid,
+// taskcontactinformation,
+// taskextcallsysid,
+// taskid,
+// taskkey,
+// taskname,
+// taskpayrollid,
+// taskemrid,
+// taskcallpriority,
+// taskdepartmentid,
+// taskisprintend,
+// taskisprintstart,
+// taskshiftkey,
+// tasktype,
+// locationname,
+// locationabbrev,
+// locationid,
+// locationaddress,
+// timezone,
+// lastmodifieddateutc,
+// isrotationtask
+// `
+
+// func CreateScheduleTableSQL(schema, table string) string {
+// }
+
+// func CreateScheduleTagTableSQL(schema, table string) string {
+// func PGCreateScheduleTableStatement(schema, table string) string {
+// 	if table == "" {
+// 		table = "schedule"
+// 	}
+// 	return CreateTableSQL[Schedule](schema, table)
+
+// 	// if table == "" {
+// 	// 	table = "schedule"
+// 	// }
+
+// 	// tplValues := struct {
+// 	// 	Schema     string
+// 	// 	Table      string
+// 	// 	Fields     []string
+// 	// 	PrimaryKey []string
+// 	// }{
+// 	// 	Schema: schema,
+// 	// 	Table:  table,
+// 	// 	// Fields:     sqlFieldDefs,
+// 	// 	// PrimaryKey: primaryKey,
+// 	// }
+
+// 	// tpl := `
+// 	// CREATE TABLE IF NOT EXISTS {{ .Schema -}}{{- .Table }} (
+// 	//     schedulekey text  not null,
+// 	//     lastmodifieddateutc timestamp with time zone not null,
+// 	//     categorykey text,
+// 	//     categoryname text,
+// 	// 	tagkey text,
+// 	// 	tagname text
+// 	// )
+// 	// `
+// 	// var buf bytes.Buffer
+
+// 	// if err := template.Must(template.
+// 	// 	New("").
+// 	// 	Funcs(template.FuncMap{"join": strings.Join}).
+// 	// 	Parse(tpl)).
+// 	// 	Execute(&buf, tplValues); err != nil {
+// 	// 	log.Println(err)
+// 	// 	panic(err)
+// 	// }
+// 	// return buf.String()
+
+// }

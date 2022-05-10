@@ -29,6 +29,7 @@
 		//   }
 	},
 	"go.alternateTools": {
-	"go": "go1.18beta1"
+
+	"go": "go"
 	}
 }

@@ -86,11 +86,12 @@ func ProcessSlice(a any) error {
 			f := iv.Index(i)
 			fv := f.Interface()
 			if err := Process(fv); err != nil {
-				return err
+				// return err
+				log.Println(err)
 			}
 		}
 	default:
-		return fmt.Errorf("%s is not a slice", v.Kind())
+		log.Printf("%s is not a slice", v.Kind())
 	}
 	// fmt.Println("I'm a slice")
 	return nil
@@ -102,7 +103,8 @@ func ProcessMap(a any) error {
 	v := reflect.ValueOf(a)
 	iv := reflect.Indirect(v)
 	if iv.Kind() != reflect.Map {
-		return fmt.Errorf("%s is not a map", iv.Kind())
+		log.Printf("%s is not a map", iv.Kind())
+		return nil
 	}
 	iter := iv.MapRange()
 	for iter.Next() {
@@ -111,7 +113,9 @@ func ProcessMap(a any) error {
 		temp := reflect.New(mv.Type())
 		temp.Elem().Set(mv)
 		if err := Process(temp.Interface()); err != nil {
-			return err
+			// return err
+			log.Println(err)
+			return nil
 		}
 		if miv.Kind() == reflect.Pointer {
 			iv.SetMapIndex(iter.Key(), temp)
@@ -131,8 +135,11 @@ func ProcessStruct(a any) error {
 	v := reflect.ValueOf(a)
 	iv := reflect.Indirect(v)
 	fields := StructFields(iv)
+	// fmt.Printf("ProcessStruct %s %s\n", iv.Type(), iv.Kind())
+
 	for i := 0; i < iv.NumField(); i++ {
 		sf := fields[i]
+		// fmt.Printf("ProcessStruct Field %d %s\n", i, sf.Name)
 		fv := iv.Field(i)
 		fiv := reflect.Indirect(fv)
 		switch {

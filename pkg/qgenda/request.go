@@ -77,7 +77,7 @@ type RequestQueryFields struct {
 	Select                  *string    `query:"$select,omitempty" url:"$select,omitempty"`
 	DailyConfigurationKey   *string    `query:"dailyConfigurationKey,omitempty" url:"dailyConfigurationKey,omitempty"`
 	DateFormat              *string    `query:"dateFormat,omitempty" url:"dateFormat,omitempty"`
-	EndDate                 *time.Time `query:"endDate,omitempty" url:"endDate,omitempty" layout:"01/02/2006"`
+	EndDate                 *time.Time `query:"endDate,omitempty" url:"endDate,omitempty" layout:"2006-01-02T15:04:05Z"` //layout:"01/02/2006"
 	IgnoreHoliday           *bool      `query:"ignoreHoliday,omitempty" url:"ignoreHoliday,omitempty"`
 	IgnoreWeekend           *bool      `query:"ignoreWeekend,omitempty" url:"ignoreWeekend,omitempty"`
 	IncludeDeletes          *bool      `query:"includeDeletes,omitempty" url:"includeDeletes,omitempty"`
@@ -86,10 +86,10 @@ type RequestQueryFields struct {
 	IsUniversallyLocalDates *bool      `query:"IsUniversallyLocalDates,omitempty" url:"IsUniversallyLocalDates,omitempty"`
 	MaxResults              *int       `query:"maxResults,omitempty" url:"maxResults,omitempty"`
 	PageToken               *string    `query:"pageToken,omitempty" url:"pageToken,omitempty"`
-	RangeEndDate            *time.Time `query:"rangeEndDate,omitempty" url:"rangeEndDate,omitempty" layout:"01/02/2006"`
-	RangeStartDate          *time.Time `query:"rangeStartDate,omitempty" url:"rangeStartDate,omitempty" layout:"01/02/2006"`
-	ScheduleEndDate         *time.Time `query:"scheduleEndDate,omitempty" url:"scheduleEndDate,omitempty" layout:"01/02/2006"`
-	ScheduleStartDate       *time.Time `query:"scheduleStartDate,omitempty" url:"scheduleStartDate,omitempty" layout:"01/02/2006"`
+	RangeEndDate            *time.Time `query:"rangeEndDate,omitempty" url:"rangeEndDate,omitempty" layout:"2006-01-02T15:04:05Z"`           //layout:"01/02/2006"
+	RangeStartDate          *time.Time `query:"rangeStartDate,omitempty" url:"rangeStartDate,omitempty" layout:"2006-01-02T15:04:05Z"`       //layout:"01/02/2006"
+	ScheduleEndDate         *time.Time `query:"scheduleEndDate,omitempty" url:"scheduleEndDate,omitempty" layout:"2006-01-02T15:04:05Z"`     //layout:"01/02/2006"
+	ScheduleStartDate       *time.Time `query:"scheduleStartDate,omitempty" url:"scheduleStartDate,omitempty" layout:"2006-01-02T15:04:05Z"` //layout:"01/02/2006"
 	SinceModifiedTimestamp  *time.Time `query:"sinceModifiedTimestamp,omitempty" url:"sinceModifiedTimestamp,omitempty" layout:"2006-01-02T15:04:05Z"`
 	StartDate               *time.Time `query:"startDate,omitempty" url:"startDate,omitempty"`
 	SyncToken               *string    `query:"syncToken,omitempty" url:"syncToken,omitempty"`
@@ -245,9 +245,9 @@ func NewRequestWithQueryField(requestPath string, allowableQueryFields []string,
 
 	r := NewRequest()
 	r.Path = path.Join(r.Path, requestPath)
-	if rqf.Select != nil {
-		r.SetSelect(rqf.GetSelect())
-	}
+	// if rqf.Select != nil {
+	// 	r.SetSelect(rqf.GetSelect())
+	// }
 	qf := RequestQueryFields{}
 	if rqf != nil {
 		if _, ok := aqfMap["CompanyKey"]; ok && rqf.CompanyKey != nil {
@@ -271,14 +271,14 @@ func NewRequestWithQueryField(requestPath string, allowableQueryFields []string,
 		if _, ok := aqfMap["DailyConfigurationKey"]; ok && rqf.DailyConfigurationKey != nil {
 			qf.SetDailyConfigurationKey(rqf.GetDailyConfigurationKey())
 		}
-		// if _, ok := aqfMap["DateFormat"]; ok {
-		// 	if rqf.DateFormat != nil {
-		// 		qf.SetDateFormat(rqf.GetDateFormat())
-		// 	} else {
-		// 		// qf.SetDateFormat("yyyy-MM-ddTHH:mm:ssZ")
-		// 		qf.SetDateFormat("MM/dd/yyyy")
-		// 	}
-		// }
+		if _, ok := aqfMap["DateFormat"]; ok {
+			if rqf.DateFormat != nil {
+				qf.SetDateFormat(rqf.GetDateFormat())
+			} else {
+				qf.SetDateFormat("yyyy-MM-ddTHH:mm:ssZ")
+				// qf.SetDateFormat("MM/dd/yyyy")
+			}
+		}
 		if _, ok := aqfMap["IgnoreHoliday"]; ok {
 			if rqf.IgnoreHoliday != nil {
 				qf.SetIgnoreHoliday(rqf.GetIgnoreHoliday())
@@ -372,72 +372,13 @@ func NewRequestWithQueryField(requestPath string, allowableQueryFields []string,
 		if _, ok := aqfMap["SyncToken"]; ok && rqf.SyncToken != nil {
 			qf.SetSyncToken(rqf.GetSyncToken())
 		}
+	} else {
+		return NewRequestWithQueryField(requestPath, allowableQueryFields, &qf)
 	}
 	r.RequestQueryFields = qf
 	return r
 }
 
-func NewScheduleRequest(rqf *RequestQueryFields) *Request {
-	requestPath := "schedule"
-	queryFields := []string{
-		"CompanyKey",
-		"StartDate",
-		"EndDate",
-		"IncludeDeletes",
-		"SinceModifiedTimestamp",
-		"DateFormat",
-		"Includes",
-		"Select",
-		"Filter",
-		"OrderBy",
-		"Expand",
-	}
-	if rqf != nil {
-		if rqf.Includes == nil {
-			rqf.SetIncludes("StaffTags,TaskTags,LocationTags")
-		}
-	}
-	r := NewRequestWithQueryField(requestPath, queryFields, rqf)
-	return r
-}
-func NewScheduleAuditLogRequest(rqf *RequestQueryFields) *Request {
-	requestPath := "schedule/auditLog"
-	queryFields := []string{
-		"CompanyKey",
-		"ScheduleStartDate",
-		"ScheduleEndDate",
-		"DateFormat",
-		"Select",
-		"Filter",
-		"OrderBy",
-		"Expand",
-	}
-
-	r := NewRequestWithQueryField(requestPath, queryFields, rqf)
-	return r
-}
-func NewOpenShiftsRequest(rqf *RequestQueryFields) *Request {
-	requestPath := "schedule/openshifts"
-	queryFields := []string{
-		"StartDate",
-		"EndDate",
-		"CompanyKey",
-		"DateFormat",
-		"Includes",
-		"Select",
-		"Filter",
-		"OrderBy",
-		"Expand",
-	}
-	if rqf != nil {
-		if rqf.Includes == nil {
-			rqf.SetIncludes("TaskTags,LocationTags")
-		}
-	}
-
-	r := NewRequestWithQueryField(requestPath, queryFields, rqf)
-	return r
-}
 func NewRotationsRequest(rqf *RequestQueryFields) *Request {
 	requestPath := "schedule/rotations"
 	queryFields := []string{
@@ -456,38 +397,7 @@ func NewRotationsRequest(rqf *RequestQueryFields) *Request {
 	r := NewRequestWithQueryField(requestPath, queryFields, rqf)
 	return r
 }
-func NewRequestRequest(rqf *RequestQueryFields) *Request {
-	requestPath := "request"
-	queryFields := []string{
-		"CompanyKey",
-		"StartDate",
-		"EndDate",
-		"DateFormat",
-		"IncludeRemoved",
-		"Select",
-		"Filter",
-		"OrderBy",
-		"Expand",
-	}
 
-	r := NewRequestWithQueryField(requestPath, queryFields, rqf)
-	return r
-}
-func NewRequestApprovedRequest(rqf *RequestQueryFields) *Request {
-	requestPath := "request/approved"
-	queryFields := []string{
-		"CompanyKey",
-		"StartDate",
-		"EndDate",
-		"MaxResults",
-		"PageToken",
-		"SyncToken",
-		"DateFormat",
-	}
-
-	r := NewRequestWithQueryField(requestPath, queryFields, rqf)
-	return r
-}
 func NewRequestLimitRequest(rqf *RequestQueryFields) *Request {
 	requestPath := "requestlimit"
 	queryFields := []string{
@@ -657,75 +567,7 @@ func NewTimeEventRequest(rqf *RequestQueryFields) *Request {
 	r := NewRequestWithQueryField(requestPath, queryFields, rqf)
 	return r
 }
-func NewStaffMemberRequest(rqf *RequestQueryFields) *Request {
-	requestPath := "staffmember"
-	queryFields := []string{
-		"Includes",
-		"Select",
-		"Filter",
-		"OrderBy",
-		"Expand",
-	}
-	if rqf != nil {
-		if rqf.Includes == nil {
-			rqf.SetIncludes("Skillset,Tags,Profiles")
-		}
-	}
 
-	r := NewRequestWithQueryField(requestPath, queryFields, rqf)
-	return r
-}
-func NewStaffMemberStaffIdRequest(rqf *RequestQueryFields) *Request {
-	requestPath := "staffmember/:staffId"
-	queryFields := []string{
-		"CompanyKey",
-		"Includes",
-		"Select",
-		"Filter",
-		"OrderBy",
-		"Expand",
-	}
-	if rqf != nil {
-		if rqf.Includes == nil {
-			rqf.SetIncludes("Skillset,Tags,Profiles")
-		}
-	}
-
-	r := NewRequestWithQueryField(requestPath, queryFields, rqf)
-	return r
-}
-func NewStaffMemberLocationRequest(rqf *RequestQueryFields) *Request {
-	requestPath := "staffmember/:staffId/location"
-	queryFields := []string{
-		"CompanyKey",
-		"Select",
-		"Filter",
-		"OrderBy",
-		"Expand",
-	}
-
-	r := NewRequestWithQueryField(requestPath, queryFields, rqf)
-	return r
-}
-func NewStaffMemberRequestLimitRequest(rqf *RequestQueryFields) *Request {
-	requestPath := "staffmember/:staffId/requestlimit"
-	queryFields := []string{
-		"CompanyKey",
-		"Includes",
-		"Select",
-		"Filter",
-		"OrderBy",
-		"Expand",
-	}
-	if rqf != nil {
-		if rqf.Includes == nil {
-			rqf.SetIncludes("ShiftsCredit")
-		}
-	}
-
-	r := NewRequestWithQueryField(requestPath, queryFields, rqf)
-	return r
-}
 func NewOrganizationRequest(rqf *RequestQueryFields) *Request {
 	requestPath := "organization"
 	queryFields := []string{
@@ -739,64 +581,7 @@ func NewOrganizationRequest(rqf *RequestQueryFields) *Request {
 	r := NewRequestWithQueryField(requestPath, queryFields, rqf)
 	return r
 }
-func NewLocationRequest(rqf *RequestQueryFields) *Request {
-	requestPath := "location"
-	queryFields := []string{
-		"CompanyKey",
-		"Select",
-		"Filter",
-		"OrderBy",
-		"Expand",
-		"Includes",
-	}
-	if rqf != nil {
-		if rqf.Includes == nil {
-			rqf.SetIncludes("Tags")
-		}
-	}
 
-	r := NewRequestWithQueryField(requestPath, queryFields, rqf)
-	return r
-}
-func NewLocationStaffRequest(rqf *RequestQueryFields) *Request {
-	requestPath := "location/:locationId/staff"
-	queryFields := []string{
-		"CompanyKey",
-		"Select",
-		"Filter",
-		"OrderBy",
-		"Expand",
-	}
-
-	r := NewRequestWithQueryField(requestPath, queryFields, rqf)
-	return r
-}
-func NewLocationTasksRequest(rqf *RequestQueryFields) *Request {
-	requestPath := "location/:locationId/tasks"
-	queryFields := []string{
-		"CompanyKey",
-		"Select",
-		"Filter",
-		"OrderBy",
-		"Expand",
-	}
-
-	r := NewRequestWithQueryField(requestPath, queryFields, rqf)
-	return r
-}
-func NewTagsRequest(rqf *RequestQueryFields) *Request {
-	requestPath := "tags"
-	queryFields := []string{
-		"CompanyKey",
-		"Select",
-		"Filter",
-		"OrderBy",
-		"Expand",
-	}
-
-	r := NewRequestWithQueryField(requestPath, queryFields, rqf)
-	return r
-}
 func NewCompanyRequest(rqf *RequestQueryFields) *Request {
 	requestPath := "company"
 	queryFields := []string{
@@ -864,42 +649,5 @@ func NewUserRequest(rqf *RequestQueryFields) *Request {
 	}
 
 	r := NewRequestWithQueryField(requestPath, queryFields, rqf)
-	return r
-}
-
-func NewTagRequest(rqf *RequestQueryFields) *Request {
-	rPath := "tags"
-	allowableFields := []string{
-		"CompanyKey",
-		"OrganizationKey",
-		"Expand",
-		"Filter",
-		"Orderby",
-		"Select",
-		"DailyConfigurationKey",
-		"DateFormat",
-		"EndDate",
-		"IgnoreHoliday",
-		"IgnoreWeekend",
-		"IncludeDeletes",
-		"IncludeRemoved",
-		"Includes",
-		"IsUniversallyLocalDates",
-		"MaxResults",
-		"PageToken",
-		"RangeEndDate",
-		"RangeStartDate",
-		"ScheduleEndDate",
-		"ScheduleStartDate",
-		"SinceModifiedTimestamp",
-		"StartDate",
-		"SyncToken",
-	}
-
-	r := NewRequestWithQueryField(rPath, allowableFields, rqf)
-	// r.SetIncludes("StaffTags,TaskTags,LocationTags")
-	// r.SetStartDate(time.Now().AddDate(0, 0, -14).UTC())
-	// r.SetEndDate(time.Now().UTC())
-
 	return r
 }
