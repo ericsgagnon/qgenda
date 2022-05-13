@@ -1,16 +1,5 @@
 package qgenda
 
-import (
-	"bytes"
-	"context"
-	"database/sql"
-	"log"
-	"strings"
-	"text/template"
-
-	"github.com/jmoiron/sqlx"
-)
-
 type Schedule struct {
 	// RawMessage        *string    `json:"-" db:"_raw_message"`
 	// ExtractDateTime   *Time      `json:"-" db:"_extract_date_time"`
@@ -68,7 +57,7 @@ type Schedule struct {
 	LocationID             *string       `json:"LocationID,omitempty"`
 	LocationAddress        *string       `json:"LocationAddress,omitempty"`
 	TimeZone               *string       `json:"TimeZone,omitempty"`
-	LastModifiedDateUTC    *Time         `json:"LastModifiedDateUTC,omitempty" primarykey:"true"`
+	LastModifiedDateUTC    *Time         `json:"LastModifiedDateUTC,omitempty" primarykey:"true" querycondition:"ge" qf:"SinceModifiedTimestamp"`
 	LocationTags           []Location    `json:"LocationTags,omitempty"`
 	IsRotationTask         *bool         `json:"IsRotationTask"`
 }
@@ -108,117 +97,128 @@ func NewScheduleRequest(rqf *RequestQueryFields) *Request {
 	return r
 }
 
-func xxPGCreateScheduleTagTableStatement(schema, table string) string {
-	if table == "" {
-		table = "scheduletag"
-	}
+func PGCreateScheduleTableStatement(schema, table string) string {
+	return PGCreateTableStatement(Schedule{}, schema, table)
+}
 
-	tplValues := struct {
-		Schema     string
-		Table      string
-		Fields     []string
-		PrimaryKey []string
-	}{
-		Schema: schema,
-		Table:  table,
-		// Fields:     sqlFieldDefs,
-		// PrimaryKey: primaryKey,
-	}
+func PGCreateScheduleTagStatement(schema, table string) string {
+	return PGCreateTableStatement(ScheduleTag{}, schema, table)
+}
 
-	tpl := `
-	CREATE TABLE IF NOT EXISTS {{ .Schema -}}{{- .Table }} (
-        schedulekey text  not null,
-        lastmodifieddateutc timestamp with time zone not null,
-        categorykey text,
-        categoryname text,
-		tagkey text,
-		tagname text
-	)
-	`
-	var buf bytes.Buffer
+func PGInsertScheduleStatement(schema, table string) string {
+	return PGInsertStatement(Schedule{}, schema, table)
+}
 
-	if err := template.Must(template.
-		New("").
-		Funcs(template.FuncMap{"join": strings.Join}).
-		Parse(tpl)).
-		Execute(&buf, tplValues); err != nil {
-		log.Println(err)
-		panic(err)
-	}
-	return buf.String()
+func PGInsertScheduleTagStatement(schema, table string) string {
+	return PGInsertStatement(ScheduleTag{}, schema, table)
+}
+
+func PGQueryScheduleConstraintStatement(schema, table string) string {
+	return PGQueryConstraintsStatement(Schedule{}, schema, table)
+}
+
+func PGQueryScheduleTagConstraintStatement(schema, table string) string {
+	return PGQueryConstraintsStatement(ScheduleTag{}, schema, table)
+}
+
+func (sch Schedule) PGCreateTable() {
 
 }
+
+// func xxPGCreateScheduleTagTableStatement(schema, table string) string {
+// 	if table == "" {
+// 		table = "scheduletag"
+// 	}
+
+// 	tplValues := struct {
+// 		Schema     string
+// 		Table      string
+// 		Fields     []string
+// 		PrimaryKey []string
+// 	}{
+// 		Schema: schema,
+// 		Table:  table,
+// 		// Fields:     sqlFieldDefs,
+// 		// PrimaryKey: primaryKey,
+// 	}
+
+// 	tpl := `
+// 	CREATE TABLE IF NOT EXISTS {{ .Schema -}}{{- .Table }} (
+//         schedulekey text  not null,
+//         lastmodifieddateutc timestamp with time zone not null,
+//         categorykey text,
+//         categoryname text,
+// 		tagkey text,
+// 		tagname text
+// 	)
+// 	`
+// 	var buf bytes.Buffer
+
+// 	if err := template.Must(template.
+// 		New("").
+// 		Funcs(template.FuncMap{"join": strings.Join}).
+// 		Parse(tpl)).
+// 		Execute(&buf, tplValues); err != nil {
+// 		log.Println(err)
+// 		panic(err)
+// 	}
+// 	return buf.String()
+
+// }
 
 // func PGCreateScheduleTable(ctx context.Context, db sqlx.DB, schema string, table string) (sql.Result, error) {
 // 	return db.ExecContext(ctx, PGCreateScheduleTableStatement(schema, table))
 // }
 
-func xxPGCreateScheduleTagTable(ctx context.Context, db sqlx.DB, schema string, table string) (sql.Result, error) {
-	return db.ExecContext(ctx, xxPGCreateScheduleTagTableStatement(schema, table))
-}
+// func xxPGCreateScheduleTagTable(ctx context.Context, db sqlx.DB, schema string, table string) (sql.Result, error) {
+// 	return db.ExecContext(ctx, xxPGCreateScheduleTagTableStatement(schema, table))
+// }
 
-//
-func xxPGInsertScheduleStatement(schema, table string) string {
-	if table == "" {
-		table = "scheduletag"
-	}
+// //
+// func xxPGInsertScheduleStatement(schema, table string) string {
+// 	if table == "" {
+// 		table = "scheduletag"
+// 	}
 
-	tplValues := struct {
-		Schema     string
-		Table      string
-		Fields     []string
-		PrimaryKey []string
-	}{
-		Schema: schema,
-		Table:  table,
-		// Fields:     sqlFieldDefs,
-		// PrimaryKey: primaryKey,
-	}
-	tpl := `
-	INSERT INTO {{ .Schema -}}{{- .Table }} (
-	) VALUES (
-		:first_name, 
-		:last_name, 
-		:email
-	)
-	CREATE TABLE IF NOT EXISTS {{ .Schema -}}{{- .Table }} (
-		schedulekey text  not null,
-        lastmodifieddateutc timestamp with time zone not null,
-        categorykey text,
-        categoryname text,
-		tagkey text,
-		tagname text
-	)
-	`
-	var buf bytes.Buffer
+// 	tplValues := struct {
+// 		Schema     string
+// 		Table      string
+// 		Fields     []string
+// 		PrimaryKey []string
+// 	}{
+// 		Schema: schema,
+// 		Table:  table,
+// 		// Fields:     sqlFieldDefs,
+// 		// PrimaryKey: primaryKey,
+// 	}
+// 	tpl := `
+// 	INSERT INTO {{ .Schema -}}{{- .Table }} (
+// 	) VALUES (
+// 		:first_name,
+// 		:last_name,
+// 		:email
+// 	)
+// 	CREATE TABLE IF NOT EXISTS {{ .Schema -}}{{- .Table }} (
+// 		schedulekey text  not null,
+//         lastmodifieddateutc timestamp with time zone not null,
+//         categorykey text,
+//         categoryname text,
+// 		tagkey text,
+// 		tagname text
+// 	)
+// 	`
+// 	var buf bytes.Buffer
 
-	if err := template.Must(template.
-		New("").
-		Funcs(template.FuncMap{"join": strings.Join}).
-		Parse(tpl)).
-		Execute(&buf, tplValues); err != nil {
-		log.Println(err)
-		panic(err)
-	}
-	return buf.String()
-}
-
-func PGCreateScheduleTableStatement(schema, table string) string {
-	PGCreateTableStatement(ScheduleTag{}, "", "scheduletag")
-	return ""
-}
-
-func PGCreateScheduleTagStatement(schema, table string) string {
-	return ""
-}
-
-func PGInsertScheduleStatement(schema, table string) string {
-	return ""
-}
-
-func PGInsertScheduleTagStatement(schema, table string) string {
-	return ""
-}
+// 	if err := template.Must(template.
+// 		New("").
+// 		Funcs(template.FuncMap{"join": strings.Join}).
+// 		Parse(tpl)).
+// 		Execute(&buf, tplValues); err != nil {
+// 		log.Println(err)
+// 		panic(err)
+// 	}
+// 	return buf.String()
+// }
 
 // var pgSQLColumnSpecTpl = `
 // {{- range  $index, $field := .Fields -}}
