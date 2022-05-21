@@ -230,9 +230,18 @@ CREATE TABLE IF NOT EXISTS {{ .Schema -}}{{- .Table }} (
 {{- end -}}
 {{- $primarykey := join .PrimaryKey  ", " -}}
 {{ if ne $primarykey "" }}, 
-PRIMARY KEY ( {{ $primarykey }} ) {{ end }}
+PRIMARY KEY ( {{ $primarykey }} ) 
+{{ else }},
+CONSTRAINT {{ .Table -}}_all_columns_unique UNIQUE (
+{{- range  $index, $field := .Fields -}}
+{{- if ne $index 0 -}},{{- end }}
+	{{ pgname $field }} 
+{{- end -}} )
+{{ end }} 
 )
 `
+
+//create unique index if not exists schedulestafftag_all_columns_unique on schedulestafftag (schedulekey, lastmodifieddateutc, categorykey, categoryname, tagkey, tagname)
 
 var pgInsertTpl = `
 INSERT INTO {{ .Schema -}}{{- .Table }} (
@@ -282,6 +291,7 @@ func PGQueryConstraintsStatement[T any](value T, schema, table string) string {
 }
 
 func PGCreateTable[T any](ctx context.Context, db *sqlx.DB, value []T, schema, table string) (sql.Result, error) {
+	// fmt.Println(PGCreateTableStatement(value[0], schema, table))
 	return db.NamedExecContext(
 		ctx,
 		PGCreateTableStatement(value[0], schema, table),
@@ -290,6 +300,7 @@ func PGCreateTable[T any](ctx context.Context, db *sqlx.DB, value []T, schema, t
 }
 
 func PGInsertRows[T any](ctx context.Context, db *sqlx.DB, value []T, schema, table string) (sql.Result, error) {
+	// fmt.Println(PGInsertStatement(value[0], schema, table))
 	return db.NamedExecContext(
 		ctx,
 		PGInsertStatement(value[0], schema, table),
@@ -298,6 +309,7 @@ func PGInsertRows[T any](ctx context.Context, db *sqlx.DB, value []T, schema, ta
 }
 
 func PGQueryConstraint[T any](ctx context.Context, db *sqlx.DB, value []T, schema, table string) (sql.Result, error) {
+	// fmt.Println(PGQueryConstraintsStatement(value[0], schema, table))
 	result, err := db.NamedExecContext(
 		ctx,
 		PGQueryConstraintsStatement(value[0], schema, table),

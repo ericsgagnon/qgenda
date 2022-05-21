@@ -11,7 +11,6 @@ import (
 	_ "time/tzdata"
 
 	_ "github.com/lib/pq"
-	"gopkg.in/yaml.v2"
 
 	"github.com/ericsgagnon/qgenda/pkg/qgenda"
 	_ "github.com/jackc/pgx/v4/stdlib"
@@ -19,7 +18,7 @@ import (
 )
 
 func main() {
-
+	ctx := context.Background()
 	var sch []qgenda.Schedule
 	b, err := os.ReadFile("../out/rawschedule.json")
 	if err != nil {
@@ -60,32 +59,47 @@ func main() {
 	defer db.Close()
 	// fmt.Println(qgenda.PGCreateTableStatement(qgenda.Schedule{}, "", "schedule"))
 	// fmt.Println(qgenda.PGInsertStatement(qgenda.Schedule{}, "", "schedule"))
-	// dbDropResult, err := db.ExecContext(context.Background(), "DROP TABLE IF EXISTS schedule")
+	if dbDropResult, err := db.ExecContext(context.Background(), "DROP TABLE IF EXISTS schedule"); err != nil {
+		fmt.Println(dbDropResult, err)
+	}
+	if dbDropResult, err := db.ExecContext(context.Background(), "DROP TABLE IF EXISTS schedulestafftag"); err != nil {
+		fmt.Println(dbDropResult, err)
+	}
+	if dbDropResult, err := db.ExecContext(context.Background(), "DROP TABLE IF EXISTS scheduletasktag"); err != nil {
+		fmt.Println(dbDropResult, err)
+	}
+
+	pipelineResult, err := qgenda.ExecSchedulePipeline(ctx, db, sch, "", "schedule")
+	if err != nil {
+		log.Println(err)
+	}
+	prra, err := pipelineResult.RowsAffected()
+	if err != nil {
+		log.Println(err)
+	}
+	fmt.Printf("%d", prra)
+
+	// dbResult, err := db.NamedExecContext(
+	// 	context.Background(),
+	// 	qgenda.PGCreateTableStatement(qgenda.Schedule{}, "", "schedule"),
+	// 	sch,
+	// )
 	// if err != nil {
 	// 	log.Println(err)
 	// }
-	// fmt.Println(dbDropResult)
-	dbResult, err := db.NamedExecContext(
-		context.Background(),
-		qgenda.PGCreateTableStatement(qgenda.Schedule{}, "", "schedule"),
-		sch,
-	)
-	if err != nil {
-		log.Println(err)
-	}
-	fmt.Println(dbResult)
-	dbResult, err = db.NamedExecContext(
-		context.Background(),
-		qgenda.PGInsertStatement(qgenda.Schedule{}, "", "schedule"),
-		sch,
-	)
-	if err != nil {
-		log.Println(err)
-	}
-	fmt.Println(dbResult)
-	fmt.Println(qgenda.PGCreateTableStatement(qgenda.ScheduleTag{}, "", "scheduletag"))
-	fmt.Println(qgenda.PGInsertStatement(qgenda.ScheduleTag{}, "", "scheduletag"))
-	fmt.Println(qgenda.PGQueryConstraintsStatement(qgenda.Schedule{}, "", "schedule"))
+	// fmt.Println(dbResult)
+	// dbResult, err = db.NamedExecContext(
+	// 	context.Background(),
+	// 	qgenda.PGInsertStatement(qgenda.Schedule{}, "", "schedule"),
+	// 	sch,
+	// )
+	// if err != nil {
+	// 	log.Println(err)
+	// }
+	// fmt.Println(dbResult)
+	// fmt.Println(qgenda.PGCreateTableStatement(qgenda.ScheduleTag{}, "", "scheduletag"))
+	// fmt.Println(qgenda.PGInsertStatement(qgenda.ScheduleTag{}, "", "scheduletag"))
+	// fmt.Println(qgenda.PGQueryConstraintsStatement(qgenda.Schedule{}, "", "schedule"))
 	rqf := qgenda.RequestQueryFields{}
 	if err := db.Get(
 		&rqf,
@@ -109,19 +123,19 @@ func main() {
 		log.Fatalln(err)
 	}
 	c.Auth()
-	ctx := context.Background()
+
 	fmt.Println(sr.ToHTTPRequest().URL.String())
 	resp, err := c.Do(ctx, sr)
 	if err != nil {
 		log.Println(err)
 	}
-	fmt.Println("after response ##########")
-	for k, v := range resp.Header {
-		fmt.Printf("%s %-80s\n", k, "-")
-		for vi, vv := range v {
-			fmt.Printf("\t%3d: %40s\n", vi, vv)
-		}
-	}
+	// fmt.Println("after response ##########")
+	// for k, v := range resp.Header {
+	// 	fmt.Printf("%s %-80s\n", k, "-")
+	// 	for vi, vv := range v {
+	// 		fmt.Printf("\t%3d: %40s\n", vi, vv)
+	// 	}
+	// }
 	// respOut, err := yaml.Marshal(resp)
 	// if err != nil {
 	// 	log.Println(err)
@@ -138,30 +152,39 @@ func main() {
 	if err != nil {
 		log.Println(err)
 	}
-	fmt.Println("## Data ##########################################")
-	fmt.Println(string(data))
-	fmt.Println("##################################################")
+	// fmt.Println("## Data ##########################################")
+	// fmt.Println(string(data))
+	// fmt.Println("##################################################")
 	// data2 := *&data
 	var schTest []qgenda.Schedule
 	if err := json.Unmarshal(data, &schTest); err != nil {
 		log.Println(err)
 	}
+	qgenda.Process(schTest)
+	updatePipelineResult, err := qgenda.ExecSchedulePipeline(ctx, db, schTest, "", "schedule")
+	if err != nil {
+		log.Println(err)
+	}
+	uprra, err := updatePipelineResult.RowsAffected()
+	if err != nil {
+		log.Println(err)
+	}
+	fmt.Printf("%d\n", uprra)
 
 	// process data
-	qgenda.Process(schTest)
 
-	out, err := yaml.Marshal(schTest)
-	if err != nil {
-		log.Println(err)
-	}
-	fmt.Println(string(out))
+	// out, err := yaml.Marshal(schTest)
+	// if err != nil {
+	// 	log.Println(err)
+	// }
+	// fmt.Println(string(out))
 
-	os.WriteFile("scheduleTest.yaml", out, 0644)
-	dbInsertRowsResult, err := qgenda.PGInsertRows(ctx, db, schTest, "", "schedule")
-	if err != nil {
-		log.Println(err)
-	}
-	fmt.Println(dbInsertRowsResult)
+	// os.WriteFile("scheduleTest.yaml", out, 0644)
+	// dbInsertRowsResult, err := qgenda.PGInsertRows(ctx, db, schTest, "", "schedule")
+	// if err != nil {
+	// 	log.Println(err)
+	// }
+	// fmt.Println(dbInsertRowsResult)
 
 	// fmt.Println(sch[0])
 	// var greeting string

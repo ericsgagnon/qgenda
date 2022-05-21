@@ -1,5 +1,13 @@
 package qgenda
 
+import (
+	"context"
+	"database/sql"
+	"fmt"
+
+	"github.com/jmoiron/sqlx"
+)
+
 type Schedule struct {
 	// RawMessage        *string    `json:"-" db:"_raw_message"`
 	// ExtractDateTime   *Time      `json:"-" db:"_extract_date_time"`
@@ -123,6 +131,82 @@ func PGQueryScheduleTagConstraintStatement(schema, table string) string {
 
 func (sch Schedule) PGCreateTable() {
 
+}
+
+type pgScheduleTag struct {
+	ScheduleKey         *string `json:"ScheduleKey,omitempty" nullable:"false"`
+	LastModifiedDateUTC *Time   `json:"LastModifiedDateUTC,omitempty" nullable:"false"`
+	CategoryKey         *int64  `json:"CategoryKey" nullable:"false"`
+	CategoryName        *string `json:"CategoryName" nullable:"false"`
+	TagKey              *int64  `db:"tagkey" nullable:"false"`
+	TagName             *string `db:"tagname" nullable:"false"`
+}
+
+func ExecSchedulePipeline(ctx context.Context, db *sqlx.DB, value []Schedule, schema, table string) (sql.Result, error) {
+	// rename - maybe pgloader or similar
+	cstResult, err := PGCreateTable(ctx, db, value, schema, table)
+	if err != nil {
+		return cstResult, err
+	}
+	isrResult, err := PGInsertRows(ctx, db, value, schema, table)
+	if err != nil {
+		return isrResult, err
+	}
+
+	sttablename := fmt.Sprintf("%sstafftag", table)
+	stafftags := []pgScheduleTag{}
+	// csstResult, err := PGCreateTable(ctx, db, value[0].StaffTags, schema, sttablename)
+	for _, sch := range value {
+		for _, cat := range sch.StaffTags {
+			for _, tag := range cat.Tags {
+				stafftag := pgScheduleTag{
+					ScheduleKey:         sch.ScheduleKey,
+					LastModifiedDateUTC: sch.LastModifiedDateUTC,
+					CategoryKey:         cat.CategoryKey,
+					CategoryName:        cat.CategoryName,
+					TagKey:              tag.Key,
+					TagName:             tag.Name,
+				}
+				stafftags = append(stafftags, stafftag)
+			}
+		}
+	}
+	csstResult, err := PGCreateTable(ctx, db, stafftags, schema, sttablename)
+	if err != nil {
+		return csstResult, err
+	}
+	istrResult, err := PGInsertRows(ctx, db, stafftags, schema, sttablename)
+	if err != nil {
+		return istrResult, err
+	}
+
+	tttablename := fmt.Sprintf("%stasktag", table)
+	tasktags := []pgScheduleTag{}
+	for _, sch := range value {
+		for _, cat := range sch.TaskTags {
+			for _, tag := range cat.Tags {
+				tasktag := pgScheduleTag{
+					ScheduleKey:         sch.ScheduleKey,
+					LastModifiedDateUTC: sch.LastModifiedDateUTC,
+					CategoryKey:         cat.CategoryKey,
+					CategoryName:        cat.CategoryName,
+					TagKey:              tag.Key,
+					TagName:             tag.Name,
+				}
+				tasktags = append(tasktags, tasktag)
+			}
+		}
+	}
+	csttResult, err := PGCreateTable(ctx, db, tasktags, schema, tttablename)
+	if err != nil {
+		return csttResult, err
+	}
+	ittrResult, err := PGInsertRows(ctx, db, tasktags, schema, fmt.Sprintf("%stasktag", table))
+	if err != nil {
+		return ittrResult, err
+	}
+
+	return isrResult, err
 }
 
 // func xxPGCreateScheduleTagTableStatement(schema, table string) string {

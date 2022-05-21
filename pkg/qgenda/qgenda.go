@@ -5,13 +5,13 @@ import (
 	"reflect"
 )
 
-func ptr[T any](a T) *T {
-	return &a
-}
+// func ptr[T any](a T) *T {
+// 	return &a
+// }
 
-func val(a *any) any {
-	return *a
-}
+// func val[T any](a *T) T {
+// 	return *a
+// }
 
 // consolidate these somewhere
 func typeName(a any) string {
