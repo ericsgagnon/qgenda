@@ -16,6 +16,30 @@ import (
 
 var PGTag = "pg"
 
+// // ClientConfig is an attempt at a generic
+// // way to config client parameters
+// type DBClientConfig struct {
+// 	Name             string
+// 	Kind             string
+// 	Host             string
+// 	Port             int
+// 	Database         string
+// 	User             string
+// 	Password         string
+// 	Arguments        url.Values
+// 	ConnectionString string
+// }
+
+func NewPGClientConfig(connString string) *DBClientConfig {
+	return &DBClientConfig{
+		Name:             "postgres",
+		Type:             "postgres",
+		Driver:           "postgres",
+		ConnectionString: connString,
+	}
+
+}
+
 // PGToGoTypeMap represents the default type mapping
 // we expect to use when retrieving data from postgres
 var PGToGoTypeMap = map[string]string{

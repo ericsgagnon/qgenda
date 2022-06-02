@@ -23,9 +23,31 @@ type ClientConfig struct {
 	ClientTimeout  time.Duration
 	RequestTimeout time.Duration
 	Email          string
-	CompanyKey     string
+	CompanyKey     string `yaml:"companyKey"`
 	Password       string
 	CacheConfig    *CacheConfig
+}
+
+// DefaultClientConfig returns a ClientConfig pointer
+// with reasonable defaults. By default, it will recommend
+// environment variables in the form ${VARIABLE_NAME}
+func DefaultClientConfig() *ClientConfig {
+
+	// cc, err := NewCacheConfig("qgenda")
+	// if err != nil {
+	// 	panic(err)
+	// }
+
+	return &ClientConfig{
+		URL:            "https://api.qgenda.com/v2",
+		ClientTimeout:  time.Second * 30,
+		RequestTimeout: time.Second * 30,
+		Email:          "${QGENDA_EMAIL}",
+		CompanyKey:     "${QGENDA_COMPANY_KEY}",
+		Password:       "${QGENDA_PASSWORD}",
+		// CacheConfig:    cc,
+	}
+
 }
 
 // Client is the primary struct for handling client
@@ -41,6 +63,11 @@ type Client struct {
 }
 
 func NewClient(cc *ClientConfig) (*Client, error) {
+
+	if cc == nil {
+		cc = DefaultClientConfig()
+	}
+
 	// var cfg *ClientConfig
 	// cfg = cc
 	// fmt.Println(*cfg)

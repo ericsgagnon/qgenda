@@ -69,30 +69,30 @@ func (r *Request) AppendPath(p string) {
 // RequestQueryFields is an experiment in using pointer members
 // for optional fields
 type RequestQueryFields struct {
-	CompanyKey              *string    `query:"companyKey,omitempty" url:"companyKey,omitempty"`
-	OrganizationKey         *int       `query:"organizationKey,omitempty" url:"organizationKey,omitempty"`
-	Expand                  *string    `query:"$expand,omitempty" url:"$expand,omitempty"`
-	Filter                  *string    `query:"$filter,omitempty" url:"$filter,omitempty"`
-	Orderby                 *string    `query:"$orderby,omitempty" url:"$orderby,omitempty"`
-	Select                  *string    `query:"$select,omitempty" url:"$select,omitempty"`
-	DailyConfigurationKey   *string    `query:"dailyConfigurationKey,omitempty" url:"dailyConfigurationKey,omitempty"`
-	DateFormat              *string    `query:"dateFormat,omitempty" url:"dateFormat,omitempty"`
-	EndDate                 *time.Time `query:"endDate,omitempty" url:"endDate,omitempty" layout:"2006-01-02T15:04:05Z"` //layout:"01/02/2006"
-	IgnoreHoliday           *bool      `query:"ignoreHoliday,omitempty" url:"ignoreHoliday,omitempty"`
-	IgnoreWeekend           *bool      `query:"ignoreWeekend,omitempty" url:"ignoreWeekend,omitempty"`
-	IncludeDeletes          *bool      `query:"includeDeletes,omitempty" url:"includeDeletes,omitempty"`
-	IncludeRemoved          *bool      `query:"includeRemoved,omitempty" url:"includeRemoved,omitempty"`
-	Includes                *string    `query:"includes,omitempty" url:"includes,omitempty"`
-	IsUniversallyLocalDates *bool      `query:"IsUniversallyLocalDates,omitempty" url:"IsUniversallyLocalDates,omitempty"`
-	MaxResults              *int       `query:"maxResults,omitempty" url:"maxResults,omitempty"`
-	PageToken               *string    `query:"pageToken,omitempty" url:"pageToken,omitempty"`
-	RangeEndDate            *time.Time `query:"rangeEndDate,omitempty" url:"rangeEndDate,omitempty" layout:"2006-01-02T15:04:05Z"`           //layout:"01/02/2006"
-	RangeStartDate          *time.Time `query:"rangeStartDate,omitempty" url:"rangeStartDate,omitempty" layout:"2006-01-02T15:04:05Z"`       //layout:"01/02/2006"
-	ScheduleEndDate         *time.Time `query:"scheduleEndDate,omitempty" url:"scheduleEndDate,omitempty" layout:"2006-01-02T15:04:05Z"`     //layout:"01/02/2006"
-	ScheduleStartDate       *time.Time `query:"scheduleStartDate,omitempty" url:"scheduleStartDate,omitempty" layout:"2006-01-02T15:04:05Z"` //layout:"01/02/2006"
-	SinceModifiedTimestamp  *time.Time `query:"sinceModifiedTimestamp,omitempty" url:"sinceModifiedTimestamp,omitempty" layout:"2006-01-02T15:04:05Z"`
-	StartDate               *time.Time `query:"startDate,omitempty" url:"startDate,omitempty"`
-	SyncToken               *string    `query:"syncToken,omitempty" url:"syncToken,omitempty"`
+	CompanyKey              *string    `yaml:"companyKey,omitempty" query:"companyKey,omitempty" url:"companyKey,omitempty"`
+	OrganizationKey         *int       `yaml:"organizationKey,omitempty" query:"organizationKey,omitempty" url:"organizationKey,omitempty"`
+	Expand                  *string    `yaml:"$expand,omitempty" query:"$expand,omitempty" url:"$expand,omitempty"`
+	Filter                  *string    `yaml:"$filter,omitempty" query:"$filter,omitempty" url:"$filter,omitempty"`
+	Orderby                 *string    `yaml:"$orderby,omitempty" query:"$orderby,omitempty" url:"$orderby,omitempty"`
+	Select                  *string    `yaml:"$select,omitempty" query:"$select,omitempty" url:"$select,omitempty"`
+	DailyConfigurationKey   *string    `yaml:"dailyConfigurationKey,omitempty" query:"dailyConfigurationKey,omitempty" url:"dailyConfigurationKey,omitempty"`
+	DateFormat              *string    `yaml:"dateFormat,omitempty" query:"dateFormat,omitempty" url:"dateFormat,omitempty"`
+	EndDate                 *time.Time `yaml:"endDate,omitempty" query:"endDate,omitempty" url:"endDate,omitempty" layout:"2006-01-02T15:04:05Z"` //layout:"01/02/2006"
+	IgnoreHoliday           *bool      `yaml:"ignoreHoliday,omitempty" query:"ignoreHoliday,omitempty" url:"ignoreHoliday,omitempty"`
+	IgnoreWeekend           *bool      `yaml:"ignoreWeekend,omitempty" query:"ignoreWeekend,omitempty" url:"ignoreWeekend,omitempty"`
+	IncludeDeletes          *bool      `yaml:"includeDeletes,omitempty" query:"includeDeletes,omitempty" url:"includeDeletes,omitempty"`
+	IncludeRemoved          *bool      `yaml:"includeRemoved,omitempty" query:"includeRemoved,omitempty" url:"includeRemoved,omitempty"`
+	Includes                *string    `yaml:"includes,omitempty" query:"includes,omitempty" url:"includes,omitempty"`
+	IsUniversallyLocalDates *bool      `yaml:"IsUniversallyLocalDates,omitempty" query:"IsUniversallyLocalDates,omitempty" url:"IsUniversallyLocalDates,omitempty"`
+	MaxResults              *int       `yaml:"maxResults,omitempty" query:"maxResults,omitempty" url:"maxResults,omitempty"`
+	PageToken               *string    `yaml:"pageToken,omitempty" query:"pageToken,omitempty" url:"pageToken,omitempty"`
+	RangeEndDate            *time.Time `yaml:"rangeEndDate,omitempty" query:"rangeEndDate,omitempty" url:"rangeEndDate,omitempty" layout:"2006-01-02T15:04:05Z"`                //layout:"01/02/2006"
+	RangeStartDate          *time.Time `yaml:"rangeStartDate,omitempty" query:"rangeStartDate,omitempty" url:"rangeStartDate,omitempty" layout:"2006-01-02T15:04:05Z"`          //layout:"01/02/2006"
+	ScheduleEndDate         *time.Time `yaml:"scheduleEndDate,omitempty" query:"scheduleEndDate,omitempty" url:"scheduleEndDate,omitempty" layout:"2006-01-02T15:04:05Z"`       //layout:"01/02/2006"
+	ScheduleStartDate       *time.Time `yaml:"scheduleStartDate,omitempty" query:"scheduleStartDate,omitempty" url:"scheduleStartDate,omitempty" layout:"2006-01-02T15:04:05Z"` //layout:"01/02/2006"
+	SinceModifiedTimestamp  *time.Time `yaml:"sinceModifiedTimestamp,omitempty" query:"sinceModifiedTimestamp,omitempty" url:"sinceModifiedTimestamp,omitempty" layout:"2006-01-02T15:04:05Z"`
+	StartDate               *time.Time `yaml:"startDate,omitempty" query:"startDate,omitempty" url:"startDate,omitempty"`
+	SyncToken               *string    `yaml:"syncToken,omitempty" query:"syncToken,omitempty" url:"syncToken,omitempty"`
 }
 
 func (rqf *RequestQueryFields) Parse() url.Values {
@@ -236,6 +236,16 @@ func (r *Request) Parse() (*http.Request, error) {
 	return http.NewRequest(r.Method, r.RequestQueryFields.Parse().Encode(), nil)
 
 }
+
+type QueryFieldFlag int8
+
+const (
+	QFProhibited QueryFieldFlag = iota - 1
+	QFAllowed
+	QFRequired
+)
+
+type AQF map[string]QueryFieldFlag
 
 func NewRequestWithQueryField(requestPath string, allowableQueryFields []string, rqf *RequestQueryFields) *Request {
 	aqfMap := map[string]interface{}{}

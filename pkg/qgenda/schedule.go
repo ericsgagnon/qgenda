@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -81,6 +82,25 @@ type ScheduleTag struct {
 	}
 }
 
+func DefaultScheduleRequestQueryFields(rqf *RequestQueryFields) *RequestQueryFields {
+	if rqf == nil {
+		rqf = &RequestQueryFields{}
+	}
+	if rqf.StartDate == nil {
+		rqf.SetStartDate(time.Now().UTC().Add(time.Hour * 24 * -1).Truncate(time.Hour * 24))
+	}
+	if rqf.EndDate == nil || rqf.EndDate.Sub(rqf.GetStartDate()) > time.Hour*24*100 {
+		rqf.SetEndDate(rqf.GetStartDate().Add(time.Hour * 24 * 100))
+	}
+	if rqf.SinceModifiedTimestamp == nil {
+		rqf.SetSinceModifiedTimestamp(rqf.GetStartDate())
+	}
+	if rqf.Includes == nil {
+		rqf.SetIncludes("StaffTags,TaskTags,LocationTags")
+	}
+	return rqf
+}
+
 func NewScheduleRequest(rqf *RequestQueryFields) *Request {
 	requestPath := "schedule"
 	queryFields := []string{
@@ -96,11 +116,23 @@ func NewScheduleRequest(rqf *RequestQueryFields) *Request {
 		"OrderBy",
 		"Expand",
 	}
-	if rqf != nil {
-		if rqf.Includes == nil {
-			rqf.SetIncludes("StaffTags,TaskTags,LocationTags")
-		}
-	}
+	rqf = DefaultScheduleRequestQueryFields(rqf)
+	// if rqf == nil {
+	// 	rqf = &RequestQueryFields{}
+	// }
+	// if rqf.StartDate == nil {
+	// 	rqf.SetStartDate(time.Now().UTC().Add(time.Hour * 24 * -1).Truncate(time.Hour * 24))
+	// }
+	// if rqf.EndDate == nil || rqf.EndDate.Sub(rqf.GetStartDate()) > time.Hour*24*100 {
+	// 	rqf.SetEndDate(rqf.GetStartDate().Add(time.Hour * 24 * 100))
+	// }
+	// if rqf.SinceModifiedTimestamp == nil {
+	// 	rqf.SetSinceModifiedTimestamp(rqf.GetStartDate())
+	// }
+	// if rqf.Includes == nil {
+	// 	rqf.SetIncludes("StaffTags,TaskTags,LocationTags")
+	// }
+
 	r := NewRequestWithQueryField(requestPath, queryFields, rqf)
 	return r
 }
