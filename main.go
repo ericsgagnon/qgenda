@@ -1,21 +1,47 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 
 	"github.com/ericsgagnon/qgenda/app"
+	"github.com/jmoiron/sqlx"
+
+	_ "github.com/lib/pq"
 )
 
 func main() {
-
-	a, err := app.NewCLIApp(nil)
+	// cfg := app.DefaultConfig(nil)
+	a, err := app.NewApp()
 	if err != nil {
 		log.Println(err)
 	}
+	// a, err := app.NewCLIApp(cfg)
+	// if err != nil {
+	// 	log.Println(err)
+	// }
+	// if err := a.Run(os.Args); err != nil {
+	// 	log.Fatalln(err)
+	// }
 	if err := a.Run(os.Args); err != nil {
 		log.Fatalln(err)
 	}
+	// test := map[string]sqlx.DB{}
+	db, err := sqlx.Open("postgres", os.Getenv("PG_CONNECTION_STRING"))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
+		os.Exit(1)
+	}
+	defer db.Close()
+	// test["wintermute"] = db
+
+	// b, err := yaml.Marshal(a.Config)
+	// if err != nil {
+	// 	log.Fatalln(err)
+	// }
+	// // return nil
+	// fmt.Println(string(b))
 
 	// 	src := `
 	// ---

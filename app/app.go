@@ -13,7 +13,7 @@ type App struct {
 	Logger    *zap.Logger
 	Client    *qgenda.Client
 	DBClients map[string]*sqlx.DB
-	Endpoints []*qgenda.Endpoint
+	Endpoints []qgenda.Endpoint
 }
 
 type AppConfig struct {
@@ -28,13 +28,32 @@ func NewAppConfig() *AppConfig {
 	}
 }
 
-func NewApp() *App {
-
-	app := App{
-		Config: DefaultConfig(NewAppConfig()),
+func NewApp() (*App, error) {
+	app := &App{
+		Config:    DefaultConfig(NewAppConfig()),
+		DBClients: map[string]*sqlx.DB{},
 	}
 
-	return &app
+	cmd, err := NewCommand(app)
+	if err != nil {
+		return nil, err
+	}
+	app.Command = cmd
+	// dbclients := map[string]sqlx.DB{}
+	// app = App{
+	// 	// Config: DefaultConfig(NewAppConfig()),
+	// 	Config:    cfg,
+	// 	Command:   cmd,
+	// 	Client:    &qgenda.Client{},
+	// 	DBClients: dbclients,
+	// 	// Endpoints: []qgenda.Endpoint{},
+	// }
+
+	return app, nil
+}
+
+func (app *App) Run(args []string) error {
+	return app.Command.Run(args)
 }
 
 // Config contains all app config parameters
@@ -47,3 +66,9 @@ func NewApp() *App {
 // 	DBClients   map[string]url.URL `yaml:"dbClients"`
 // 	DataObjects map[string]qgenda.RequestQueryFields
 // }
+
+func (app *App) ExecDataPipelines() error {
+
+	// for _
+	return nil
+}

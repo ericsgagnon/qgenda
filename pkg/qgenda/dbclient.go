@@ -1,8 +1,21 @@
 package qgenda
 
 import (
+	"context"
+	"database/sql"
 	"net/url"
+
+	"github.com/jmoiron/sqlx"
 )
+
+type DBClient interface {
+	Open(cfg *DBClientConfig) (*sqlx.DB, error)
+	Ping(ctx context.Context) (bool, error)
+	CreateTable(ctx context.Context) (sql.Result, error)
+	DropTable(ctx context.Context) (sql.Result, error)
+	InsertRows(ctx context.Context) (sql.Result, error)
+	QueryConstraints(ctx context.Context) error
+}
 
 type DBClientConfig struct {
 	Name               string // descriptive name - used only for logs and reference
@@ -31,28 +44,6 @@ func ExampleDBClientConfig() DBClientConfig {
 	return cfg
 }
 
-// func ParseDBClientConfig(cfg DBClientConfig) (DBClientConfig, error) {
-
-// 	srcCfg := cfg
-// 	u, err := url.Parse(cfg.ConnectionString)
-// 	if err != nil {
-// 		return srcCfg, err
-// 	}
-// 	// populate cfg.url.UserInfo, if necessary
-// 	user := u.User.Username()
-// 	if user == "" {
-// 		user = cfg.User
-// 	}
-// 	password, _ := u.User.Password()
-// 	if password == "" {
-// 		password = cfg.Password
-// 	}
-// 	u.User = url.UserPassword(user, password)
-// 	cfg.url = u
-
-// 	return cfg, nil
-// }
-
 func (cfg DBClientConfig) String() string {
 	s := cfg.ConnectionString
 	if cfg.ExpandEnvVars {
@@ -61,20 +52,13 @@ func (cfg DBClientConfig) String() string {
 	if cfg.ExpandFileContents {
 		s = ExpandFileContents(s)
 	}
-	// if cfg.url == nil {
-	// 	dbcfg, err := ParseDBClientConfig(cfg)
-	// 	if err != nil {
-	// 		log.Println(err)
-	// 		return ""
-	// 	}
-	// 	cfg.url = dbcfg.url
-	// }
-	// u := cfg.url
-	// pw, _ := u.User.Password()
-	// s := fmt.Sprintf("%s://%s:%s@", u.Scheme, u.User.Username(), pw)
-	// // s = ExpandEnvVars(s)
-	// // s = ExpandFileContents(s)
 	return s
+}
+
+// OpenDBConnection doesn't technically 'open' a real connection, it follows
+// the go default of creating a DB struct that manages connections as needed
+func OpenDBClient(cfg *DBClientConfig) (DBClient, error) {
+	return nil, nil
 }
 
 // // ClientConfig is an attempt at a generic

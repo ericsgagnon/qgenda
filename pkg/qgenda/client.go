@@ -100,8 +100,15 @@ func NewClient(cc *ClientConfig) (*Client, error) {
 	}
 
 	cr := &url.Values{}
-	cr.Add("email", cc.Email)
-	cr.Add("password", cc.Password)
+	// try expanding env vars and file contents here
+	email := ExpandEnvVars(cc.Email)
+	password := ExpandEnvVars(cc.Password)
+	// fmt.Printf("%s\t%s\n", cc.Email, email)
+	// fmt.Printf("%s\t%s\n", cc.Password, password)
+	cr.Add("email", email)
+	cr.Add("password", password)
+	// cr.Add("email", cc.Email)
+	// cr.Add("password", cc.Password)
 	tkn, err := NewAuthToken(cch)
 	// fmt.Println(tkn.Cache)
 	if err != nil {

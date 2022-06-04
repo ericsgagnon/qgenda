@@ -12,23 +12,10 @@ import (
 	"text/template"
 
 	"github.com/jmoiron/sqlx"
+	_ "github.com/lib/pq"
 )
 
 var PGTag = "pg"
-
-// // ClientConfig is an attempt at a generic
-// // way to config client parameters
-// type DBClientConfig struct {
-// 	Name             string
-// 	Kind             string
-// 	Host             string
-// 	Port             int
-// 	Database         string
-// 	User             string
-// 	Password         string
-// 	Arguments        url.Values
-// 	ConnectionString string
-// }
 
 func NewPGClientConfig(connString string) *DBClientConfig {
 	return &DBClientConfig{
