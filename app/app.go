@@ -1,6 +1,9 @@
 package app
 
 import (
+	"context"
+	"log"
+
 	"github.com/ericsgagnon/qgenda/pkg/qgenda"
 	"github.com/jmoiron/sqlx"
 	"github.com/urfave/cli/v2"
@@ -70,5 +73,29 @@ func (app *App) Run(args []string) error {
 func (app *App) ExecDataPipelines() error {
 
 	// for _
+	return nil
+}
+
+func (app *App) ExecSchedulePipeline() error {
+
+	ctx := context.Background()
+	rqf := app.Config.Data["schedule"]
+	s := qgenda.Schedules{}
+	result, err := s.EPL(ctx,
+		app.Client,
+		&rqf,
+		app.DBClients["postgres"],
+		app.Config.DBClients["postgres"].Schema,
+		"schedule",
+		true)
+	if err != nil {
+		return err
+	}
+	if result != nil {
+		ra, _ := result.RowsAffected()
+		log.Printf("Schedule Rows Inserted: %d", ra)
+
+	}
+	// data := []qgenda.Schedule{}
 	return nil
 }

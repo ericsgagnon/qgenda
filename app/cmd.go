@@ -109,9 +109,20 @@ func NewCommand(app *App) (*cli.App, error) {
 					}
 
 					// establish db connections
-					
+					pgcfg := cfg.DBClients["postgres"]
+					// for k, v := range cfg.DBClients {
+					// 	fmt.Printf("Name: %s\t%#v\n", k, v)
 
-					fmt.Println("iterate through data resources")
+					// }
+					db, err := qgenda.NewDBClient(&pgcfg)
+					if err != nil {
+						return err
+					}
+					defer db.Close()
+					app.DBClients["postgres"] = db
+					if err := app.ExecSchedulePipeline(); err != nil {
+						return err
+					}
 					return nil
 				},
 			},

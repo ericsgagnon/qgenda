@@ -1,24 +1,5 @@
 package qgenda
 
-func NewStaffMemberRequest(rqf *RequestQueryFields) *Request {
-	requestPath := "staffmember"
-	queryFields := []string{
-		"Includes",
-		"Select",
-		"Filter",
-		"OrderBy",
-		"Expand",
-	}
-	if rqf != nil {
-		if rqf.Includes == nil {
-			rqf.SetIncludes("Skillset,Tags,TTCMTags,Profiles")
-		}
-	}
-
-	r := NewRequestWithQueryField(requestPath, queryFields, rqf)
-	return r
-}
-
 // func NewStaffMemberStaffIdRequest(rqf *RequestQueryFields) *Request {
 // 	requestPath := "staffmember/:staffId"
 // 	queryFields := []string{
@@ -72,6 +53,8 @@ func NewStaffMemberRequest(rqf *RequestQueryFields) *Request {
 // }
 
 type StaffMember struct {
+	RawMessage               *string         `json:"-" db:"_raw_message" primarykey:"true"`
+	ExtractDateTime          *Time           `json:"-" db:"_extract_date_time"`
 	Abbrev                   *string         `json:"Abbrev,omitempty"`
 	BgColor                  *string         `json:"BgColor,omitempty"`
 	BillSysID                *string         `json:"BillSysId,omitempty"`
@@ -98,7 +81,7 @@ type StaffMember struct {
 	PayrollId                *string         `json:"PayrollId,omitempty"`
 	RegHours                 *float64        `json:"RegHours,omitempty"`
 	StaffId                  *string         `json:"StaffId,omitempty"`
-	StaffKey                 *string         `json:"StaffKey,omitempty"`
+	StaffKey                 *string         `json:"StaffKey,omitempty" primarykey:"true"`
 	StartDate                *Date           `json:"StartDate,omitempty"`
 	TextColor                *string         `json:"TextColor,omitempty"`
 	Addr1                    *string         `json:"Addr1,omitempty"`
@@ -129,7 +112,11 @@ type StaffMember struct {
 	Profiles                 []Profile       `json:"Profiles,omitempty"`
 }
 
+type StaffMembers []StaffMember
+
 type StaffSkillset struct {
+	ExtractDateTime   *Time   `json:"-"`
+	StaffKey          *string `json:"-"`
 	StaffFirstName    *string `json:"StaffFirstName,omitempty"`
 	StaffLastName     *string `json:"StaffLastName,omitempty"`
 	StaffAbbreviation *string `json:"StaffAbbrev,omitempty"`
@@ -153,6 +140,39 @@ type StaffSkillset struct {
 	SunOccurrence     *string `json:"SunOccurrence,omitempty"`
 }
 
+type StaffTag struct {
+	
+}
+
+func DefaultStaffMemberRequestQueryFields(rqf *RequestQueryFields) *RequestQueryFields {
+	if rqf == nil {
+		rqf = &RequestQueryFields{}
+	}
+	if rqf.Includes == nil {
+		rqf.SetIncludes("StaffTags,TaskTags,LocationTags")
+	}
+	return rqf
+}
+
+func NewStaffMemberRequest(rqf *RequestQueryFields) *Request {
+	requestPath := "staffmember"
+	queryFields := []string{
+		"Includes",
+		"Select",
+		"Filter",
+		"OrderBy",
+		"Expand",
+	}
+	if rqf != nil {
+		if rqf.Includes == nil {
+			rqf.SetIncludes("Skillset,Tags,TTCMTags,Profiles")
+		}
+	}
+
+	r := NewRequestWithQueryField(requestPath, queryFields, rqf)
+	return r
+}
+
 func (p *StaffMember) Process() error {
 	ProcessStruct(p)
 	for i, _ := range p.Tags {
@@ -164,4 +184,3 @@ func (p *StaffMember) Process() error {
 
 	return nil
 }
-

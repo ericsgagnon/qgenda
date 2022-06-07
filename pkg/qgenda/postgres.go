@@ -23,8 +23,37 @@ func NewPGClientConfig(connString string) *DBClientConfig {
 		Type:             "postgres",
 		Driver:           "postgres",
 		ConnectionString: connString,
+		Schema:           "qgenda",
 	}
 
+}
+
+type PGClient struct {
+	*sqlx.DB
+}
+
+// PGDataset is a dataset that has custom methods for
+type PGDataset interface {
+	CreateTable(ctx context.Context, db *sqlx.DB, schema, table string) (sql.Result, error)
+	DropTable(ctx context.Context, db *sqlx.DB, schema, table string) (sql.Result, error)
+	InsertRows(ctx context.Context, db *sqlx.DB, schema, table string) (sql.Result, error)
+	QueryConstraints(ctx context.Context, db *sqlx.DB, schema, table string) error
+}
+
+func (c *PGClient) CreateTable(ctx context.Context, db *sqlx.DB, value []any, schema, table string) (sql.Result, error) {
+	return PGCreateTable(ctx, c.DB, value, schema, table)
+}
+
+func (c *PGClient) DropTable(ctx context.Context, db *sqlx.DB, value []any, schema, table string) (sql.Result, error) {
+	return PGDropTable(ctx, c.DB, value, schema, table)
+}
+
+func (c *PGClient) InsertRows(ctx context.Context, db *sqlx.DB, value []any, schema, table string) (sql.Result, error) {
+	return PGInsertRows(ctx, c.DB, value, schema, table)
+}
+
+func (c *PGClient) QueryConstraints(ctx context.Context, db *sqlx.DB, value []any, schema, table string) (sql.Result, error) {
+	return PGQueryConstraint(ctx, c.DB, value, schema, table)
 }
 
 // PGToGoTypeMap represents the default type mapping
@@ -183,7 +212,7 @@ func PGOmit(field Field) bool {
 
 func PGStatement[T any](value T, schema, table, tpl string) string {
 	allfields := StructToFields(*new(T))
-
+	// fmt.Println("PGStatement---------------------------------------")
 	var fields []Field
 	for _, field := range allfields {
 		if PGOmit(field) {
@@ -191,7 +220,9 @@ func PGStatement[T any](value T, schema, table, tpl string) string {
 		}
 		fields = append(fields, field)
 	}
-
+	// if schema != "" {
+	// 	schema = fmt.Sprintf("%s.", schema)
+	// }
 	tplValues := struct {
 		Schema     string
 		Table      string
@@ -233,8 +264,12 @@ func PGQueryConditionFields(fields []Field) []Field {
 	return qfields
 }
 
+var pgCreateSchemaTpl = `
+CREATE SCHEMA IF NOT EXISTS {{ .Schema }}
+`
+
 var pgCreateNewTableTpl = `
-CREATE TABLE IF NOT EXISTS {{ .Schema -}}{{- .Table }} (
+CREATE TABLE IF NOT EXISTS {{ .Schema -}}{{- if ne .Schema "" -}}.{{- end -}}{{- .Table }} (
 {{- range  $index, $field := .Fields -}}
 {{- if ne $index 0 -}},{{- end }}
 	{{ pgname $field }} {{ pgtype $field.Type }} {{ if $field.Unique }} unique {{ end -}} {{- if not $field.Nullable -}} not null {{- end }}
@@ -252,10 +287,14 @@ CONSTRAINT {{ .Table -}}_all_columns_unique UNIQUE (
 )
 `
 
+var pgDropTableTpl = `
+DROP TABLE IF EXISTS {{ .Schema -}}{{- if ne .Schema "" -}}.{{- end -}}{{- .Table }}
+`
+
 //create unique index if not exists schedulestafftag_all_columns_unique on schedulestafftag (schedulekey, lastmodifieddateutc, categorykey, categoryname, tagkey, tagname)
 
 var pgInsertTpl = `
-INSERT INTO {{ .Schema -}}{{- .Table }} (
+INSERT INTO {{ .Schema -}}{{- if ne .Schema "" -}}.{{- end -}}{{- .Table }} (
 {{- range  $index, $field := .Fields -}}
 {{- if ne $index 0 -}},{{- end }}
 	{{ pgname $field }}
@@ -286,44 +325,143 @@ SELECT
 	MAX( {{ pgname $field }} ) AS {{ qfname $field }}
 {{- end }}
 FROM 
-	{{ .Schema -}}{{- .Table }}
+	{{ .Schema -}}{{- if ne .Schema "" -}}.{{- end -}}{{- .Table }}
 `
 
-func PGCreateTableStatement[T any](value T, schema, table string) string {
-	return PGStatement(value, schema, table, pgCreateNewTableTpl)
-}
+// func PGCreateTableStatement[T any](value T, schema, table string) string {
+// 	return PGStatement(value, schema, table, pgCreateNewTableTpl)
+// }
 
-func PGInsertStatement[T any](value T, schema, table string) string {
-	return PGStatement(value, schema, table, pgInsertTpl)
-}
+// func PGDropTableStatement[T any](value T, schema, table string) string {
+// 	return PGStatement(value, schema, table, pgDropTableTpl)
+// }
+
+// func PGInsertStatement[T any](value T, schema, table string) string {
+// 	return PGStatement(value, schema, table, pgInsertTpl)
+// }
 
 func PGQueryConstraintsStatement[T any](value T, schema, table string) string {
 	return PGStatement(value, schema, table, pgSelectMaxConstraintsTpl)
 }
 
+func PGCreateSchema[T any](ctx context.Context, db *sqlx.DB, value []T, schema, table string) (sql.Result, error) {
+	// fmt.Printf("PGCreateSchema: %T\n", *new(T))
+	return db.ExecContext(
+		ctx,
+		PGStatement(*new(T), schema, table, pgCreateSchemaTpl),
+	)
+	// return db.NamedExecContext(
+	// 	ctx,
+	// 	PGStatement(*new(T), schema, table, pgCreateSchemaTpl),
+	// 	value,
+	// )
+
+}
+
 func PGCreateTable[T any](ctx context.Context, db *sqlx.DB, value []T, schema, table string) (sql.Result, error) {
 	// fmt.Println(PGCreateTableStatement(value[0], schema, table))
-	return db.NamedExecContext(
+	// fmt.Println(PGStatement(*new(T), schema, table, pgCreateNewTableTpl))
+	return db.ExecContext(
 		ctx,
-		PGCreateTableStatement(value[0], schema, table),
-		value,
+		// PGCreateTableStatement(value[0], schema, table),
+		PGStatement(*new(T), schema, table, pgCreateNewTableTpl),
+	)
+}
+
+func PGDropTable[T any](ctx context.Context, db *sqlx.DB, value []T, schema, table string) (sql.Result, error) {
+	// fmt.Println(PGCreateTableStatement(value[0], schema, table))
+	// fmt.Println(PGStatement(*new(T), schema, table, pgDropTableTpl))
+	return db.ExecContext(
+		ctx,
+		// PGDropTableStatement(value[0], schema, table),
+		PGStatement(*new(T), schema, table, pgDropTableTpl),
+		// PGStatement(*new(T), schema, table, pgDropTableTpl),
 	)
 }
 
 func PGInsertRows[T any](ctx context.Context, db *sqlx.DB, value []T, schema, table string) (sql.Result, error) {
-	// fmt.Println(PGInsertStatement(value[0], schema, table))
-	return db.NamedExecContext(
-		ctx,
-		PGInsertStatement(value[0], schema, table),
-		value,
-	)
+	if len(value) < 1 {
+		return nil, fmt.Errorf("PGInsertRows: length of %T < 1, nothing to do", value)
+	}
+	// postgres has a 65535 'parameter' limit, there is an 'unnest' work around, but for now we're just going to chunk it
+	chunkSize := 65535 / reflect.ValueOf(value[0]).NumField()
+	// var rowsAffected int64
+	var res Result
+	for i := 0; i < len(value); i = i + chunkSize {
+		j := i + chunkSize
+		if j > len(value) {
+			j = len(value)
+		}
+		sqlResult, err := db.NamedExecContext(
+			ctx,
+			// PGInsertStatement(value[0], schema, table),
+			PGStatement(*new(T), schema, table, pgInsertTpl),
+			value[i:j],
+		)
+		if sqlResult != nil {
+			// ra, _ := sqlResult.RowsAffected()
+
+			// fmt.Printf("Insert %T[%d:%d]: RowsAffected: %d\n", value[i], i, j, ra)
+			res = PGResult(res, sqlResult)
+
+			// rowsAffected = rowsAffected + ra
+
+		}
+		if err != nil {
+			return res, err
+		}
+
+	}
+
+	return res, nil
 }
+
+func PGResult(res ...sql.Result) Result {
+	var lis, ras int64
+	var lies, raes error
+	for _, r := range res {
+
+		li, lie := r.LastInsertId()
+		ra, rae := r.RowsAffected()
+		lis = li
+		ras = ras + ra
+		lies = fmt.Errorf("[%v]: [%w]", lie, lies)
+		raes = fmt.Errorf("[%v]: [%w]", rae, raes)
+	}
+	return Result{
+		lastInsertID:      lis,
+		lastInsertIDError: lies,
+		rowsAffected:      ras,
+		rowsAffectedError: raes,
+	}
+}
+
+// Result is used to satisfy the sql.Result interface and enable aggregating multiple sql.Results
+type Result struct {
+	lastInsertID      int64
+	lastInsertIDError error
+	rowsAffected      int64
+	rowsAffectedError error
+}
+
+func (r Result) LastInsertId() (int64, error) {
+	return r.lastInsertID, r.lastInsertIDError
+}
+
+func (r Result) RowsAffected() (int64, error) {
+	return r.rowsAffected, r.rowsAffectedError
+}
+
+// func (r Result) LastInsertID() (int64, error) {
+// 	return r.last
+// }
 
 func PGQueryConstraint[T any](ctx context.Context, db *sqlx.DB, value []T, schema, table string) (sql.Result, error) {
 	// fmt.Println(PGQueryConstraintsStatement(value[0], schema, table))
 	result, err := db.NamedExecContext(
 		ctx,
-		PGQueryConstraintsStatement(value[0], schema, table),
+		// PGQueryConstraintsStatement(value[0], schema, table),
+		PGStatement(*new(T), schema, table, pgSelectMaxConstraintsTpl),
 		value,
 	)
 	return result, err
