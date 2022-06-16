@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"time"
@@ -20,7 +19,7 @@ import (
 func main() {
 	ctx := context.Background()
 	var sch []qgenda.Schedule
-	b, err := os.ReadFile("../out/rawschedule.json")
+	b, err := os.ReadFile("../.cache/rawschedule.json")
 	if err != nil {
 		log.Println(err)
 	}
@@ -36,17 +35,17 @@ func main() {
 	}
 	os.WriteFile("schedule-structured.json", jsonOut, 0644)
 
-	var staff []qgenda.StaffMember
-	b, err = os.ReadFile("../out/rawstaffmember.json")
-	if err != nil {
-		log.Println(err)
-	}
-	if err := json.Unmarshal(b, &staff); err != nil {
-		log.Println(err)
-	}
-	if err := qgenda.ProcessRecursively(staff); err != nil {
-		log.Println(err)
-	}
+	// var staff []qgenda.StaffMember
+	// b, err = os.ReadFile("../.cache/rawstaffmember.json")
+	// if err != nil {
+	// 	log.Println(err)
+	// }
+	// if err := json.Unmarshal(b, &staff); err != nil {
+	// 	log.Println(err)
+	// }
+	// if err := qgenda.ProcessRecursively(staff); err != nil {
+	// 	log.Println(err)
+	// }
 	// fmt.Println(qgenda.CreateTableSQL[qgenda.Schedule]("", "schedule"))
 
 	// dev pg inserts
@@ -69,15 +68,15 @@ func main() {
 		fmt.Println(dbDropResult, err)
 	}
 
-	pipelineResult, err := qgenda.ExecSchedulePipeline(ctx, db, sch, "", "schedule")
-	if err != nil {
-		log.Println(err)
-	}
-	prra, err := pipelineResult.RowsAffected()
-	if err != nil {
-		log.Println(err)
-	}
-	fmt.Printf("%d", prra)
+	// pipelineResult, err := qgenda.LoadSchedulesToPG(ctx, db, sch, "", "schedule")
+	// if err != nil {
+	// 	log.Println(err)
+	// }
+	// prra, err := pipelineResult.RowsAffected()
+	// if err != nil {
+	// 	log.Println(err)
+	// }
+	// fmt.Printf("%d", prra)
 
 	// dbResult, err := db.NamedExecContext(
 	// 	context.Background(),
@@ -107,12 +106,18 @@ func main() {
 	); err != nil {
 		log.Println(err)
 	}
+	fmt.Println("---------------------------------------------------------------------")
+	fmt.Printf("%s\n", *rqf.SinceModifiedTimestamp)
 	sr := qgenda.NewScheduleRequest(&rqf)
+	fmt.Println("---------------------------------------------------------------------")
+	fmt.Printf("%s\n", sr.Encode())
+	fmt.Println("---------------------------------------------------------------------")
 	// sr.SetEndDate(time.Time{})
 	// sr.StartDate = nil
 	// sr.EndDate = nil
-	sr.SetStartDate(time.Now().UTC().Add(-1 * 24 * 100 * time.Hour))
-	sr.SetEndDate(time.Now().UTC().Add(-1 * 24 * 90 * time.Hour))
+
+	sr.SetStartDate(time.Now().UTC().Add(-1 * 24 * 15 * time.Hour))
+	sr.SetEndDate(time.Now().UTC().Add(-1 * 24 * 1 * time.Hour))
 
 	qcc := &qgenda.ClientConfig{
 		Email:    os.Getenv("QGENDA_EMAIL"),
@@ -124,11 +129,67 @@ func main() {
 	}
 	c.Auth()
 
-	fmt.Println(sr.ToHTTPRequest().URL.String())
-	resp, err := c.Do(ctx, sr)
+	schedules := qgenda.Schedules{}
+	// result, err := schedules.DropTable(ctx, db, "qgenda", "schedule")
+	// if err != nil {
+	// 	fmt.Println(err)
+	// }
+	sd := time.Now().UTC().Add(-1 * 24 * 15 * time.Hour)
+	ed := time.Now().UTC().Add(-1 * 24 * 1 * time.Hour)
+	ts := time.Now().UTC().Add(-1 * 24 * 90 * time.Hour)
+	rqf.StartDate = &sd
+	rqf.EndDate = &ed
+	rqf.SinceModifiedTimestamp = &ts
+	// fmt.Println(rqf.Parse().Encode())
+
+	schedules, err = schedules.Extract(ctx, c, &rqf)
 	if err != nil {
 		log.Println(err)
 	}
+	fmt.Printf("length of schedules: %d\n", len(schedules))
+	if err != nil {
+		log.Println(err)
+	}
+	schedules, err = schedules.Process()
+	if err != nil {
+		log.Println(err)
+	}
+	// var b []byte
+	// bout, err := yaml.Marshal(schedules[0])
+	// if err != nil {
+	// 	log.Println(err)
+	// }
+	// fmt.Println(string(bout))
+
+	schResult, err := schedules.InsertRows(ctx, db, "", "schedule")
+	if err != nil {
+		log.Println(err)
+	}
+	fmt.Println(schResult)
+
+	jsonOut, err = json.MarshalIndent(schedules, "", "\t")
+	if err != nil {
+		log.Println(err)
+	}
+	os.WriteFile("../.cache/schedules-type.json", jsonOut, 0644)
+
+	// fmt.Printf("Length of schedules: %d\n", len(schedules))
+
+	// updatePipelineResult, err := qgenda.LoadSchedulesToPG(ctx, db, schedules, "", "schedule")
+	// if err != nil {
+	// 	log.Println(err)
+	// }
+	// uprra, err := updatePipelineResult.RowsAffected()
+	// if err != nil {
+	// 	log.Println(err)
+	// }
+	// fmt.Printf("%d\n", uprra)
+
+	// fmt.Println(sr.ToHTTPRequest().URL.String())
+	// resp, err := c.Do(ctx, sr)
+	// if err != nil {
+	// 	log.Println(err)
+	// }
 	// fmt.Println("after response ##########")
 	// for k, v := range resp.Header {
 	// 	fmt.Printf("%s %-80s\n", k, "-")
@@ -145,32 +206,34 @@ func main() {
 	// fmt.Println(resp.Status)
 	// resp.Header.Get(http.CanonicalHeaderKey("Date"))
 
-	if err != nil {
-		log.Println(err)
-	}
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Println(err)
-	}
+	// if err != nil {
+	// 	log.Println(err)
+	// }
+	// data, err := io.ReadAll(resp.Body)
+	// if err != nil {
+	// 	log.Println(err)
+	// }
 	// fmt.Println("## Data ##########################################")
 	// fmt.Println(string(data))
 	// fmt.Println("##################################################")
 	// data2 := *&data
-	var schTest []qgenda.Schedule
-	if err := json.Unmarshal(data, &schTest); err != nil {
-		log.Println(err)
-	}
-	qgenda.Process(schTest)
-	updatePipelineResult, err := qgenda.ExecSchedulePipeline(ctx, db, schTest, "", "schedule")
-	if err != nil {
-		log.Println(err)
-	}
-	uprra, err := updatePipelineResult.RowsAffected()
-	if err != nil {
-		log.Println(err)
-	}
-	fmt.Printf("%d\n", uprra)
+	// var schTest []qgenda.Schedule
+	// if err := json.Unmarshal(data, &schTest); err != nil {
+	// 	log.Println(err)
+	// }
+	// qgenda.Process(schTest)
 
+	// fmt.Println(db.DriverName())
+
+	// ds := map[string]any{
+	// 	"schedule":    qgenda.Schedule{},
+	// 	"staffmember": qgenda.StaffMember{},
+	// }
+	// for k, v := range ds {
+	// 	fmt.Printf("%s\t%T\n", k, v)
+	// }
+
+	// pingResult, err := sqlx.Connect()
 	// process data
 
 	// out, err := yaml.Marshal(schTest)

@@ -230,7 +230,7 @@ func (s Schedules) DropPGTable(ctx context.Context, db *sqlx.DB, schema, table s
 	var res Result
 	sqlResult, err := PGDropTable(ctx, db, s, schema, table)
 	if sqlResult != nil {
-		res = PGResult(res, sqlResult)
+		res = SQLResult(res, sqlResult)
 	}
 	if err != nil {
 		return res, err
@@ -240,7 +240,7 @@ func (s Schedules) DropPGTable(ctx context.Context, db *sqlx.DB, schema, table s
 	stafftags := []pgScheduleTag{}
 	sqlResult, err = PGDropTable(ctx, db, stafftags, schema, sttablename)
 	if sqlResult != nil {
-		res = PGResult(res, sqlResult)
+		res = SQLResult(res, sqlResult)
 	}
 	if err != nil {
 		return res, err
@@ -250,7 +250,7 @@ func (s Schedules) DropPGTable(ctx context.Context, db *sqlx.DB, schema, table s
 	tasktags := []pgScheduleTag{}
 	sqlResult, err = PGDropTable(ctx, db, tasktags, schema, tttablename)
 	if sqlResult != nil {
-		res = PGResult(res, sqlResult)
+		res = SQLResult(res, sqlResult)
 	}
 	if err != nil {
 		return res, err
@@ -268,7 +268,7 @@ func LoadSchedulesToPG(ctx context.Context, db *sqlx.DB, value []Schedule, schem
 	var res Result
 	sqlResult, err := PGCreateTable(ctx, db, value, schema, table)
 	if sqlResult != nil {
-		res = PGResult(res, sqlResult)
+		res = SQLResult(res, sqlResult)
 	}
 	if err != nil {
 		return res, err
@@ -276,7 +276,7 @@ func LoadSchedulesToPG(ctx context.Context, db *sqlx.DB, value []Schedule, schem
 	// fmt.Println("Inserting Schedule Rows")
 	sqlResult, err = PGInsertRows(ctx, db, value, schema, table)
 	if sqlResult != nil {
-		res = PGResult(res, sqlResult)
+		res = SQLResult(res, sqlResult)
 	}
 	if err != nil {
 		return res, err
@@ -303,7 +303,7 @@ func LoadSchedulesToPG(ctx context.Context, db *sqlx.DB, value []Schedule, schem
 	// fmt.Println("Creating ScheduleStaffTag Table")
 	sqlResult, err = PGCreateTable(ctx, db, stafftags, schema, sttablename)
 	if sqlResult != nil {
-		res = PGResult(res, sqlResult)
+		res = SQLResult(res, sqlResult)
 	}
 	if err != nil {
 		return res, err
@@ -311,7 +311,7 @@ func LoadSchedulesToPG(ctx context.Context, db *sqlx.DB, value []Schedule, schem
 	// fmt.Println("Inserting ScheduleStaffTag Rows")
 	sqlResult, err = PGInsertRows(ctx, db, stafftags, schema, sttablename)
 	if sqlResult != nil {
-		res = PGResult(res, sqlResult)
+		res = SQLResult(res, sqlResult)
 	}
 	if err != nil {
 		return res, err
@@ -337,7 +337,7 @@ func LoadSchedulesToPG(ctx context.Context, db *sqlx.DB, value []Schedule, schem
 	// fmt.Println("Creating ScheduleTaskTag Table")
 	sqlResult, err = PGCreateTable(ctx, db, tasktags, schema, tttablename)
 	if sqlResult != nil {
-		res = PGResult(res, sqlResult)
+		res = SQLResult(res, sqlResult)
 	}
 	if err != nil {
 		return res, err
@@ -345,7 +345,7 @@ func LoadSchedulesToPG(ctx context.Context, db *sqlx.DB, value []Schedule, schem
 	// fmt.Println("Inserting ScheduleTaskTag Rows")
 	sqlResult, err = PGInsertRows(ctx, db, tasktags, schema, fmt.Sprintf("%stasktag", table))
 	if sqlResult != nil {
-		res = PGResult(res, sqlResult)
+		res = SQLResult(res, sqlResult)
 	}
 	if err != nil {
 		return res, err
@@ -463,7 +463,7 @@ func (s Schedules) EPL(ctx context.Context, c *Client, rqf *RequestQueryFields,
 	var res Result
 	sqlResult, err := PGCreateSchema(ctx, db, s, schema, table)
 	if sqlResult != nil {
-		res = PGResult(res, sqlResult)
+		res = SQLResult(res, sqlResult)
 	}
 	if err != nil {
 		return res, err
@@ -471,7 +471,7 @@ func (s Schedules) EPL(ctx context.Context, c *Client, rqf *RequestQueryFields,
 
 	sqlResult, err = s.CreateTable(ctx, db, schema, table)
 	if sqlResult != nil {
-		res = PGResult(res, sqlResult)
+		res = SQLResult(res, sqlResult)
 	}
 	if err != nil {
 		return res, err
@@ -494,7 +494,7 @@ func (s Schedules) EPL(ctx context.Context, c *Client, rqf *RequestQueryFields,
 	}
 	sqlResult, err = s.Load(ctx, db, schema, table)
 	if sqlResult != nil {
-		res = PGResult(res, sqlResult)
+		res = SQLResult(res, sqlResult)
 	}
 	return res, err
 }

@@ -1,5 +1,14 @@
 package qgenda
 
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"time"
+
+	"github.com/jmoiron/sqlx"
+)
+
 // func NewStaffMemberStaffIdRequest(rqf *RequestQueryFields) *Request {
 // 	requestPath := "staffmember/:staffId"
 // 	queryFields := []string{
@@ -141,7 +150,6 @@ type StaffSkillset struct {
 }
 
 type StaffTag struct {
-	
 }
 
 func DefaultStaffMemberRequestQueryFields(rqf *RequestQueryFields) *RequestQueryFields {
@@ -184,3 +192,184 @@ func (p *StaffMember) Process() error {
 
 	return nil
 }
+
+func (s *StaffMember) DoStuff(db *sqlx.DB, ctx context.Context) (sql.Result, error) {
+	txOptions := sql.TxOptions{
+		Isolation: 0,
+		ReadOnly:  false,
+	}
+	tx, err := db.BeginTxx(ctx, &txOptions)
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+	// create table
+	result, err := tx.Exec(``)
+	if err != nil {
+		tx.Rollback()
+		return result, err
+	}
+	// create temp table
+	// insert rows
+
+	// create child tables
+	// create child 
+
+
+	if err := tx.Commit(); err != nil {
+		tx.Rollback()
+	}
+
+	return nil, nil
+
+	// there is no combination of fields for a good primary key
+	// need to only insert new rows if there is a change in at least one (non-metadata) field
+	// if _extract_date_time is only different field, don't insert
+
+	// insert into staffmember ...
+	// select
+
+	// start transaction
+	// create temp table
+	// insert into temp table
+	// use cte to join with current data and insert changes to target table
+	// if err, rollback, else commit
+	// not sure how to make sure no dangling temp tables
+
+}
+
+// import strategies:
+// unique rows - audit logs, immutable rows
+// full replace - snapshots where previous versions don't matter
+// append changes - just need to know changes and when they take effect
+// full append - full snapshots of every export
+
+func (s *StaffMembers) XCreateTable(db *sqlx.DB, ctx context.Context) (sql.Result, error) {
+
+	sqlStatement := `
+CREATE TABLE IF NOT EXISTS staffmember (
+	_raw_message text ,
+	_extract_date_time timestamp with time zone ,
+	abbrev text ,
+	bgcolor text ,
+	billsysid text ,
+	compkey text ,
+	contactinstructions text ,
+	email text ,
+	ssoid text ,
+	emrid text ,
+	erpid text ,
+	enddate date ,
+	extcallsysid text ,
+	firstname text ,
+	lastname text ,
+	homephone text ,
+	mobilephone text ,
+	npi text ,
+	othernumber1 text ,
+	othernumber2 text ,
+	othernumber3 text ,
+	othernumbertype1 text ,
+	othernumbertype2 text ,
+	othernumbertype3 text ,
+	pager text ,
+	payrollid text ,
+	reghours double precision ,
+	staffid text ,
+	staffkey text ,
+	startdate date ,
+	textcolor text ,
+	addr1 text ,
+	addr2 text ,
+	city text ,
+	state text ,
+	zip text ,
+	isactive boolean ,
+	stafftypekey text ,
+	billingtypekey text ,
+	userprofilekey text ,
+	userprofile text ,
+	payperiodgroupname text ,
+	payrollstartdate date ,
+	payrollenddate date ,
+	timeclockstartdate date ,
+	timeclockenddate date ,
+	timeclockkioskpin text ,
+	isautoapproveswap boolean ,
+	dailyunitaverage double precision ,
+	staffinternalid text ,
+	userlastlogindatetimeutc timestamp with time zone ,
+	sourceoflogin text ,
+	calsynckey text , 
+PRIMARY KEY ( _raw_message, staffkey ) 
+
+)
+`
+
+	return db.ExecContext(ctx, sqlStatement)
+
+}
+
+func LetsMakeHistory(db *sqlx.DB, ctx context.Context, alt bool) (sql.Result, error) {
+	type TestType struct {
+		Now time.Time
+		ID  int
+		Tag string
+	}
+	sqlStatement := `create table if not exists testtype (
+		now timestamp with time zone,
+		id bigint,
+		tag text
+		)`
+	result, err := db.ExecContext(ctx, sqlStatement)
+	if err != nil {
+		return result, err
+	}
+
+	data := []TestType{}
+	for i := 0; i < 20; i++ {
+		var tag string
+		if alt {
+			tag = fmt.Sprint(i)
+		} else {
+			tag = fmt.Sprint(20 - i)
+		}
+
+		tt := TestType{
+			Now: time.Now().UTC(),
+			ID:  i,
+			Tag: tag,
+		}
+		data = append(data, tt)
+	}
+	sqlStatement = `insert into testtype (now, id, tag) values ( :now , :id , :tag ) on conflict ( now, id, tag ) do nothing `
+	result, err = db.NamedExecContext(ctx, sqlStatement, data)
+	if err != nil {
+		return result, err
+	}
+	return result, nil
+}
+
+var TemplateForChangesOnly string = `
+--- as a DB transaction
+
+--- create temporary table _tmp_table_name
+
+--- insert into _tmp_table_name
+
+--- insert into table_name with:
+--- _tmp_table_name and table_name as CTE's
+--- resolve conflict in a CTE
+--- conflict resolution strategies:
+--- changes only: new rows can't = most recent rows (by id groups)
+--- 
+
+
+--- insert into table_name
+
+`
+
+var TemplateForFullAppend string
+var TemplateForNewAppend string
+var TemplateForFullReplace string
+var TemplateForReplaceOnConflict string

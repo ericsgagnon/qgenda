@@ -3,7 +3,11 @@ package qgenda
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"net/url"
+	"reflect"
+	"regexp"
+	"strings"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -77,4 +81,128 @@ func NewDBClient(cfg *DBClientConfig) (*sqlx.DB, error) {
 	connString := ExpandEnvVars(cfg.ConnectionString)
 	// fmt.Printf("Driver: %s\t ConnString: %s\n", cfg.Driver, connString)
 	return sqlx.Open(cfg.Driver, connString)
+}
+
+type Field struct {
+	Name        string
+	Kind        string
+	Type        string
+	Pointer     bool
+	PrimaryKey  bool
+	Unique      bool
+	Nullable    bool // nullable follows the sql standard of defaulting to true
+	Constraints []string
+	Tags        map[string][]string
+	StructField reflect.StructField
+}
+
+func StructToFields[T any](value T) []Field {
+
+	v := reflect.ValueOf(*new(T))
+	iv := reflect.Indirect(v)
+	// fmt.Printf("%+v\n", iv)
+	// handle zero pointers - look up code above
+	structfields := StructFields(iv)
+	fields := []Field{}
+	for i := 0; i < iv.NumField(); i++ {
+		sf := structfields[i]
+		ivField := iv.Field(i)
+
+		fieldType := reflect.TypeOf(ivField.Interface())
+		if ivField.Kind() == reflect.Pointer {
+			fieldType = reflect.TypeOf(ivField.Interface()).Elem()
+		}
+		fieldKind := fieldType.Kind()
+		pointer := ivField.Kind() == reflect.Pointer
+		tags := TagKeyValues(fmt.Sprint(sf.Tag))
+		val, ok := tags["primarykey"]
+		primarykey := ok && strings.ToLower(val[0]) != "false"
+		val, ok = tags["unique"]
+		unique := ok && strings.ToLower(val[0]) != "false"
+		val, ok = tags["nullable"]
+		nullable := !ok || strings.ToLower(val[0]) != "false"
+
+		field := Field{
+			Name:        sf.Name,
+			Kind:        fieldKind.String(),
+			Type:        fieldType.String(),
+			Pointer:     pointer,
+			PrimaryKey:  primarykey,
+			Unique:      unique,
+			Nullable:    nullable,
+			Constraints: tags["constraints"],
+			Tags:        tags,
+			StructField: sf,
+		}
+
+		field.StructField = sf
+		fields = append(fields, field)
+	}
+
+	return fields
+}
+
+func TagKeyValues(s string) map[string][]string {
+
+	pattern := regexp.MustCompile(`(?m)(?P<key>\w+):\"(?P<value>[^"]+)\"`)
+	matches := pattern.FindAllStringSubmatch(s, -1)
+	var out = map[string][]string{}
+	for _, match := range matches {
+		out[match[1]] = strings.Split(match[2], ",")
+	}
+	return out
+}
+
+func PrimaryKey(fields []Field) []string {
+	pk := []string{}
+	for _, field := range fields {
+		if field.PrimaryKey {
+			pk = append(pk, PGName(field))
+		}
+	}
+	return pk
+}
+
+func QueryFieldName(field Field) string {
+	if nametags, ok := field.Tags["qf"]; ok {
+		return nametags[0]
+	}
+	return ""
+}
+
+// SQLResult combines any number of sql.Result's
+func SQLResult(res ...sql.Result) Result {
+	var lis, ras int64
+	var lies, raes error
+	for _, r := range res {
+
+		li, lie := r.LastInsertId()
+		ra, rae := r.RowsAffected()
+		lis = li
+		ras = ras + ra
+		lies = fmt.Errorf("[%v]: [%w]", lie, lies)
+		raes = fmt.Errorf("[%v]: [%w]", rae, raes)
+	}
+	return Result{
+		lastInsertID:      lis,
+		lastInsertIDError: lies,
+		rowsAffected:      ras,
+		rowsAffectedError: raes,
+	}
+}
+
+// Result is used to satisfy the sql.Result interface and enable aggregating multiple sql.Results
+type Result struct {
+	lastInsertID      int64
+	lastInsertIDError error
+	rowsAffected      int64
+	rowsAffectedError error
+}
+
+func (r Result) LastInsertId() (int64, error) {
+	return r.lastInsertID, r.lastInsertIDError
+}
+
+func (r Result) RowsAffected() (int64, error) {
+	return r.rowsAffected, r.rowsAffectedError
 }
