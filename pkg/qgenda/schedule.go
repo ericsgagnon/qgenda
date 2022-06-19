@@ -77,8 +77,8 @@ type Schedule struct {
 type Schedules []Schedule
 
 type ScheduleTag struct {
-	ScheduleKey         *string `json:"ScheduleKey,omitempty" nullable:"false"`
-	LastModifiedDateUTC *Time   `json:"LastModifiedDateUTC,omitempty" nullable:"false"`
+	ScheduleKey         *string `json:"-" nullable:"false"`
+	LastModifiedDateUTC *Time   `json:"-" nullable:"false"`
 	CategoryKey         *int64  `json:"CategoryKey" nullable:"false"`
 	CategoryName        *string `json:"CategoryName" nullable:"false"`
 	Tags                []struct {

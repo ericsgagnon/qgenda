@@ -10,6 +10,7 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/jackc/pgx/v4"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 )
@@ -29,14 +30,37 @@ func NewPGClientConfig(connString string) *DBClientConfig {
 
 type PGClient struct {
 	*sqlx.DB
+	Config DBClientConfig
 }
 
-// PGDataset is a dataset that has custom methods for
-type PGDataset interface {
-	CreateTable(ctx context.Context, db *sqlx.DB, schema, table string) (sql.Result, error)
-	DropTable(ctx context.Context, db *sqlx.DB, schema, table string) (sql.Result, error)
-	InsertRows(ctx context.Context, db *sqlx.DB, schema, table string) (sql.Result, error)
-	QueryConstraints(ctx context.Context, db *sqlx.DB, schema, table string) error
+// copied here just to know the methods I need to implement to satisfy the interface
+// type DBClient interface {
+// 	// Open(cfg *DBClientConfig) (*sqlx.DB, error)
+// 	// Ping(ctx context.Context) (bool, error)
+// 	DB() *sqlx.DB
+// 	CreateSchema(ctx context.Context, schema string) (sql.Result, error)
+// 	CreateTable(ctx context.Context, table Table) (sql.Result, error)
+// 	DropTable(ctx context.Context, table Table) (sql.Result, error)
+// 	InsertRows(ctx context.Context, data Dataset) (sql.Result, error)
+// 	QueryConstraints(ctx context.Context, data Dataset) error
+// }
+
+func (c *PGClient) CreateSchema(ctx context.Context, schema string) (sql.Result, error) {
+	return c.ExecContext(
+		ctx,
+		fmt.Sprintf("create schema if not exists %s", pgx.Identifier{schema}.Sanitize()),
+	)
+}
+
+func CreateTable(ctx context.Context, table Table) (sql.Result, error) {
+	// return pgCreateTable[]()
+
+	// return c.ExecContext(
+	// 	ctx,
+	// 	// PGCreateTableStatement(value[0], schema, table),
+	// 	PGStatement(*new(T), schema, table, pgCreateNewTableTpl),
+	// )
+	return nil, nil
 }
 
 func (c *PGClient) CreateTable(ctx context.Context, db *sqlx.DB, value []any, schema, table string) (sql.Result, error) {
@@ -123,7 +147,8 @@ func PGOmit(field Field) bool {
 }
 
 func PGStatement[T any](value T, schema, table, tpl string) string {
-	allfields := StructToFields(*new(T))
+	var allfields []Field
+	allfields = StructToFields(*new(T))
 	// fmt.Println("PGStatement---------------------------------------")
 	var fields []Field
 	for _, field := range allfields {
@@ -270,9 +295,27 @@ func PGCreateSchema[T any](ctx context.Context, db *sqlx.DB, value []T, schema, 
 
 }
 
+func pgCreateTable[T any](ctx context.Context, db *sqlx.DB, value T, schema, table string) (sql.Result, error) {
+	// fmt.Println(PGCreateTableStatement(value[0], schema, table))
+	// fmt.Println(PGStatement(*new(T), schema, table, pgCreateNewTableTpl))
+	// if IsSlice(value) || IsMap(value){
+	// 	return db.ExecContext(
+	// 		ctx,
+	// 		PGStatement(*new(T), schema, table, pgCreateNewTableTpl),
+	// 	)
+
+	// }
+	return db.ExecContext(
+		ctx,
+		// PGCreateTableStatement(value[0], schema, table),
+		PGStatement(*new(T), schema, table, pgCreateNewTableTpl),
+	)
+}
+
 func PGCreateTable[T any](ctx context.Context, db *sqlx.DB, value []T, schema, table string) (sql.Result, error) {
 	// fmt.Println(PGCreateTableStatement(value[0], schema, table))
 	// fmt.Println(PGStatement(*new(T), schema, table, pgCreateNewTableTpl))
+
 	return db.ExecContext(
 		ctx,
 		// PGCreateTableStatement(value[0], schema, table),
@@ -328,10 +371,6 @@ func PGInsertRows[T any](ctx context.Context, db *sqlx.DB, value []T, schema, ta
 	return res, nil
 }
 
-// func (r Result) LastInsertID() (int64, error) {
-// 	return r.last
-// }
-
 func PGQueryConstraint[T any](ctx context.Context, db *sqlx.DB, value []T, schema, table string) (sql.Result, error) {
 	// fmt.Println(PGQueryConstraintsStatement(value[0], schema, table))
 	result, err := db.NamedExecContext(
@@ -341,6 +380,56 @@ func PGQueryConstraint[T any](ctx context.Context, db *sqlx.DB, value []T, schem
 		value,
 	)
 	return result, err
+}
+
+func PGStatementDev[T any](value T, tpl string) string {
+	
+	return ""
+}
+
+func pgStatement[T any](value T, schema, table, tpl string) string {
+	var allfields []Field
+	allfields = StructToFields(*new(T))
+	// fmt.Println("PGStatement---------------------------------------")
+	var fields []Field
+	for _, field := range allfields {
+		if PGOmit(field) {
+			continue
+		}
+		fields = append(fields, field)
+	}
+	// if schema != "" {
+	// 	schema = fmt.Sprintf("%s.", schema)
+	// }
+	tplValues := struct {
+		Schema     string
+		Table      string
+		Fields     []Field
+		PrimaryKey []string
+	}{
+		Schema:     schema,
+		Table:      table,
+		Fields:     fields,
+		PrimaryKey: PrimaryKey(fields),
+	}
+
+	var buf bytes.Buffer
+
+	if err := template.Must(template.
+		New("").
+		Funcs(template.FuncMap{
+			"join":          strings.Join,
+			"pgtype":        GoToPGType,
+			"pgname":        PGName,
+			"pgqueryfields": PGQueryConditionFields,
+			"qfname":        QueryFieldName,
+		}).
+		Parse(tpl)).
+		Execute(&buf, tplValues); err != nil {
+		log.Println(err)
+		panic(err)
+	}
+	return buf.String()
 }
 
 // func CreateTable[T any](a T) (bool, error) {

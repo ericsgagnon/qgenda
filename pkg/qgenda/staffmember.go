@@ -62,8 +62,8 @@ import (
 // }
 
 type StaffMember struct {
-	RawMessage               *string         `json:"-" db:"_raw_message" primarykey:"true"`
-	ExtractDateTime          *Time           `json:"-" db:"_extract_date_time"`
+	RawMessage               *string         `json:"-" db:"_raw_message"`
+	ExtractDateTime          *Time           `json:"-" db:"_extract_date_time" dependentID:"true"`
 	Abbrev                   *string         `json:"Abbrev,omitempty"`
 	BgColor                  *string         `json:"BgColor,omitempty"`
 	BillSysID                *string         `json:"BillSysId,omitempty"`
@@ -90,7 +90,7 @@ type StaffMember struct {
 	PayrollId                *string         `json:"PayrollId,omitempty"`
 	RegHours                 *float64        `json:"RegHours,omitempty"`
 	StaffId                  *string         `json:"StaffId,omitempty"`
-	StaffKey                 *string         `json:"StaffKey,omitempty" primarykey:"true"`
+	StaffKey                 *string         `json:"StaffKey,omitempty" dependentID:"true"`
 	StartDate                *Date           `json:"StartDate,omitempty"`
 	TextColor                *string         `json:"TextColor,omitempty"`
 	Addr1                    *string         `json:"Addr1,omitempty"`
@@ -115,8 +115,8 @@ type StaffMember struct {
 	UserLastLoginDateTimeUTC *Time           `json:"UserLastLoginDateTimeUTC,omitempty"`
 	SourceOfLogin            *string         `json:"SourceOfLogin,omitempty"`
 	CalSyncKey               *string         `json:"CalSyncKey,omitempty"`
-	Tags                     []TagCategory   `json:"Tags,omitempty"`
-	TTCMTags                 []TagCategory   `json:"TTCMTags,omitempty"`
+	Tags                     []StaffTag      `json:"Tags,omitempty"`
+	TTCMTags                 []StaffTag      `json:"TTCMTags,omitempty"`
 	Skillset                 []StaffSkillset `json:"Skillset,omitempty"`
 	Profiles                 []Profile       `json:"Profiles,omitempty"`
 }
@@ -124,8 +124,8 @@ type StaffMember struct {
 type StaffMembers []StaffMember
 
 type StaffSkillset struct {
-	ExtractDateTime   *Time   `json:"-"`
-	StaffKey          *string `json:"-"`
+	ExtractDateTime   *Time   `json:"-" nullable:"false"`
+	StaffKey          *string `json:"-" nullable:"false"`
 	StaffFirstName    *string `json:"StaffFirstName,omitempty"`
 	StaffLastName     *string `json:"StaffLastName,omitempty"`
 	StaffAbbreviation *string `json:"StaffAbbrev,omitempty"`
@@ -149,7 +149,17 @@ type StaffSkillset struct {
 	SunOccurrence     *string `json:"SunOccurrence,omitempty"`
 }
 
+// StaffTag is basically TagCategory with the StaffMember.StaffKey and ExtractDateTime added for dependent tables in DB's
 type StaffTag struct {
+	ExtractDateTime     *Time   `json:"-" nullable:"false"`
+	StaffKey            *string `json:"-" nullable:"false"`
+	LastModifiedDateUTC *Time   `json:"LastModifiedDateUTC,omitempty" nullable:"false"`
+	CategoryKey         *int64  `json:"CategoryKey" nullable:"false"`
+	CategoryName        *string `json:"CategoryName" nullable:"false"`
+	Tags                []struct {
+		Key  *int64  `json:"Key" db:"tagkey" nullable:"false"`
+		Name *string `json:"Name" db:"tagname" nullable:"false"`
+	}
 }
 
 func DefaultStaffMemberRequestQueryFields(rqf *RequestQueryFields) *RequestQueryFields {
@@ -183,14 +193,111 @@ func NewStaffMemberRequest(rqf *RequestQueryFields) *Request {
 
 func (p *StaffMember) Process() error {
 	ProcessStruct(p)
-	for i, _ := range p.Tags {
-		(&p.Tags[i]).Process()
+	if p.Tags != nil {
+		for _, v := range p.Tags {
+			// (&p.Tags[i]).Process()
+			if err := Process(&v); err != nil {
+				return err
+			}
+		}
 	}
-	for i, _ := range p.TTCMTags {
-		(&p.TTCMTags[i]).Process()
+	if p.TTCMTags != nil {
+		for _, v := range p.TTCMTags {
+			// (&p.TTCMTags[i]).Process()
+			if err := Process(&v); err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil
+}
+
+func (s StaffMember) CreatePGTable(ctx context.Context, db *sqlx.DB, schema, table string) (sql.Result, error) {
+
+	result, err := pgCreateTable(ctx, db, s, schema, table)
+	if err != nil {
+		return result, err
+	}
+	sqlResult := SQLResult(result)
+
+	tablename := fmt.Sprintf("%stag", table)
+	value := []StaffTag{}
+	result, err = PGCreateTable(ctx, db, value, schema, tablename)
+	if err != nil {
+		return result, err
+	}
+	sqlResult = SQLResult(sqlResult, result)
+
+	tablename = fmt.Sprintf("%sttcmtag", table)
+	result, err = PGCreateTable(ctx, db, []StaffTag{}, schema, tablename)
+	if err != nil {
+		return result, err
+	}
+	sqlResult = SQLResult(sqlResult, result)
+
+	tablename = fmt.Sprintf("%sskillset", table)
+	result, err = PGCreateTable(ctx, db, []StaffSkillset{}, schema, tablename)
+	if err != nil {
+		return result, err
+	}
+	sqlResult = SQLResult(sqlResult, result)
+
+	tablename = fmt.Sprintf("%sprofile", table)
+
+	result, err = PGCreateTable(ctx, db, []Profile{}, schema, tablename)
+	// result, err := PGCreateTable(ctx, db, value, schema, tablename)
+	if err != nil {
+		return result, err
+	}
+	sqlResult = SQLResult(sqlResult, result)
+	return sqlResult, nil
+	// Profiles                 []Profile       `json:"Profiles,omitempty"`
+
+	// create temporary table if not exists _tmp_testtype (
+	// 	now timestamp with time zone,
+	// 	id bigint,
+	// 	tag text
+	// 	)
+	// ;
+	// insert into _tmp_testtype values ( now(), (random() * 100 )::bigint , ( random() * 100 )::text);
+	// insert into _tmp_testtype select * from testtype;
+	// -- select * from pg_temp._tmp_testtype;
+
+	// -- select count(*) from testtype;
+	// with cte_row_numbers as (
+
+	// select
+	// row_number() over (partition by tt.id order by tt.now desc) rn,
+	// tt.now,
+	// tt.id,
+	// tt.tag
+	// -- from testtype tt
+	// from _tmp_testtype tt
+	// ),
+	// cte_most_recent as (
+	// select * from cte_row_numbers where rn = 1
+	// ),
+	// cte_anti_joined as (
+	// select
+	// r.now,
+	// r.id,
+	// r.tag
+	// from cte_most_recent r
+	// where not exists (
+	// select 1
+	// from testtype tt where
+	// 	r.id = tt.id
+	// and r.tag = tt.tag
+	// )
+	// )
+	// insert into testtype
+	// select * from cte_anti_joined
+
+	// ;
+
+	// select * from testtype tt order by tt.now desc;
+
 }
 
 func (s *StaffMember) DoStuff(db *sqlx.DB, ctx context.Context) (sql.Result, error) {
@@ -213,8 +320,7 @@ func (s *StaffMember) DoStuff(db *sqlx.DB, ctx context.Context) (sql.Result, err
 	// insert rows
 
 	// create child tables
-	// create child 
-
+	// create child
 
 	if err := tx.Commit(); err != nil {
 		tx.Rollback()
@@ -321,9 +427,41 @@ func LetsMakeHistory(db *sqlx.DB, ctx context.Context, alt bool) (sql.Result, er
 		id bigint,
 		tag text
 		)`
-	result, err := db.ExecContext(ctx, sqlStatement)
+	txOptions := sql.TxOptions{
+		Isolation: 0,
+		ReadOnly:  false,
+	}
+	tx, err := db.BeginTxx(ctx, &txOptions)
 	if err != nil {
-		return result, err
+		if err := tx.Rollback(); err != nil {
+			return nil, err
+		}
+		return nil, err
+	}
+
+	var result sql.Result
+	res, err := tx.ExecContext(ctx, sqlStatement)
+	result = SQLResult(result, res)
+	if err != nil {
+		if err := tx.Rollback(); err != nil {
+			return nil, err
+		}
+		return nil, err
+	}
+	// need a temp table
+	fmt.Println("creating temp table")
+	sqlStatement = `create temporary table if not exists _tmp_testtype (
+		now timestamp with time zone,
+		id bigint,
+		tag text
+		) -- ON COMMIT PRESERVE ROWS`
+	res, err = tx.ExecContext(ctx, sqlStatement)
+	result = SQLResult(result, res)
+	if err != nil {
+		if err := tx.Rollback(); err != nil {
+			return nil, err
+		}
+		return nil, err
 	}
 
 	data := []TestType{}
@@ -342,14 +480,45 @@ func LetsMakeHistory(db *sqlx.DB, ctx context.Context, alt bool) (sql.Result, er
 		}
 		data = append(data, tt)
 	}
-	sqlStatement = `insert into testtype (now, id, tag) values ( :now , :id , :tag ) on conflict ( now, id, tag ) do nothing `
-	result, err = db.NamedExecContext(ctx, sqlStatement, data)
+	fmt.Println("inserting into temp table")
+	sqlStatement = `insert into _tmp_testtype (now, id, tag) values ( :now , :id , :tag ) `
+	res, err = tx.NamedExecContext(ctx, sqlStatement, data)
+	result = SQLResult(result, res)
 	if err != nil {
 		return result, err
 	}
+	fmt.Println("about to commit")
+	// if err := tx.Commit(); err != nil {
+	// 	if err := tx.Rollback(); err != nil {
+	// 		return nil, err
+	// 	}
+	// 	return nil, err
+	// }
+	// sqlStatement = `
+	// with cte_row_numbers as (
+	// 	select
+	// 	rn rownumber()
+	// )
+
+	// `
+	// res, err = tx.NamedExecContext(ctx, sqlStatement, data)
+	// result = SQLResult(result, res)
+	// if err != nil {
+	// 	return result, err
+	// }
+	if err := tx.Commit(); err != nil {
+		if err := tx.Rollback(); err != nil {
+			return nil, err
+		}
+		return nil, err
+	}
+
 	return result, nil
 }
 
+// insert non-duplicate rows, based on entire row, ordered by extract date time
+// suitable for source that returns only the most recent version of some piece of data:
+// eg staffmember doesn't include a log, just the most recent version
 var TemplateForChangesOnly string = `
 --- as a DB transaction
 
@@ -369,7 +538,8 @@ var TemplateForChangesOnly string = `
 
 `
 
-var TemplateForFullAppend string
-var TemplateForNewAppend string
-var TemplateForFullReplace string
-var TemplateForReplaceOnConflict string
+var TemplateForFullAppend string // insert all data, regardless of duplicates
+var TemplateForNewAppend string  // insert all non-duplicates, either by primary keys or entire rows
+
+var TemplateForFullReplace string       // completely replace the table, basically, truncate then insert - snapshots
+var TemplateForReplaceOnConflict string // replace rows on conflict - snapshots

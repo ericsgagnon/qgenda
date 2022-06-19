@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"net/url"
 	"reflect"
 	"regexp"
 	"strings"
@@ -15,10 +14,12 @@ import (
 type DBClient interface {
 	// Open(cfg *DBClientConfig) (*sqlx.DB, error)
 	// Ping(ctx context.Context) (bool, error)
-	CreateTable(ctx context.Context) (sql.Result, error)
-	DropTable(ctx context.Context) (sql.Result, error)
-	InsertRows(ctx context.Context) (sql.Result, error)
-	QueryConstraints(ctx context.Context) error
+	// DB() *sqlx.DB
+	CreateSchema(ctx context.Context, schema string) (sql.Result, error)
+	CreateTable(ctx context.Context, table Table) (sql.Result, error)
+	DropTable(ctx context.Context, table Table) (sql.Result, error)
+	InsertRows(ctx context.Context, data Dataset) (sql.Result, error)
+	QueryConstraints(ctx context.Context, data Dataset) error
 }
 
 // type DClient struct {
@@ -42,7 +43,7 @@ type DBClientConfig struct {
 	ExpandFileContents bool   // whether or not to interpolate file contents of the form {file:/path/to/file} in connection string and dsn
 	// User             string   // prefer to reference env var or file contents by ${ENV_VAR_NAME} or {file:/path/to/file}
 	// Password         string   // prefer to reference env var or file contents by ${ENV_VAR_NAME} or {file:/path/to/file}
-	url *url.URL // let the program handle this
+	// url *url.URL // let the program handle this
 }
 
 func ExampleDBClientConfig() DBClientConfig {
@@ -81,6 +82,28 @@ func NewDBClient(cfg *DBClientConfig) (*sqlx.DB, error) {
 	connString := ExpandEnvVars(cfg.ConnectionString)
 	// fmt.Printf("Driver: %s\t ConnString: %s\n", cfg.Driver, connString)
 	return sqlx.Open(cfg.Driver, connString)
+}
+
+type Table struct {
+	Name            string
+	Schema          string
+	Temporary       bool
+	Constraints     []string
+	Fields          []Field
+	FlattenChildren bool // by default, slices and maps will be handled by creating a child table for each and 'flattening' any nested slices or maps
+	Tags            map[string][]string
+}
+
+func StructToTable[T any](value T, name, schema string, temporary bool, constraints []string, tags map[string][]string) Table {
+
+	return Table{
+		Name:            name,
+		Schema:          schema,
+		Temporary:       temporary,
+		Fields:          StructToFields(value),
+		FlattenChildren: true,
+		Tags:            tags,
+	}
 }
 
 type Field struct {
@@ -175,7 +198,9 @@ func SQLResult(res ...sql.Result) Result {
 	var lis, ras int64
 	var lies, raes error
 	for _, r := range res {
-
+		if r == nil {
+			continue
+		}
 		li, lie := r.LastInsertId()
 		ra, rae := r.RowsAffected()
 		lis = li
