@@ -62,6 +62,11 @@ type Client struct {
 	Parameters   *Parameters
 }
 
+// Parameters is a key-value map to represent arguments
+// it is generally used to pass arguments for getting or sending
+// data in data models
+type Parameters map[any]any
+
 func NewClient(cc *ClientConfig) (*Client, error) {
 
 	if cc == nil {

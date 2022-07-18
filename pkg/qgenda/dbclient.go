@@ -1,12 +1,15 @@
 package qgenda
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"reflect"
 	"regexp"
 	"strings"
+	"text/template"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -88,22 +91,62 @@ type Table struct {
 	Name            string
 	Schema          string
 	Temporary       bool
-	Constraints     []string
-	Fields          []Field
+	Constraints     map[string]string
+	Fields          Fields
 	FlattenChildren bool // by default, slices and maps will be handled by creating a child table for each and 'flattening' any nested slices or maps
 	Tags            map[string][]string
+	UpdateStrategy  string
 }
 
-func StructToTable[T any](value T, name, schema string, temporary bool, constraints []string, tags map[string][]string) Table {
+type Fields []Field
 
+// type UpdateStrategy int8
+
+// func (u UpdateStrategy) String() string {
+// 	return ""
+// }
+
+// const (
+// 	AppendNew UpdateStrategy = iota
+// 	FullReplace
+// 	AppendAll
+
+// )
+
+func StructToTable[T any](value T, name, schema string, temporary bool, constraints map[string]string, tags map[string][]string) Table {
+
+	fields := StructToFields(value)
+
+	if name == "" {
+		name = strings.ToLower(reflect.ValueOf(value).Type().Name())
+	}
+
+	if len(constraints) == 0 {
+		constraints = map[string]string{}
+		pk := strings.Join(PrimaryKey(fields), ", ")
+		if pk != "" {
+			constraints["primarykey"] = pk
+
+		}
+		uf := []string{}
+		for _, v := range UniqueFields(fields) {
+
+			uf = append(uf, PGName(v))
+		}
+		if len(uf) > 0 {
+			constraints["unique"] = strings.Join(uf, ", ")
+		}
+	}
 	return Table{
 		Name:            name,
 		Schema:          schema,
 		Temporary:       temporary,
-		Fields:          StructToFields(value),
+		Constraints:     constraints,
+		Fields:          fields,
 		FlattenChildren: true,
 		Tags:            tags,
 	}
+
 }
 
 type Field struct {
@@ -193,6 +236,18 @@ func QueryFieldName(field Field) string {
 	return ""
 }
 
+func FieldNames(fields []Field) []string {
+	var fn []string
+	for _, field := range fields {
+		fn = append(fn, field.Name)
+	}
+	return fn
+}
+
+func JoinStringSlice(sep string, s []string) string {
+	return strings.Join(s, sep)
+}
+
 // SQLResult combines any number of sql.Result's
 func SQLResult(res ...sql.Result) Result {
 	var lis, ras int64
@@ -230,4 +285,122 @@ func (r Result) LastInsertId() (int64, error) {
 
 func (r Result) RowsAffected() (int64, error) {
 	return r.rowsAffected, r.rowsAffectedError
+}
+
+// TableStatement is primarily intended for creating SQL statements from a Table
+// and a template. It includes a handful of funcs, but accepts a funcmap that can
+// overwrite the included funcs
+func TableStatement(table Table, tpl string, funcs template.FuncMap) string {
+
+	var buf bytes.Buffer
+
+	if err := template.Must(template.
+		New("").
+		Option("missingkey=zero").
+		Funcs(template.FuncMap{
+			"join":               strings.Join,
+			"joinss":             JoinStringSlice,
+			"qfname":             QueryFieldName,
+			"uniquefields":       UniqueFields,
+			"fieldswithtagvalue": FieldsWithTagValue,
+			"fieldnames":         FieldNames,
+		}).
+		Funcs(funcs).
+		Parse(tpl)).
+		Execute(&buf, table); err != nil {
+		log.Println(err)
+		panic(err)
+	}
+	return buf.String()
+}
+
+// UniqueFields is intended to be used in templates and is included in the
+// default TableStatement funcmap as uniquefields
+func UniqueFields(fields []Field) []Field {
+	f := []Field{}
+	for _, field := range fields {
+		if field.Unique {
+			f = append(f, field)
+		}
+	}
+	return f
+}
+
+// FieldsWithTagValue returns only those fields with the given key-value pair
+// it is included in the TableStatement funcmap as fieldswithtagvalue
+func FieldsWithTagValue(fields []Field, key, value string) []Field {
+	f := []Field{}
+	for _, field := range fields {
+		tagSlice, ok := field.Tags[key]
+		if ok && len(tagSlice) > 0 {
+			for _, tagi := range tagSlice {
+				if tagi == value {
+					f = append(f, field)
+				}
+			}
+		}
+	}
+	return f
+}
+
+// FieldsWithoutTagValue returns only those fields with the given key-value pair
+// it is included in the TableStatement funcmap as fieldswithtagvalue
+func FieldsWithoutTagValue(fields []Field, key, value string) []Field {
+	f := []Field{}
+
+	for _, field := range fields {
+		tagSlice, ok := field.Tags[key]
+		if ok && len(tagSlice) > 0 {
+			for _, tagi := range tagSlice {
+				if tagi == value {
+					f = append(f, field)
+				}
+			}
+		}
+	}
+	return f
+}
+
+// FieldHasTagValue returns true if the key: value exists in the given tag
+// it is included in the TableStatement funcmap as fieldhastagvalue
+func FieldHasTagValue(field Field, key, value string) bool {
+
+	tag, ok := field.Tags[key]
+	if !ok {
+		return false
+	}
+	for _, tv := range tag {
+		if tv == value {
+			return true
+		}
+	}
+	return false
+}
+
+// Field.HasTagValue is a direct wrap of FieldHasTagValue
+func (f Field) HasTagValue(key, value string) bool {
+	return FieldHasTagValue(f, key, value)
+}
+
+// WithTagValue returns fields that test true for Field.HasTagValue
+func (f Fields) WithTagValue(key, value string) Fields {
+	ff := Fields{}
+	for _, field := range f {
+		if field.HasTagValue(key, value) {
+			ff = append(ff, field)
+		}
+	}
+	return ff
+}
+
+// WithoutTagValue returns fields that test false for Field.HasTagValue
+func (f Fields) WithoutTagValue(key, value string) Fields {
+	ff := Fields{}
+	for _, field := range f {
+		if !field.HasTagValue(key, value) {
+			ff = append(ff, field)
+		}
+	}
+
+	return ff
 }

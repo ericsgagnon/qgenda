@@ -36,6 +36,29 @@ type Time struct {
 	location       *time.Location // nil by default - can also use DefaultTimeLocation
 }
 
+func (t *Time) Set(src any) error {
+	return t.Timestamptz.Set(src)
+}
+
+func NewTime(src any) Time {
+	t := Time{}
+	if src == nil {
+		t.Set(time.Now())
+		return t
+	}
+	switch src.(type) {
+	case time.Time, Time:
+		t.Set(src)
+	case string:
+		tm, err := ParseTime(src.(string))
+		if err != nil {
+			panic(err)
+		}
+		t.Set(tm)
+	}
+	return t
+}
+
 // Layout and SetLayout can be used to customize string and marshalling representations
 // on each instance. The actual TimeOfDay.layout is kept private to prevent unwanted
 // un/marshaling.

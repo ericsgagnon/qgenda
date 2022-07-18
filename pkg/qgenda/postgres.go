@@ -30,6 +30,7 @@ func NewPGClientConfig(connString string) *DBClientConfig {
 
 type PGClient struct {
 	*sqlx.DB
+	Tx     *sqlx.Tx // for use in transactions
 	Config DBClientConfig
 }
 
@@ -45,34 +46,195 @@ type PGClient struct {
 // 	QueryConstraints(ctx context.Context, data Dataset) error
 // }
 
-func (c *PGClient) CreateSchema(ctx context.Context, schema string) (sql.Result, error) {
+// CreateSchema uses 'if not exists' to guarantee idompetency. Generally, owner is omitted, which will
+// default to current user. If schema is omitted, it will default to PGClient.Config.Schema
+func (c *PGClient) CreateSchema(ctx context.Context, schema string, owner string) (sql.Result, error) {
+	if schema == "" {
+		schema = c.Config.Schema
+	}
+	if owner != "" {
+		owner = fmt.Sprintf("authorization %s ", pgx.Identifier{owner}.Sanitize())
+	}
 	return c.ExecContext(
 		ctx,
-		fmt.Sprintf("create schema if not exists %s", pgx.Identifier{schema}.Sanitize()),
+		fmt.Sprintf("create schema if not exists %s %s", pgx.Identifier{schema}.Sanitize(), owner),
 	)
 }
 
-func CreateTable(ctx context.Context, table Table) (sql.Result, error) {
-	// return pgCreateTable[]()
-
-	// return c.ExecContext(
-	// 	ctx,
-	// 	// PGCreateTableStatement(value[0], schema, table),
-	// 	PGStatement(*new(T), schema, table, pgCreateNewTableTpl),
-	// )
-	return nil, nil
+// DropSchema uses 'if exists' to guarantee idempotency. Cascade will remove all objects that depend on
+// an element in the schema.
+func (c *PGClient) DropSchema(ctx context.Context, schema string, force bool) (sql.Result, error) {
+	if schema == "" {
+		schema = c.Config.Schema
+	}
+	var sql string
+	if force {
+		sql = fmt.Sprintf("drop schema if exists %s cascade", pgx.Identifier{schema}.Sanitize())
+	} else {
+		sql = fmt.Sprintf("drop schema if exists %s restrict", pgx.Identifier{schema}.Sanitize())
+	}
+	return c.ExecContext(ctx, sql)
 }
 
-func (c *PGClient) CreateTable(ctx context.Context, db *sqlx.DB, value []any, schema, table string) (sql.Result, error) {
-	return PGCreateTable(ctx, c.DB, value, schema, table)
+// ForceDropSchema uses 'if exists' to guarantee idempotency and cascade to force the drop regardless of
+// dependent objects in this or other schemas.
+func (c *PGClient) ForceDropSchema(ctx context.Context, schema string) (sql.Result, error) {
+	if schema == "" {
+		schema = c.Config.Schema
+	}
+	return c.ExecContext(
+		ctx,
+		fmt.Sprintf("drop schema if exists %s cascade", pgx.Identifier{schema}.Sanitize()),
+	)
 }
 
-func (c *PGClient) DropTable(ctx context.Context, db *sqlx.DB, value []any, schema, table string) (sql.Result, error) {
-	return PGDropTable(ctx, c.DB, value, schema, table)
+// CreateTable uses 'if exists' to guarantee idempotency
+func (c *PGClient) CreateTable(ctx context.Context, table Table, tx bool) (sql.Result, error) {
+	result, err := c.CreateSchema(ctx, table.Schema, "")
+	if err != nil {
+		return result, err
+	}
+	// sql := PGTableStatement(table, PGCreateTableDevTpl, nil)
+	if tx {
+		if c.Tx == nil {
+			c.Tx = c.MustBegin()
+		}
+		return c.Tx.ExecContext(ctx, PGTableStatement(table, PGCreateTableDevTpl, nil))
+	}
+	return c.ExecContext(ctx, PGTableStatement(table, PGCreateTableDevTpl, nil))
 }
 
-func (c *PGClient) InsertRows(ctx context.Context, db *sqlx.DB, value []any, schema, table string) (sql.Result, error) {
-	return PGInsertRows(ctx, c.DB, value, schema, table)
+// DropTable uses 'if exists' to guarantee idempotency. Cascade will remove all objects that depend on
+// the table.
+func (c *PGClient) DropTable(ctx context.Context, table Table, force bool) (sql.Result, error) {
+	if table.Name == "" {
+		return nil, fmt.Errorf("drop table: table.Name appears empty: %v", table)
+	}
+	var sql string
+	if force {
+		sql = fmt.Sprintf("drop table if exists %s cascade", pgx.Identifier{table.Name}.Sanitize())
+	} else {
+		sql = fmt.Sprintf("drop table if exists %s restrict", pgx.Identifier{table.Name}.Sanitize())
+	}
+	return c.ExecContext(ctx, sql)
+}
+
+// ForceDropTable uses 'if exists' to guarantee idempotency and cascade to force the drop regardless of
+// dependent objects in its own or other schemas.
+func (c *PGClient) ForceDropTable(ctx context.Context, table Table) (sql.Result, error) {
+	if table.Name == "" {
+		return nil, fmt.Errorf("drop table: table.Name appears empty: %v", table)
+	}
+	sql := fmt.Sprintf("drop table if exists %s cascade", pgx.Identifier{table.Name}.Sanitize())
+	return c.ExecContext(ctx, sql)
+}
+
+func (c *PGClient) InsertRows(ctx context.Context, table Table, value []any, tx bool) (sql.Result, error) {
+
+	return PGInsertRowsDev(ctx, c.DB, table, value)
+
+}
+
+// DB is to enable using either (*sqlx.DB or *sqlx.TX), the compiler doesn't seem to really support
+// our use case for generics yet, which seems silly, so we're just treating it like a regular interface...
+type DB interface {
+	// *sqlx.Tx | *sqlx.DB
+	NamedExecContext(context.Context, string, interface{}) (sql.Result, error)
+}
+
+func DBTxx(ctx context.Context, db DB) (*sqlx.Tx, error) {
+	var dbi interface{} = db
+	var tx *sqlx.Tx
+	var err error
+	switch dbi.(type) {
+	case *sqlx.Tx:
+		tx = (dbi).(*sqlx.Tx)
+	case *sqlx.DB:
+		tx, err = (dbi).(*sqlx.DB).BeginTxx(ctx, nil)
+		if err != nil {
+			return nil, err
+		}
+	// case *sql.DB:
+	// 	db, ok := (dbi).(*sql.DB)
+	// 	if !ok {
+	// 		return nil, fmt.Errorf("unable to assert %T to *sql.DB", db)
+	// 	}
+	// 	sqlx.NewDb(db, db.DriverName())
+	default:
+		return nil, fmt.Errorf("DBTxx received a %T and doesn't know what to do", db)
+	}
+	return tx, nil
+}
+
+// func PGInsertRowsTx[T any](ctx context.Context, db DB, table Table, value []T) (sql.Result, error) {
+
+// 	db.NamedExecContext(ctx, PGStatement(*new(T), table.Schema, table.Name, pgInsertTpl), value[0:1])
+// 	return nil, nil
+// }
+
+func PGInsertTx[T any](ctx context.Context, tx *sqlx.Tx, table Table, tpl string, value []T) (sql.Result, error) {
+
+	// PGCreateTableDevTpl
+	if tpl == "" {
+		tpl = PGInsertRowsDevTpl
+	}
+
+	sqlStatement := PGStatement(*new(T), table.Schema, table.Name, pgInsertTpl)
+	return tx.NamedExecContext(ctx, sqlStatement, value)
+}
+
+// func PGInsertRowsDev[T any](ctx context.Context, db *sqlx.DB, table Table, value []T) (sql.Result, error) {
+func PGInsertRowsDev[T any](ctx context.Context, db DB, table Table, value []T) (sql.Result, error) {
+	tx, err := DBTxx(ctx, db)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Printf("%T\n", db)
+	if len(value) < 1 {
+		return nil, fmt.Errorf("PGInsertRows: length of %T < 1, nothing to do", value)
+	}
+	// tx, err := db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	// postgres has a 65535 'parameter' limit, there is an 'unnest' work around, but for now we're just going to chunk it
+	chunkSize := 65535 / reflect.ValueOf(value[0]).NumField()
+
+	var res Result
+	for i := 0; i < len(value); i = i + chunkSize {
+		j := i + chunkSize
+		if j > len(value) {
+			j = len(value)
+		}
+		sqlResult, err := db.NamedExecContext(
+			ctx,
+			// PGInsertStatement(value[0], schema, table),
+			PGStatement(*new(T), table.Schema, table.Name, pgInsertTpl),
+			value[i:j],
+		)
+		res = SQLResult(res, sqlResult)
+		if err != nil {
+			return res, err
+		}
+
+		// for _, field := range table.Fields {
+		// 	switch field.Kind {
+		// 	case "slice", "map":
+		// 		continue
+		// 		// v := reflect.ValueOf(value[i]).FieldByName(field.Name)
+		// 		// PGInsertRowsDev(ctx, tx, table, v.InterfaceData())
+		// 		// name := strings.ToLower(fmt.Sprintf("%s%s", table.Name, reflect.ValueOf()))
+		// 		// table := StructToTable()
+		// 		// PGInsertRowsDev(ctx, tx, table, )
+		// 	default:
+		// 		continue
+		// 	}
+		// }
+
+	}
+
+	tx.Commit()
+	return res, nil
 }
 
 func (c *PGClient) QueryConstraints(ctx context.Context, db *sqlx.DB, value []any, schema, table string) (sql.Result, error) {
@@ -146,9 +308,17 @@ func PGOmit(field Field) bool {
 	return PGName(field) == "-"
 }
 
+func PGNames(fields []Field) []string {
+	var fn []string
+	for _, field := range fields {
+		fn = append(fn, PGName(field))
+	}
+	return fn
+}
+
 func PGStatement[T any](value T, schema, table, tpl string) string {
-	var allfields []Field
-	allfields = StructToFields(*new(T))
+	// var allfields []Field
+	allfields := StructToFields(*new(T))
 	// fmt.Println("PGStatement---------------------------------------")
 	var fields []Field
 	for _, field := range allfields {
@@ -178,9 +348,12 @@ func PGStatement[T any](value T, schema, table, tpl string) string {
 		New("").
 		Funcs(template.FuncMap{
 			"join":          strings.Join,
+			"joinss":        JoinStringSlice,
 			"pgtype":        GoToPGType,
 			"pgname":        PGName,
+			"pgnames":       PGNames,
 			"pgqueryfields": PGQueryConditionFields,
+			"pgomit":        PGOmit,
 			"qfname":        QueryFieldName,
 		}).
 		Parse(tpl)).
@@ -227,8 +400,6 @@ CONSTRAINT {{ .Table -}}_all_columns_unique UNIQUE (
 var pgDropTableTpl = `
 DROP TABLE IF EXISTS {{ .Schema -}}{{- if ne .Schema "" -}}.{{- end -}}{{- .Table }}
 `
-
-//create unique index if not exists schedulestafftag_all_columns_unique on schedulestafftag (schedulekey, lastmodifieddateutc, categorykey, categoryname, tagkey, tagname)
 
 var pgInsertTpl = `
 INSERT INTO {{ .Schema -}}{{- if ne .Schema "" -}}.{{- end -}}{{- .Table }} (
@@ -312,6 +483,142 @@ func pgCreateTable[T any](ctx context.Context, db *sqlx.DB, value T, schema, tab
 	)
 }
 
+func PGCreateTableDev(ctx context.Context, db *sqlx.DB, table Table) (sql.Result, error) {
+	return db.ExecContext(ctx, PGTableStatement(table, PGCreateTableDevTpl, nil))
+
+}
+
+var PGCreateTableDevTpl = `
+CREATE {{- if .Temporary }} TEMPORARY TABLE IF NOT EXISTS _tmp_{{- .Name -}}
+{{ else }} TABLE IF NOT EXISTS {{ .Schema -}}{{- if ne .Schema "" -}}.{{- end -}}{{- .Name }}
+{{- end }} (
+{{- $fields := pgincludefields .Fields -}}
+{{- range  $index, $field := $fields -}}
+{{- if ne $index 0 -}},{{- end }}
+	{{ pgname $field }} {{ pgtype $field.Type }} {{ if $field.Unique }} unique {{ end -}} {{- if not $field.Nullable -}} not null {{- end }}
+{{- end -}}
+
+{{- $pk := .Constraints.primarykey -}}
+{{- $uf := .Constraints.unique -}}
+{{ if $pk }}, 
+PRIMARY KEY ( {{ $pk }} ) 
+{{- end -}}
+{{- if and $pk $uf -}},{{- end -}}
+{{- if $uf }}
+CONSTRAINT {{ .Name -}}_unique UNIQUE ( {{ $uf }} )
+{{- end }}
+)
+`
+
+var PGInsertRowsDevTpl = `
+INSERT INTO 
+{{- if .Temporary }}  _tmp_{{- .Name -}} 
+{{- else }} {{ .Schema -}}{{- if ne .Schema "" -}}.{{- end -}}{{- .Name -}}
+{{- end }} (
+	{{- $fields := pgincludefields .Fields -}}
+	{{- range  $index, $field := $fields -}}
+	{{- if ne $index 0 -}},{{- end }}
+		{{ pgname $field }}
+	{{- end }} 
+	) VALUES (
+	{{- range  $index, $field := .Fields -}}
+	{{- if ne $index 0 -}},{{- end }}
+		:{{ pgname $field }}
+	{{- end }}	
+)	
+`
+
+// ) ON CONFLICT (
+// 	{{- $pk := .Constraints.primarykey -}}r
+// 	{{- $uf := .Constraints.unique -}}
+
+// {{- $primarykey := join $pk  ", " -}}
+// {{ if ne $primarykey "" }}
+// {{ $primarykey }}
+// {{ else }}
+// {{- range  $index, $field := .Fields -}}
+// {{- if ne $index 0 -}},{{- end }}
+// 	{{ pgname $field }}
+// {{- end -}}
+// {{- end }}
+// ) DO NOTHING
+
+var PGInsertChangesOnlyDevTpl = `
+
+with cte_partitioned_row_numbers as (
+	select * , 
+	row_number() over ( partition by {{ fieldswithtagvalue .Fields "idtype" "group" | pgnames | joinss " , " }} order by {{ fieldswithtagvalue .Fields "idtype" "order" | pgnames | joinss " desc , " }} desc ) rn
+	FROM {{ .Schema -}}{{- if ne .Schema "" -}}.{{- end -}}{{- .Name }}
+), cte_last_inserted_rows as (
+	select * from cte_paritioned_row_numbers cprn where cprn.rn = 1
+), cte_new_rows as (
+	select distinct * from _tmp_{{- .Name }}
+), cte_anti_joined as (
+	select
+	cnr.*
+	from cte_new_rows cnr
+	where not exists (
+		select 1
+		from cte_most_recent_rows cmrr where
+		{{- $joinfields := .Fields.WithoutTagValue "idtype" "order" | pgnames -}}
+		{{- range  $index, $field := $joinfields  }}
+		{{ if ne $index 0 }} and {{ end -}} cmrr.{{ $field }} = cnr.{{ $field }}
+		{{- end }}	
+	)
+) insert into {{ if ne .Schema "" -}}{{ .Schema -}}.{{- end -}}{{- .Name }} (
+	select caj.* from cte_anti_joined caj
+)
+`
+
+// `
+// insert into {{ if ne .Schema "" -}}{{ .Schema -}}.{{- end -}}{{- .Name }} (
+
+// )
+// `
+
+var PGInsertSubtableRowsTpl = `
+INSERT INTO 
+{{- if .Temporary }}  _tmp_{{- .Name -}} 
+{{- else }} {{ .Schema -}}{{- if ne .Schema "" -}}.{{- end -}}{{- .Name -}}
+{{- end }} (
+	{{- $fields := pgincludefields .Fields -}}
+	{{- range  $index, $field := $fields -}}
+	{{- if ne $index 0 -}},{{- end }}
+		{{ pgname $field }}
+	{{- end }} 
+	) VALUES (
+	{{- range  $index, $field := .Fields -}}
+	{{- if ne $index 0 -}},{{- end }}
+		:{{ pgname $field }}
+	{{- end }}	
+)	
+`
+
+var Xuseforreference = `
+INSERT INTO 
+	{{- range  $index, $field := .Fields -}}
+	{{- if ne $index 0 -}},{{- end }}
+		{{ pgname $field }}
+	{{- end }} 
+	) VALUES (
+	{{- range  $index, $field := .Fields -}}
+	{{- if ne $index 0 -}},{{- end }}
+		:{{ pgname $field }}
+	{{- end }}	
+	) ON CONFLICT (
+	{{- $pk := fieldswithtagvalue .Fields "primarykey" "table" | pgnames | joinss ", " -}}
+	{{- $uf := .Constraints.unique -}}		
+	{{ if ne $pk "" }}
+		{{ $pk }}
+	{{ else }}
+	{{- range  $index, $field := .Fields -}}
+	{{- if ne $index 0 -}},{{- end }}
+		{{ pgname $field }}
+	{{- end -}}	
+	{{- end }}
+	) DO NOTHING	
+`
+
 func PGCreateTable[T any](ctx context.Context, db *sqlx.DB, value []T, schema, table string) (sql.Result, error) {
 	// fmt.Println(PGCreateTableStatement(value[0], schema, table))
 	// fmt.Println(PGStatement(*new(T), schema, table, pgCreateNewTableTpl))
@@ -382,54 +689,39 @@ func PGQueryConstraint[T any](ctx context.Context, db *sqlx.DB, value []T, schem
 	return result, err
 }
 
-func PGStatementDev[T any](value T, tpl string) string {
-	
-	return ""
+// PGIncludeFields is intended to be used in templates and is included in the default
+// PGTableStatement funcmap as pgincludefields
+func PGIncludeFields(fields []Field) []Field {
+	f := []Field{}
+	for _, field := range fields {
+		if !PGOmit(field) {
+			f = append(f, field)
+		}
+	}
+	return f
 }
 
-func pgStatement[T any](value T, schema, table, tpl string) string {
-	var allfields []Field
-	allfields = StructToFields(*new(T))
-	// fmt.Println("PGStatement---------------------------------------")
-	var fields []Field
-	for _, field := range allfields {
-		if PGOmit(field) {
-			continue
-		}
-		fields = append(fields, field)
+// PGTableStatement wraps TableStatement and adds several pg specific funcs
+func PGTableStatement(table Table, tpl string, funcs template.FuncMap) string {
+	fm := template.FuncMap{
+		"join":               strings.Join,
+		"joinss":             JoinStringSlice,
+		"pgtype":             GoToPGType,
+		"pgname":             PGName,
+		"pgnames":            PGNames,
+		"pgqueryfields":      PGQueryConditionFields,
+		"qfname":             QueryFieldName,
+		"pgomit":             PGOmit,
+		"pgincludefields":    PGIncludeFields,
+		"uniquefields":       UniqueFields,
+		"fieldswithtagvalue": FieldsWithTagValue,
+		"fieldnames":         FieldNames,
 	}
-	// if schema != "" {
-	// 	schema = fmt.Sprintf("%s.", schema)
-	// }
-	tplValues := struct {
-		Schema     string
-		Table      string
-		Fields     []Field
-		PrimaryKey []string
-	}{
-		Schema:     schema,
-		Table:      table,
-		Fields:     fields,
-		PrimaryKey: PrimaryKey(fields),
+	for k, v := range funcs {
+		fm[k] = v
 	}
+	return TableStatement(table, tpl, fm)
 
-	var buf bytes.Buffer
-
-	if err := template.Must(template.
-		New("").
-		Funcs(template.FuncMap{
-			"join":          strings.Join,
-			"pgtype":        GoToPGType,
-			"pgname":        PGName,
-			"pgqueryfields": PGQueryConditionFields,
-			"qfname":        QueryFieldName,
-		}).
-		Parse(tpl)).
-		Execute(&buf, tplValues); err != nil {
-		log.Println(err)
-		panic(err)
-	}
-	return buf.String()
 }
 
 // func CreateTable[T any](a T) (bool, error) {
