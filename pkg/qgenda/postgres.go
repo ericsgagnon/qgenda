@@ -497,7 +497,7 @@ CREATE {{- if .Temporary }} TEMPORARY TABLE IF NOT EXISTS _tmp_{{- .Name -}}
 {{- if ne $index 0 -}},{{- end }}
 	{{ pgname $field }} {{ pgtype $field.Type }} {{ if $field.Unique }} unique {{ end -}} {{- if not $field.Nullable -}} not null {{- end }}
 {{- end -}}
-
+{{- if not .Temporary }}
 {{- $pk := .Constraints.primarykey -}}
 {{- $uf := .Constraints.unique -}}
 {{ if $pk }}, 
@@ -506,6 +506,7 @@ PRIMARY KEY ( {{ $pk }} )
 {{- if and $pk $uf -}},{{- end -}}
 {{- if $uf }}
 CONSTRAINT {{ .Name -}}_unique UNIQUE ( {{ $uf }} )
+{{- end }}
 {{- end }}
 )
 `
@@ -525,8 +526,21 @@ INSERT INTO
 	{{- if ne $index 0 -}},{{- end }}
 		:{{ pgname $field }}
 	{{- end }}	
-)	
+)
 `
+
+// {{ if .Constraints }}
+// ON CONFLICT (
+// 	{{- $primarykey := join .PrimaryKey  ", " -}}
+// 	{{ if ne $primarykey "" }}
+// 	{{ $primarykey }}
+// 	{{ else }}
+// 	{{- range  $index, $field := .Fields -}}
+// 	{{- if ne $index 0 -}},{{- end }}
+// 		{{ pgname $field }}
+// 	{{- end -}}
+// 	{{- end }}
+// 	) DO NOTHING
 
 // ) ON CONFLICT (
 // 	{{- $pk := .Constraints.primarykey -}}r

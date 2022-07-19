@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"reflect"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -63,13 +62,83 @@ type StaffMember struct {
 	UserLastLoginDateTimeUTC *Time           `json:"UserLastLoginDateTimeUTC,omitempty"`
 	SourceOfLogin            *string         `json:"SourceOfLogin,omitempty"`
 	CalSyncKey               *string         `json:"CalSyncKey,omitempty"`
-	Tags                     []TagRelation   `json:"Tags,omitempty" dbTable:"stafftag" includeFields:"primarykey"`
+	Tags                     []StaffTag      `json:"Tags,omitempty" dbTable:"stafftag" includeFields:"primarykey"`
 	TTCMTags                 []StaffTag      `json:"TTCMTags,omitempty" dbTable:"staffttcmtag" includeFields:"primarykey"`
 	Skillset                 []StaffSkillset `json:"Skillset,omitempty" dbTable:"staffskillset" includeFields:"primarykey"`
 	Profiles                 []Profile       `json:"Profiles,omitempty"`
 }
 
 type StaffMembers []StaffMember
+
+// StaffTag is basically TagCategory with the StaffMember.StaffKey and ExtractDateTime added for dependent tables in DB's
+type StaffTag struct {
+	ExtractDateTime     *Time   `json:"-" nullable:"false"`
+	StaffKey            *string `json:"-" nullable:"false"`
+	LastModifiedDateUTC *Time   `json:"LastModifiedDateUTC,omitempty" nullable:"false"`
+	CategoryKey         *int64  `json:"CategoryKey" nullable:"false"`
+	CategoryName        *string `json:"CategoryName" nullable:"false"`
+	Tags                []struct {
+		Key  *int64  `json:"Key" db:"tagkey" nullable:"false"`
+		Name *string `json:"Name" db:"tagname" nullable:"false"`
+	}
+}
+
+// StaffTagDB is basically TagCategory with the StaffMember.StaffKey and ExtractDateTime added for dependent tables in DB's
+type FlatStaffTag struct {
+	ExtractDateTime *Time   `json:"-" nullable:"false"`
+	StaffKey        *string `json:"-" nullable:"false"`
+	CategoryKey     *int64  `json:"CategoryKey" nullable:"false"`
+	CategoryName    *string `json:"CategoryName" nullable:"false"`
+	TagKey          *int64  `json:"Key" db:"tagkey" nullable:"false"`
+	TagName         *string `json:"Name" db:"tagname" nullable:"false"`
+	// LastModifiedDateUTC *Time   `json:"LastModifiedDateUTC,omitempty" nullable:"false"`
+}
+
+type FlatStaffTags []FlatStaffTag
+
+func (s StaffMember) FlatTags() FlatStaffTags {
+	fsts := []FlatStaffTag{}
+	if len(s.Tags) == 0 {
+		return fsts
+	}
+	for _, t := range s.Tags {
+		for _, tt := range t.Tags {
+			fst := FlatStaffTag{
+				ExtractDateTime: s.ExtractDateTime,
+				StaffKey:        s.StaffKey,
+				CategoryKey:     t.CategoryKey,
+				CategoryName:    t.CategoryName,
+				TagKey:          tt.Key,
+				TagName:         tt.Name,
+			}
+			fsts = append(fsts, fst)
+
+		}
+	}
+	return fsts
+}
+
+func (s StaffMember) FlatTTCMTags() FlatStaffTags {
+	fsts := []FlatStaffTag{}
+	if len(s.TTCMTags) == 0 {
+		return fsts
+	}
+	for _, t := range s.TTCMTags {
+		for _, tt := range t.Tags {
+			fst := FlatStaffTag{
+				ExtractDateTime: s.ExtractDateTime,
+				StaffKey:        s.StaffKey,
+				CategoryKey:     t.CategoryKey,
+				CategoryName:    t.CategoryName,
+				TagKey:          tt.Key,
+				TagName:         tt.Name,
+			}
+			fsts = append(fsts, fst)
+
+		}
+	}
+	return fsts
+}
 
 type StaffSkillset struct {
 	ExtractDateTime   *Time   `json:"-" nullable:"false"`
@@ -97,51 +166,50 @@ type StaffSkillset struct {
 	SunOccurrence     *string `json:"SunOccurrence,omitempty"`
 }
 
-// StaffTag is basically TagCategory with the StaffMember.StaffKey and ExtractDateTime added for dependent tables in DB's
-type StaffTag struct {
-	ExtractDateTime     *Time   `json:"-" nullable:"false"`
-	StaffKey            *string `json:"-" nullable:"false"`
-	LastModifiedDateUTC *Time   `json:"LastModifiedDateUTC,omitempty" nullable:"false"`
-	CategoryKey         *int64  `json:"CategoryKey" nullable:"false"`
-	CategoryName        *string `json:"CategoryName" nullable:"false"`
-	Tags                []struct {
-		Key  *int64  `json:"Key" db:"tagkey" nullable:"false"`
-		Name *string `json:"Name" db:"tagname" nullable:"false"`
+type StaffSkillsets []StaffSkillset
+
+func (s StaffMember) Skillsets() StaffSkillsets {
+	sks := []StaffSkillset{}
+	if len(s.Skillset) == 0 {
+		return sks
 	}
-}
-
-// StaffTagDB is basically TagCategory with the StaffMember.StaffKey and ExtractDateTime added for dependent tables in DB's
-type FlatStaffTagRelation struct {
-	ExtractDateTime *Time   `json:"-" nullable:"false"`
-	StaffKey        *string `json:"-" nullable:"false"`
-	FlatTagRelation
-	// LastModifiedDateUTC *Time   `json:"LastModifiedDateUTC,omitempty" nullable:"false"`
-	// CategoryKey         *int64  `json:"CategoryKey" nullable:"false"`
-	// CategoryName        *string `json:"CategoryName" nullable:"false"`
-	// TagKey              *int64  `json:"Key" db:"tagkey" nullable:"false"`
-	// TagName             *string `json:"Name" db:"tagname" nullable:"false"`
-}
-
-type FlatStaffTagRelations []FlatStaffTagRelation
-
-func (s StaffMember) FlatTagRelations() FlatStaffTagRelations {
-	ftrs := []FlatTagRelation{}
-	for _, t := range s.Tags {
-		tftrs := t.Flatten()
-		ftrs = append(ftrs, tftrs...)
-	}
-	fstrs := []FlatStaffTagRelation{}
-	for _, ftr := range ftrs {
-		fstr := FlatStaffTagRelation{
-			ExtractDateTime: s.ExtractDateTime,
-			StaffKey:        s.StaffKey,
-			FlatTagRelation: ftr,
+	for _, sk := range s.Skillset {
+		ski := StaffSkillset{
+			ExtractDateTime:   sk.ExtractDateTime,
+			StaffKey:          sk.StaffKey,
+			StaffFirstName:    sk.StaffFirstName,
+			StaffLastName:     sk.StaffLastName,
+			StaffAbbreviation: sk.StaffAbbreviation,
+			StaffId:           sk.StaffId,
+			TaskName:          sk.TaskName,
+			TaskAbbreviation:  sk.TaskAbbreviation,
+			TaskId:            sk.TaskId,
+			IsSkilledMon:      sk.IsSkilledMon,
+			MonOccurrence:     sk.MonOccurrence,
+			IsSkilledTue:      sk.IsSkilledTue,
+			TueOccurrence:     sk.TueOccurrence,
+			IsSkilledWed:      sk.IsSkilledWed,
+			WedOccurrence:     sk.WedOccurrence,
+			IsSkilledThu:      sk.IsSkilledThu,
+			ThuOccurrence:     sk.ThuOccurrence,
+			IsSkilledFri:      sk.IsSkilledFri,
+			FriOccurrence:     sk.FriOccurrence,
+			IsSkilledSat:      sk.IsSkilledSat,
+			SatOccurrence:     sk.SatOccurrence,
+			IsSkilledSun:      sk.IsSkilledSun,
+			SunOccurrence:     sk.SunOccurrence,
 		}
-		fstrs = append(fstrs, fstr)
-
+		sks = append(sks, ski)
 	}
-	return fstrs
+	return sks
 }
+
+// func (s FlatStaffTagRelation) ToTable(name string, schema string, temp bool, constraints map[string]string, tags map[string][]string) Table {
+// 	ftr := FlatTagRelation{}
+
+// 	table := StructToTable(ftr, name, schema, temp, constraints, tags)
+// 	fields := StructToFields()
+// }
 
 func DefaultStaffMemberRequestQueryFields(rqf *RequestQueryFields) *RequestQueryFields {
 	if rqf == nil {
@@ -212,54 +280,117 @@ func (p *StaffMember) Process() error {
 	return nil
 }
 
-func (s StaffMember) CreatePGTable(pgc *PGClient, ctx context.Context, temp bool) (sql.Result, error) {
-	basetable := "staffmember"
-	table := StructToTable(s, basetable, pgc.Config.Schema, temp, nil, nil)
-	tx := pgc.MustBegin()
-	result, err := pgc.CreateTable(ctx, table, true)
-	if err != nil {
-		return result, err
-	}
-	sqlResult := SQLResult(result)
+func (s StaffMember) CreatePGTable(ctx context.Context, tx *sqlx.Tx, schema, tablename string, temp bool) (sql.Result, error) {
 
-	tablename := fmt.Sprintf("%stag", basetable)
-	table = StructToTable(s.Tags, tablename, pgc.Config.Schema, temp, nil, nil)
-	result, err = pgc.CreateTable(ctx, table, true)
-	sqlResult = SQLResult(sqlResult, result)
+	basetable := "staffmember"
+	if tablename != "" {
+		basetable = tablename
+	}
+	var res Result
+
+	sqlResult, err := tx.ExecContext(ctx, fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s", schema))
+	res = SQLResult(res, sqlResult)
 	if err != nil {
-		return result, err
+		return res, err
+	}
+
+	table := StructToTable(Schedule{}, basetable, schema, temp, nil, nil)
+	sqlStatement := PGTableStatement(table, PGCreateTableDevTpl, nil)
+	sqlResult, err = tx.ExecContext(ctx, sqlStatement)
+	res = SQLResult(res, sqlResult)
+	if err != nil {
+		return res, err
+	}
+
+	tablename = fmt.Sprintf("%stag", basetable)
+	table = StructToTable(FlatStaffTag{}, tablename, schema, temp, nil, nil)
+	sqlStatement = PGTableStatement(table, PGCreateTableDevTpl, nil)
+	sqlResult, err = tx.ExecContext(ctx, sqlStatement)
+	res = SQLResult(res, sqlResult)
+	if err != nil {
+		return res, err
 	}
 
 	tablename = fmt.Sprintf("%sttcmtag", basetable)
-	table = StructToTable(s.TTCMTags, tablename, pgc.Config.Schema, temp, nil, nil)
-	result, err = pgc.CreateTable(ctx, table, true)
-	sqlResult = SQLResult(sqlResult, result)
+	table = StructToTable(FlatStaffTag{}, tablename, schema, temp, nil, nil)
+	sqlStatement = PGTableStatement(table, PGCreateTableDevTpl, nil)
+	sqlResult, err = tx.ExecContext(ctx, sqlStatement)
+	res = SQLResult(res, sqlResult)
 	if err != nil {
-		return result, err
+		return res, err
 	}
 
 	tablename = fmt.Sprintf("%sskillset", basetable)
-	table = StructToTable(s.Skillset, tablename, pgc.Config.Schema, temp, nil, nil)
-	result, err = pgc.CreateTable(ctx, table, true)
-	sqlResult = SQLResult(sqlResult, result)
+	table = StructToTable(StaffSkillset{}, tablename, schema, temp, nil, nil)
+	sqlStatement = PGTableStatement(table, PGCreateTableDevTpl, nil)
+	sqlResult, err = tx.ExecContext(ctx, sqlStatement)
+	res = SQLResult(res, sqlResult)
 	if err != nil {
-		return result, err
+		return res, err
 	}
 
-	tablename = fmt.Sprintf("%sprofile", basetable)
-	table = StructToTable(s.Profiles, tablename, pgc.Config.Schema, temp, nil, nil)
-	result, err = pgc.CreateTable(ctx, table, true)
-	sqlResult = SQLResult(sqlResult, result)
+	// staffprofile doesn't appear to be implemented
+	// tablename = fmt.Sprintf("%sprofile", basetable)
+	// table = StructToTable(Profile{}, tablename, schema, temp, nil, nil)
+	// sqlStatement = PGTableStatement(table, PGCreateTableDevTpl, nil)
+	// result, err = tx.ExecContext(ctx, sqlStatement)
+	// if err != nil {
+	// 	return result, err
+	// }
+	// sqlResult = SQLResult(result)
+
+	return res, nil
+}
+
+var smInsertRowsPGSQL = `
+
+`
+
+// InsertToPG is a StaffMembers method (as opposed to a StaffMember method) to enable bulk loads and avoid
+// large numbers of single row transactions
+func (s StaffMembers) InsertToPG(ctx context.Context, db *sqlx.DB, schema, tablename string) (sql.Result, error) {
+
+	if len(s) < 1 {
+		return nil, fmt.Errorf("StaffMembers.InsertToPG: length of %T < 1, nothing to do", s)
+	}
+
+	tx := db.MustBegin()
+	var res Result
+
+	// make sure the tables exist
+	sqlResult, err := s[0].CreatePGTable(ctx, tx, schema, tablename, false)
+	if sqlResult != nil {
+		res = SQLResult(res, sqlResult)
+	}
 	if err != nil {
-		return result, err
+		return res, err
 	}
-	// don't commit temp tables or you immediately lose access to them
-	if !temp {
-		if err := tx.Commit(); err != nil {
-			return nil, err
-		}
+
+	// need temp tables
+	sqlResult, err = s[0].CreatePGTable(ctx, tx, schema, tablename, true)
+	if sqlResult != nil {
+		res = SQLResult(res, sqlResult)
 	}
-	return sqlResult, nil
+	if err != nil {
+		return res, err
+	}
+
+	// primary table
+	basetable := "staffmember"
+	if tablename != "" {
+		basetable = tablename
+	}
+	table := StructToTable(s[0], basetable, schema, true, nil, nil)
+	sqlStatement := PGTableStatement(table, PGInsertRowsDevTpl, nil)
+	fmt.Println(sqlStatement)
+	sqlResult, err = tx.NamedExecContext(ctx, sqlStatement, s)
+	res = SQLResult(res, sqlResult)
+	if err != nil {
+		return res, err
+	}
+
+	err = tx.Commit()
+	return res, err
 }
 
 // func (s StaffMember) CreatePGTable(ctx context.Context, db *sqlx.DB, schema, table string) (sql.Result, error) {
@@ -349,209 +480,209 @@ func (s StaffMember) CreatePGTable(pgc *PGClient, ctx context.Context, temp bool
 
 // }
 
-func (s StaffMembers) InsertToPG(pgc *PGClient, ctx context.Context) (sql.Result, error) {
-	txOptions := sql.TxOptions{
-		Isolation: 0,
-		ReadOnly:  false,
-	}
-	fmt.Print(txOptions)
-	table := StructToTable(s[0], "staffmember", pgc.Config.Schema, false, nil, nil)
-	var sqlResult sql.Result
-	chunkSize := 65535 / reflect.ValueOf(s[0]).NumField()
-	var res Result
-	for i := 0; i < len(s); i = i + chunkSize {
-		j := i + chunkSize
-		if j > len(s) {
-			j = len(s)
-		}
-		values := s[i:j]
-		pgc.Tx = pgc.MustBegin()
+// func (s StaffMembers) InsertToPG(pgc *PGClient, ctx context.Context) (sql.Result, error) {
+// 	txOptions := sql.TxOptions{
+// 		Isolation: 0,
+// 		ReadOnly:  false,
+// 	}
+// 	fmt.Print(txOptions)
+// 	table := StructToTable(s[0], "staffmember", pgc.Config.Schema, false, nil, nil)
+// 	var sqlResult sql.Result
+// 	chunkSize := 65535 / reflect.ValueOf(s[0]).NumField()
+// 	var res Result
+// 	for i := 0; i < len(s); i = i + chunkSize {
+// 		j := i + chunkSize
+// 		if j > len(s) {
+// 			j = len(s)
+// 		}
+// 		values := s[i:j]
+// 		pgc.Tx = pgc.MustBegin()
 
-		// need a temp table for this
-		result, err := s[i].CreatePGTable(pgc, ctx, true)
-		sqlResult = SQLResult(sqlResult, result)
-		if err != nil {
-			return sqlResult, err
-		}
-		tmp := table
-		tmp.Temporary = true
-		// pgc.InsertRows(ctx, tmp, values, true) // this doesn't work! silly 'generics'
-		// result, err = PGInsertTx(ctx, pgc.Tx, tmp, "", values)
-		sqlStatement := PGTableStatement(tmp, PGInsertRowsDevTpl, nil)
-		result, err = pgc.Tx.NamedExecContext(ctx, sqlStatement, values)
-		sqlResult = SQLResult(sqlResult, result)
-		if err != nil {
-			return sqlResult, err
-		}
+// 		// need a temp table for this
+// 		result, err := s[i].CreatePGTable(pgc, ctx, true)
+// 		sqlResult = SQLResult(sqlResult, result)
+// 		if err != nil {
+// 			return sqlResult, err
+// 		}
+// 		tmp := table
+// 		tmp.Temporary = true
+// 		// pgc.InsertRows(ctx, tmp, values, true) // this doesn't work! silly 'generics'
+// 		// result, err = PGInsertTx(ctx, pgc.Tx, tmp, "", values)
+// 		sqlStatement := PGTableStatement(tmp, PGInsertRowsDevTpl, nil)
+// 		result, err = pgc.Tx.NamedExecContext(ctx, sqlStatement, values)
+// 		sqlResult = SQLResult(sqlResult, result)
+// 		if err != nil {
+// 			return sqlResult, err
+// 		}
 
-		// insert all to temp table
-		sqlResult, err := pgc.Tx.NamedExecContext(
-			ctx,
-			// PGInsertStatement(value[0], schema, table),
-			PGStatement(values[0], table.Schema, table.Name, pgInsertTpl),
-			s[i:j],
-		)
-		res = SQLResult(res, sqlResult)
-		if err != nil {
-			return res, err
-		}
+// 		// insert all to temp table
+// 		sqlResult, err := pgc.Tx.NamedExecContext(
+// 			ctx,
+// 			// PGInsertStatement(value[0], schema, table),
+// 			PGStatement(values[0], table.Schema, table.Name, pgInsertTpl),
+// 			s[i:j],
+// 		)
+// 		res = SQLResult(res, sqlResult)
+// 		if err != nil {
+// 			return res, err
+// 		}
 
-		// for _, field := range table.Fields {
-		// 	switch field.Kind {
-		// 	case "slice", "map":
-		// 		continue
-		// 		// v := reflect.ValueOf(value[i]).FieldByName(field.Name)
-		// 		// PGInsertRowsDev(ctx, tx, table, v.InterfaceData())
-		// 		// name := strings.ToLower(fmt.Sprintf("%s%s", table.Name, reflect.ValueOf()))
-		// 		// table := StructToTable()
-		// 		// PGInsertRowsDev(ctx, tx, table, )
-		// 	default:
-		// 		continue
-		// 	}
-		// }
+// 		// for _, field := range table.Fields {
+// 		// 	switch field.Kind {
+// 		// 	case "slice", "map":
+// 		// 		continue
+// 		// 		// v := reflect.ValueOf(value[i]).FieldByName(field.Name)
+// 		// 		// PGInsertRowsDev(ctx, tx, table, v.InterfaceData())
+// 		// 		// name := strings.ToLower(fmt.Sprintf("%s%s", table.Name, reflect.ValueOf()))
+// 		// 		// table := StructToTable()
+// 		// 		// PGInsertRowsDev(ctx, tx, table, )
+// 		// 	default:
+// 		// 		continue
+// 		// 	}
+// 		// }
 
-	}
+// 	}
 
-	// tx, err := db.BeginTxx(ctx, &txOptions)
-	// if err != nil {
-	// 	tx.Rollback()
-	// 	return nil, err
-	// }
-	// // create table
-	// result, err := tx.Exec(``)
-	// if err != nil {
-	// 	tx.Rollback()
-	// 	return result, err
-	// }
-	// // create temp table
-	// // insert rows
+// 	// tx, err := db.BeginTxx(ctx, &txOptions)
+// 	// if err != nil {
+// 	// 	tx.Rollback()
+// 	// 	return nil, err
+// 	// }
+// 	// // create table
+// 	// result, err := tx.Exec(``)
+// 	// if err != nil {
+// 	// 	tx.Rollback()
+// 	// 	return result, err
+// 	// }
+// 	// // create temp table
+// 	// // insert rows
 
-	// // create child tables
-	// // create child
+// 	// // create child tables
+// 	// // create child
 
-	// if err := tx.Commit(); err != nil {
-	// 	tx.Rollback()
-	// }
+// 	// if err := tx.Commit(); err != nil {
+// 	// 	tx.Rollback()
+// 	// }
 
-	return nil, nil
+// 	return nil, nil
 
-	// there is no combination of fields for a good primary key
-	// need to only insert new rows if there is a change in at least one (non-metadata) field
-	// if _extract_date_time is only different field, don't insert
+// 	// there is no combination of fields for a good primary key
+// 	// need to only insert new rows if there is a change in at least one (non-metadata) field
+// 	// if _extract_date_time is only different field, don't insert
 
-	// insert into staffmember ...
-	// select
+// 	// insert into staffmember ...
+// 	// select
 
-	// start transaction
-	// create temp table
-	// insert into temp table
-	// use cte to join with current data and insert changes to target table
-	// if err, rollback, else commit
-	// not sure how to make sure no dangling temp tables
+// 	// start transaction
+// 	// create temp table
+// 	// insert into temp table
+// 	// use cte to join with current data and insert changes to target table
+// 	// if err, rollback, else commit
+// 	// not sure how to make sure no dangling temp tables
 
-}
+// }
 
-func (s StaffMembers) InsertToPGDev(pgc *PGClient, ctx context.Context) (sql.Result, error) {
-	txOptions := sql.TxOptions{
-		Isolation: 0,
-		ReadOnly:  false,
-	}
-	fmt.Print(txOptions)
-	table := StructToTable(s[0], "staffmember", pgc.Config.Schema, false, nil, nil)
-	var sqlResult sql.Result
-	chunkSize := 65535 / reflect.ValueOf(s[0]).NumField()
-	var res Result
-	for i := 0; i < len(s); i = i + chunkSize {
-		j := i + chunkSize
-		if j > len(s) {
-			j = len(s)
-		}
-		values := s[i:j]
-		pgc.Tx = pgc.MustBegin()
+// func (s StaffMembers) InsertToPGDev(pgc *PGClient, ctx context.Context) (sql.Result, error) {
+// 	txOptions := sql.TxOptions{
+// 		Isolation: 0,
+// 		ReadOnly:  false,
+// 	}
+// 	fmt.Print(txOptions)
+// 	table := StructToTable(s[0], "staffmember", pgc.Config.Schema, false, nil, nil)
+// 	var sqlResult sql.Result
+// 	chunkSize := 65535 / reflect.ValueOf(s[0]).NumField()
+// 	var res Result
+// 	for i := 0; i < len(s); i = i + chunkSize {
+// 		j := i + chunkSize
+// 		if j > len(s) {
+// 			j = len(s)
+// 		}
+// 		values := s[i:j]
+// 		pgc.Tx = pgc.MustBegin()
 
-		// need a temp table for this
-		result, err := s[i].CreatePGTable(pgc, ctx, true)
-		sqlResult = SQLResult(sqlResult, result)
-		if err != nil {
-			return sqlResult, err
-		}
-		tmp := table
-		tmp.Temporary = true
-		// pgc.InsertRows(ctx, tmp, values, true) // this doesn't work! silly 'generics'
-		// result, err = PGInsertTx(ctx, pgc.Tx, tmp, "", values)
-		sqlStatement := PGTableStatement(tmp, PGInsertRowsDevTpl, nil)
-		result, err = pgc.Tx.NamedExecContext(ctx, sqlStatement, values)
-		sqlResult = SQLResult(sqlResult, result)
-		if err != nil {
-			return sqlResult, err
-		}
+// 		// need a temp table for this
+// 		result, err := s[i].CreatePGTable(pgc, ctx, true)
+// 		sqlResult = SQLResult(sqlResult, result)
+// 		if err != nil {
+// 			return sqlResult, err
+// 		}
+// 		tmp := table
+// 		tmp.Temporary = true
+// 		// pgc.InsertRows(ctx, tmp, values, true) // this doesn't work! silly 'generics'
+// 		// result, err = PGInsertTx(ctx, pgc.Tx, tmp, "", values)
+// 		sqlStatement := PGTableStatement(tmp, PGInsertRowsDevTpl, nil)
+// 		result, err = pgc.Tx.NamedExecContext(ctx, sqlStatement, values)
+// 		sqlResult = SQLResult(sqlResult, result)
+// 		if err != nil {
+// 			return sqlResult, err
+// 		}
 
-		// insert all to temp table
-		sqlResult, err := pgc.Tx.NamedExecContext(
-			ctx,
-			// PGInsertStatement(value[0], schema, table),
-			PGStatement(values[0], table.Schema, table.Name, pgInsertTpl),
-			s[i:j],
-		)
-		res = SQLResult(res, sqlResult)
-		if err != nil {
-			return res, err
-		}
+// 		// insert all to temp table
+// 		sqlResult, err := pgc.Tx.NamedExecContext(
+// 			ctx,
+// 			// PGInsertStatement(value[0], schema, table),
+// 			PGStatement(values[0], table.Schema, table.Name, pgInsertTpl),
+// 			s[i:j],
+// 		)
+// 		res = SQLResult(res, sqlResult)
+// 		if err != nil {
+// 			return res, err
+// 		}
 
-		// for _, field := range table.Fields {
-		// 	switch field.Kind {
-		// 	case "slice", "map":
-		// 		continue
-		// 		// v := reflect.ValueOf(value[i]).FieldByName(field.Name)
-		// 		// PGInsertRowsDev(ctx, tx, table, v.InterfaceData())
-		// 		// name := strings.ToLower(fmt.Sprintf("%s%s", table.Name, reflect.ValueOf()))
-		// 		// table := StructToTable()
-		// 		// PGInsertRowsDev(ctx, tx, table, )
-		// 	default:
-		// 		continue
-		// 	}
-		// }
+// 		// for _, field := range table.Fields {
+// 		// 	switch field.Kind {
+// 		// 	case "slice", "map":
+// 		// 		continue
+// 		// 		// v := reflect.ValueOf(value[i]).FieldByName(field.Name)
+// 		// 		// PGInsertRowsDev(ctx, tx, table, v.InterfaceData())
+// 		// 		// name := strings.ToLower(fmt.Sprintf("%s%s", table.Name, reflect.ValueOf()))
+// 		// 		// table := StructToTable()
+// 		// 		// PGInsertRowsDev(ctx, tx, table, )
+// 		// 	default:
+// 		// 		continue
+// 		// 	}
+// 		// }
 
-	}
+// 	}
 
-	// tx, err := db.BeginTxx(ctx, &txOptions)
-	// if err != nil {
-	// 	tx.Rollback()
-	// 	return nil, err
-	// }
-	// // create table
-	// result, err := tx.Exec(``)
-	// if err != nil {
-	// 	tx.Rollback()
-	// 	return result, err
-	// }
-	// // create temp table
-	// // insert rows
+// 	// tx, err := db.BeginTxx(ctx, &txOptions)
+// 	// if err != nil {
+// 	// 	tx.Rollback()
+// 	// 	return nil, err
+// 	// }
+// 	// // create table
+// 	// result, err := tx.Exec(``)
+// 	// if err != nil {
+// 	// 	tx.Rollback()
+// 	// 	return result, err
+// 	// }
+// 	// // create temp table
+// 	// // insert rows
 
-	// // create child tables
-	// // create child
+// 	// // create child tables
+// 	// // create child
 
-	// if err := tx.Commit(); err != nil {
-	// 	tx.Rollback()
-	// }
+// 	// if err := tx.Commit(); err != nil {
+// 	// 	tx.Rollback()
+// 	// }
 
-	return nil, nil
+// 	return nil, nil
 
-	// there is no combination of fields for a good primary key
-	// need to only insert new rows if there is a change in at least one (non-metadata) field
-	// if _extract_date_time is only different field, don't insert
+// 	// there is no combination of fields for a good primary key
+// 	// need to only insert new rows if there is a change in at least one (non-metadata) field
+// 	// if _extract_date_time is only different field, don't insert
 
-	// insert into staffmember ...
-	// select
+// 	// insert into staffmember ...
+// 	// select
 
-	// start transaction
-	// create temp table
-	// insert into temp table
-	// use cte to join with current data and insert changes to target table
-	// if err, rollback, else commit
-	// not sure how to make sure no dangling temp tables
+// 	// start transaction
+// 	// create temp table
+// 	// insert into temp table
+// 	// use cte to join with current data and insert changes to target table
+// 	// if err, rollback, else commit
+// 	// not sure how to make sure no dangling temp tables
 
-}
+// }
 
 // import strategies:
 // unique rows - audit logs, immutable rows
