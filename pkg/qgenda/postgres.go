@@ -522,11 +522,23 @@ INSERT INTO
 		{{ pgname $field }}
 	{{- end }} 
 	) VALUES (
-	{{- range  $index, $field := .Fields -}}
+	{{- range  $index, $field := pgincludefields .Fields -}}
 	{{- if ne $index 0 -}},{{- end }}
 		:{{ pgname $field }}
 	{{- end }}	
 )
+{{- if not .Temporary }} ON CONFLICT (
+	{{- $primarykey := join .PrimaryKey  ", " -}}
+	{{ if ne $primarykey "" }}
+	{{ $primarykey }}
+	{{ else }}
+	{{- range  $index, $field := .Fields -}}
+	{{- if ne $index 0 -}},{{- end }}
+		{{ pgname $field }}
+	{{- end -}}	
+	{{- end }}
+	) DO NOTHING
+{{ end }}
 `
 
 // {{ if .Constraints }}
@@ -564,7 +576,7 @@ with cte_partitioned_row_numbers as (
 	row_number() over ( partition by {{ fieldswithtagvalue .Fields "idtype" "group" | pgnames | joinss " , " }} order by {{ fieldswithtagvalue .Fields "idtype" "order" | pgnames | joinss " desc , " }} desc ) rn
 	FROM {{ .Schema -}}{{- if ne .Schema "" -}}.{{- end -}}{{- .Name }}
 ), cte_last_inserted_rows as (
-	select * from cte_paritioned_row_numbers cprn where cprn.rn = 1
+	select * from cte_partitioned_row_numbers cprn where cprn.rn = 1
 ), cte_new_rows as (
 	select distinct * from _tmp_{{- .Name }}
 ), cte_anti_joined as (
@@ -573,10 +585,10 @@ with cte_partitioned_row_numbers as (
 	from cte_new_rows cnr
 	where not exists (
 		select 1
-		from cte_most_recent_rows cmrr where
-		{{- $joinfields := .Fields.WithoutTagValue "idtype" "order" | pgnames -}}
+		from cte_last_inserted_rows clir where
+		{{- $joinfields := .Fields.WithoutTagValue "idtype" "order" | pgincludefields | pgnames -}}
 		{{- range  $index, $field := $joinfields  }}
-		{{ if ne $index 0 }} and {{ end -}} cmrr.{{ $field }} = cnr.{{ $field }}
+		{{ if ne $index 0 }} and {{ end -}} clir.{{ $field }} = cnr.{{ $field }}
 		{{- end }}	
 	)
 ) insert into {{ if ne .Schema "" -}}{{ .Schema -}}.{{- end -}}{{- .Name }} (
