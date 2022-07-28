@@ -11,6 +11,7 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -91,6 +92,7 @@ type Table struct {
 	Name            string
 	Schema          string
 	Temporary       bool
+	UUID            string
 	Constraints     map[string]string
 	Fields          Fields
 	FlattenChildren bool // by default, slices and maps will be handled by creating a child table for each and 'flattening' any nested slices or maps
@@ -113,7 +115,7 @@ type Fields []Field
 
 // )
 
-func StructToTable[T any](value T, name, schema string, temporary bool, constraints map[string]string, tags map[string][]string) Table {
+func StructToTable[T any](value T, name, schema string, temporary bool, id string, constraints map[string]string, tags map[string][]string) Table {
 
 	fields := StructToFields(value)
 
@@ -137,10 +139,25 @@ func StructToTable[T any](value T, name, schema string, temporary bool, constrai
 			constraints["unique"] = strings.Join(uf, ", ")
 		}
 	}
+
+	if id == "" {
+		id = strings.ReplaceAll(uuid.NewString(), "-", "")
+	}
+	// check https://www.postgresql.org/docs/current/limits.html for current
+	// identifier limits. Limit is 63 at time of coding.
+	pgIDLimit := 63
+	idLength := len(id)
+	permIDLength := len("_tmp_") + len(name)
+	maxIDLength := pgIDLimit - permIDLength
+	if idLength > maxIDLength {
+		id = id[0:maxIDLength]
+		log.Printf("length of _tmp_[id]_[name] is %d, exceeding postgres identifier limit of %d, truncating [id] to %d characters: %s", (permIDLength + idLength), pgIDLimit, maxIDLength, id)
+	}
 	return Table{
 		Name:            name,
 		Schema:          schema,
 		Temporary:       temporary,
+		UUID:            id,
 		Constraints:     constraints,
 		Fields:          fields,
 		FlattenChildren: true,

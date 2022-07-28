@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"time"
 
 	"github.com/ericsgagnon/qgenda/pkg/qgenda"
 	"github.com/jmoiron/sqlx"
@@ -70,72 +69,13 @@ func main() {
 
 	// staffmembers -----------------------------------------------------
 	sm := qgenda.StaffMembers{}
-	if err := sm.LoadFromFile("../.cache/staffmember.json"); err != nil {
+	if err := sm.LoadFile("../.cache/staffmember.json"); err != nil {
 		log.Println(err)
 	}
-
-	// b, err := os.ReadFile("../.cache/staffmember.json")
-	// if err != nil {
-	// 	log.Println(err)
-	// }
-	// if err := json.Unmarshal(b, &sm); err != nil {
-	// 	log.Println(err)
-	// }
-	fmt.Printf("Length of []StaffMember: %d\n", len(sm))
-	for i, v := range sm {
-		vi := v
-		if vi.ExtractDateTime == nil {
-			now := qgenda.NewTime(time.Now().UTC())
-			vi.ExtractDateTime = &now
-		}
-		sm[i] = vi
-	}
-
-	smtable := qgenda.StructToTable(qgenda.StaffMember{}, "staff", "qgenda", false, nil, nil)
-
-	smsql := qgenda.PGTableStatement(
-		smtable,
-		qgenda.PGCreateTableDevTpl,
-		nil,
-	)
-	pgc := &qgenda.PGClient{
-		DB:     db,
-		Config: qgenda.DBClientConfig{},
-	}
-	pgc.CreateSchema(ctx, "staffmembertest", "")
-	// fmt.Println(smsql)
-	fmt.Println(db.Exec(smsql))
-	// for _, field := range smtable.Fields {
-	// 	fmt.Printf("field: %s\n", field.Name)
-	// 	fmt.Printf("Type: %s\n", field.Type)
-	// 	fmt.Printf("Kind: %s\n", field.Kind)
-	// }
-	result, err = qgenda.PGInsertRowsDev(ctx, db, smtable, sm)
+	_, err = sm.Process()
 	if err != nil {
 		log.Println(err)
 	}
-
-	fmt.Println(result)
-
-	// fmt.Println(reflect.ValueOf(sm[0]).Type().Name())
-
-	// smsql02 := qgenda.PGTableStatement(smtable, qgenda.PGInsertChangesOnlyDevTpl, nil)
-	smtable = qgenda.StructToTable(qgenda.StaffMember{}, "staffmember", "qgenda", true, nil, nil)
-	smtable.Temporary = true
-	smsql02 := qgenda.PGTableStatement(smtable, qgenda.PGInsertRowsDevTpl, nil)
-	fmt.Sprint(smsql02)
-	// fmt.Println(smsql02)
-	smsql02 = qgenda.PGTableStatement(smtable, qgenda.PGInsertChangesOnlyDevTpl, nil)
-	// fmt.Println(smsql02)
-	pgc.Tx, err = pgc.BeginTxx(ctx, nil)
-	if err != nil {
-		log.Println(err)
-	}
-	result, err = pgc.CreateTable(ctx, smtable, true)
-	if err != nil {
-		log.Println(err)
-	}
-	fmt.Println(result)
 	now := qgenda.NewTime(nil)
 	for i, _ := range sm {
 		if sm[i].ExtractDateTime == nil {
@@ -143,13 +83,124 @@ func main() {
 
 		}
 	}
-	result, err = sm.InsertToPG(ctx, db, "plonky", "")
-	fmt.Printf("Insert []StaffMember to plonky.staffmember: %s\t%s\n", result, err)
+	var rowsAffected int64
+	schema := "sm1"
+	result, err = sm[0:9].InsertToPG(ctx, db, schema, "")
+	rowsAffected, _ = result.RowsAffected()
+	fmt.Printf("Insert []StaffMember to %s.staffmember: %d\t%s\n", schema, rowsAffected, err)
 
-	sftrs := sm[0].FlatTags()
-	if len(sftrs) > 0 {
-		fmt.Println(sftrs[0])
+	schema = "sm2"
+	result, err = sm[0:19].InsertToPG(ctx, db, schema, "")
+	rowsAffected, _ = result.RowsAffected()
+	fmt.Printf("Insert []StaffMember to %s.staffmember: %d\t%s\n", schema, rowsAffected, err)
+
+	schema = "plonky"
+	result, err = sm[0:9].InsertToPG(ctx, db, schema, "")
+	rowsAffected, _ = result.RowsAffected()
+	fmt.Printf("Insert []StaffMember to %s.staffmember: %d\t%s\n", schema, rowsAffected, err)
+
+	result, err = sm[0:19].InsertToPG(ctx, db, schema, "")
+	rowsAffected, _ = result.RowsAffected()
+	fmt.Printf("Insert []StaffMember to %s.staffmember: %d\t%s\n", schema, rowsAffected, err)
+
+	result, err = sm[0:99].InsertToPG(ctx, db, schema, "")
+	rowsAffected, _ = result.RowsAffected()
+	fmt.Printf("Insert []StaffMember to %s.staffmember: %d\t%s\n", schema, rowsAffected, err)
+
+	schema = "importalicious"
+	var smss qgenda.StaffMembers
+	smss, err = smss.Extract(ctx, c, nil)
+	if err != nil {
+		log.Println(err)
 	}
+	if _, err := smss.Process(); err != nil {
+		log.Println(err)
+	}
+
+	smss.WriteFile(fmt.Sprintf("../.cache/staffmember-%s.json", smss[0].ExtractDateTime.Time.Format("20060102150405")))
+	result, err = smss.InsertToPG(ctx, db, schema, "")
+	rowsAffected, _ = result.RowsAffected()
+	fmt.Printf("Insert []StaffMember to %s.staffmember: %d\t%s\n", schema, rowsAffected, err)
+	tvals := map[string]bool{}
+	for _, v := range smss {
+		tstring := fmt.Sprint(v.ExtractDateTime.Time.Format("2006-01-02T15:04:05.99999999"))
+		tvals[tstring] = true
+	}
+	for k, _ := range tvals {
+		fmt.Println(k)
+	}
+
+	// fmt.Println(db.ExecContext(ctx, "DROP SCHEMA IF EXISTS plonky CASCADE"))
+	// fmt.Println(db.ExecContext(ctx, "DROP SCHEMA IF EXISTS importalicious CASCADE"))
+	// result, err = db.ExecContext(ctx, "DROP SCHEMA IF EXISTS plonky CASCADE")
+	// if err != nil {
+	// 	log.Println(err)
+	// }
+	// fmt.Println(result)
+	// ----------------------------------------------------------------------
+	// fmt.Printf("Length of []StaffMember: %d\n", len(sm))
+	// var x int
+	// for i, v := range sm {
+	// 	vi := v
+	// 	if vi.ExtractDateTime == nil {
+	// 		x = x + 1
+	// 		now := qgenda.NewTime(time.Now().UTC())
+	// 		vi.ExtractDateTime = &now
+	// 	}
+	// 	sm[i] = vi
+	// }
+	// fmt.Println("Number of StaffMembers with nil ExtractDateTime: ", x)
+
+	// smtable := qgenda.StructToTable(qgenda.StaffMember{}, "staff", "qgenda", false, nil, nil)
+
+	// smsql := qgenda.PGTableStatement(
+	// 	smtable,
+	// 	qgenda.PGCreateTableDevTpl,
+	// 	nil,
+	// )
+	// pgc := &qgenda.PGClient{
+	// 	DB:     db,
+	// 	Config: qgenda.DBClientConfig{},
+	// }
+	// pgc.CreateSchema(ctx, "staffmembertest", "")
+	// fmt.Println(smsql)
+	// fmt.Println(db.Exec(smsql))
+	// for _, field := range smtable.Fields {
+	// 	fmt.Printf("field: %s\n", field.Name)
+	// 	fmt.Printf("Type: %s\n", field.Type)
+	// 	fmt.Printf("Kind: %s\n", field.Kind)
+	// }
+	// result, err = qgenda.PGInsertRowsDev(ctx, db, smtable, sm)
+	// if err != nil {
+	// 	log.Println(err)
+	// }
+
+	// fmt.Println(result)
+
+	// fmt.Println(reflect.ValueOf(sm[0]).Type().Name())
+
+	// smsql02 := qgenda.PGTableStatement(smtable, qgenda.PGInsertChangesOnlyDevTpl, nil)
+	// smtable = qgenda.StructToTable(qgenda.StaffMember{}, "staffmember", "qgenda", true, nil, nil)
+	// smtable.Temporary = true
+	// smsql02 := qgenda.PGTableStatement(smtable, qgenda.PGInsertRowsDevTpl, nil)
+	// fmt.Sprint(smsql02)
+	// // fmt.Println(smsql02)
+	// smsql02 = qgenda.PGTableStatement(smtable, qgenda.PGInsertChangesOnlyDevTpl, nil)
+	// // fmt.Println(smsql02)
+	// pgc.Tx, err = pgc.BeginTxx(ctx, nil)
+	// if err != nil {
+	// 	log.Println(err)
+	// }
+	// result, err = pgc.CreateTable(ctx, smtable, true)
+	// if err != nil {
+	// 	log.Println(err)
+	// }
+	// fmt.Println(result)
+
+	// sftrs := sm[0].FlatTags()
+	// if len(sftrs) > 0 {
+	// 	fmt.Println(sftrs[0])
+	// }
 
 	// smttable := qgenda.StructToTable(qgenda.FlatStaffTag{}, "staffmembertag", "qgenda", true, nil, nil)
 	// smtsql := qgenda.PGTableStatement(smttable, qgenda.PGCreateTableDevTpl, nil)
@@ -170,21 +221,5 @@ func main() {
 	// for _, f := range smincludes {
 	// 	fmt.Println(f.Name)
 	// }
-	result, err = sm[0:9].InsertToPG(ctx, db, "plonky", "")
-	fmt.Println(result, err)
 
-	smss, err := sm.Extract(ctx, c, nil)
-	if err != nil {
-		log.Println(err)
-	}
-	if _, err := smss.Process(); err != nil {
-		log.Println(err)
-	}
-	result, err = smss.InsertToPG(ctx, db, "plonky", "")
-	fmt.Println(result, err)
-	// result, err = db.ExecContext(ctx, "DROP SCHEMA IF EXISTS plonky CASCADE")
-	// if err != nil {
-	// 	log.Println(err)
-	// }
-	// fmt.Println(result)
 }

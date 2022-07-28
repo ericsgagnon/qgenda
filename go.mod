@@ -4,11 +4,11 @@ go 1.18
 
 require (
 	github.com/google/go-querystring v1.1.0
+	github.com/google/uuid v1.3.0
 	github.com/jackc/pgtype v1.9.1
 	github.com/jackc/pgx/v4 v4.14.1
 	github.com/jmoiron/sqlx v1.3.4
 	github.com/lib/pq v1.10.2
-	github.com/spf13/cobra v1.4.0
 	github.com/spf13/viper v1.10.1
 	github.com/urfave/cli/v2 v2.3.0
 	go.uber.org/zap v1.21.0
@@ -19,7 +19,6 @@ require (
 	github.com/cpuguy83/go-md2man/v2 v2.0.1 // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
-	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/jackc/chunkreader/v2 v2.0.1 // indirect
 	github.com/jackc/pgconn v1.10.1 // indirect
 	github.com/jackc/pgio v1.0.0 // indirect

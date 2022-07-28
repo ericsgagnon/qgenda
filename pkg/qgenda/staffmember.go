@@ -1,6 +1,7 @@
 package qgenda
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -8,13 +9,15 @@ import (
 	"io"
 	"log"
 	"os"
+	"strings"
 
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
 
 type StaffMember struct {
 	RawMessage               *string         `json:"-" db:"_raw_message" primarykey:"table" idtype:"group"`
-	ExtractDateTime          *Time           `json:"_extract_date_time" db:"_extract_date_time" primarykey:"table" idtype:"order"`
+	ExtractDateTime          *Time           `json:"_extract_date_time,omitempty" db:"_extract_date_time" primarykey:"table" idtype:"order"`
 	Abbrev                   *string         `json:"Abbrev,omitempty"`
 	BgColor                  *string         `json:"BgColor,omitempty"`
 	BillSysID                *string         `json:"BillSysId,omitempty"`
@@ -289,22 +292,42 @@ func (s *StaffMember) UnmarshalJSON(b []byte) error {
 	type SM StaffMember
 	var sm SM
 
-	err := json.Unmarshal(b, &sm)
-	if err != nil {
+	if err := json.Unmarshal(b, &sm); err != nil {
 		return err
 	}
+	smm := StaffMember(sm)
+	// we need to omit ExtractDateTime from StaffMember.RawMessage
+	// the easiest way to do that is to set it to nil and remarshal
+	if err := (&smm).SetRawMessage(); err != nil {
+		return err
+	}
+	// var smrm SM
+	// smrm = sm
+	// // if err := json.Unmarshal(b, &smrm); err != nil {
+	// // 	return err
+	// // }
+	// smrm.RawMessage = nil
+	// smrm.ExtractDateTime = nil
+	// smrmBytes, err := json.Marshal(smrm)
+	// if err != nil {
+	// 	return err
+	// }
 
-	rawMessage := string(b)
-	sm.RawMessage = &rawMessage
+	// var bb bytes.Buffer
+	// if err := json.Compact(&bb, smrmBytes); err != nil {
+	// 	return err
+	// }
+	// rawMessage := bb.String()
+	// sm.RawMessage = &rawMessage
 
-	*s = StaffMember(sm)
+	*s = smm
 
 	return nil
 }
 
-// LoadFromFile is used to import any cached files. Because ExtractDateTime isn't actually part of
+// LoadFile is used to import any cached files. Because ExtractDateTime isn't actually part of
 // StaffMember, it will also use the file's modTime as a proxy for ExtractDateTime.
-func (s *StaffMembers) LoadFromFile(filename string) error {
+func (s *StaffMembers) LoadFile(filename string) error {
 	fi, err := os.Stat(filename)
 	if err != nil {
 		return err
@@ -330,18 +353,60 @@ func (s *StaffMembers) LoadFromFile(filename string) error {
 	return nil
 }
 
+func (s StaffMembers) WriteFile(filename string) error {
+	b, err := json.Marshal(s)
+	if err != nil {
+		return err
+	}
+	var bb bytes.Buffer
+	if err := json.Compact(&bb, b); err != nil {
+		return err
+	}
+	if err := os.WriteFile(filename, bb.Bytes(), 0644); err != nil {
+		return err
+	}
+	return nil
+}
+
+// SetRawMessage creates a value copy of the receiver, sets RawMessage and ExtractDateTime to nil,
+// does a compact marshaling, and assigns the result to RawMessage
+func (s *StaffMember) SetRawMessage() error {
+	sm := *s
+	sm.RawMessage = nil
+	sm.ExtractDateTime = nil
+	b, err := json.Marshal(sm)
+	if err != nil {
+		return err
+	}
+	var bb bytes.Buffer
+	if err := json.Compact(&bb, b); err != nil {
+		return err
+	}
+	rawMessage := bb.String()
+	s.RawMessage = &rawMessage
+	return nil
+}
+
 func (p *StaffMember) Process() error {
 	ProcessStruct(p)
 	// manage empty metadata fields
-	if p.RawMessage == nil {
-		rm, err := json.Marshal(*p)
-		if err != nil {
-			return err
-		}
-		srm := string(rm)
-		p.RawMessage = &srm
-
+	if err := p.SetRawMessage(); err != nil {
+		return err
 	}
+	// if p.RawMessage == nil {
+	// 	rm, err := json.Marshal(*p)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+
+	// 	var bb bytes.Buffer
+	// 	if err := json.Compact(&bb, rm); err != nil {
+	// 		return err
+	// 	}
+	// 	rawMessage := bb.String()
+	// 	p.RawMessage = &rawMessage
+	// }
+
 	if p.ExtractDateTime == nil {
 		et := NewTime(nil)
 		p.ExtractDateTime = &et
@@ -384,7 +449,7 @@ func (p *StaffMember) Process() error {
 	return nil
 }
 
-func (s StaffMember) CreatePGTable(ctx context.Context, tx *sqlx.Tx, schema, tablename string, temp bool) (sql.Result, error) {
+func (s StaffMember) CreatePGTable(ctx context.Context, tx *sqlx.Tx, schema, tablename string, temp bool, id string) (sql.Result, error) {
 
 	basetable := "staffmember"
 	if tablename != "" {
@@ -399,7 +464,7 @@ func (s StaffMember) CreatePGTable(ctx context.Context, tx *sqlx.Tx, schema, tab
 	}
 
 	template := `
-	CREATE {{- if .Temporary }} TEMPORARY TABLE IF NOT EXISTS _tmp_{{- .Name -}}
+	CREATE {{- if .Temporary }} TEMPORARY TABLE IF NOT EXISTS _tmp_{{- .UUID -}}_{{- .Name -}}
 	{{ else }} TABLE IF NOT EXISTS {{ .Schema -}}{{- if ne .Schema "" -}}.{{- end -}}{{- .Name }}
 	{{- end }} (
 	{{- $fields := pgincludefields .Fields -}}
@@ -416,7 +481,7 @@ func (s StaffMember) CreatePGTable(ctx context.Context, tx *sqlx.Tx, schema, tab
 	// {{- end -}}
 	// {{- end }}
 
-	table := StructToTable(StaffMember{}, basetable, schema, temp, nil, nil)
+	table := StructToTable(StaffMember{}, basetable, schema, temp, id, nil, nil)
 	// sqlStatement := PGTableStatement(table, PGCreateTableDevTpl, nil)
 	sqlStatement := PGTableStatement(table, template, nil)
 	// fmt.Println(sqlStatement)
@@ -427,7 +492,7 @@ func (s StaffMember) CreatePGTable(ctx context.Context, tx *sqlx.Tx, schema, tab
 	}
 
 	tablename = fmt.Sprintf("%stag", basetable)
-	table = StructToTable(FlatStaffTag{}, tablename, schema, temp, nil, nil)
+	table = StructToTable(FlatStaffTag{}, tablename, schema, temp, id, nil, nil)
 	// sqlStatement = PGTableStatement(table, PGCreateTableDevTpl, nil)
 	sqlStatement = PGTableStatement(table, template, nil)
 	sqlResult, err = tx.ExecContext(ctx, sqlStatement)
@@ -437,7 +502,7 @@ func (s StaffMember) CreatePGTable(ctx context.Context, tx *sqlx.Tx, schema, tab
 	}
 
 	tablename = fmt.Sprintf("%sttcmtag", basetable)
-	table = StructToTable(FlatStaffTag{}, tablename, schema, temp, nil, nil)
+	table = StructToTable(FlatStaffTag{}, tablename, schema, temp, id, nil, nil)
 	// sqlStatement = PGTableStatement(table, PGCreateTableDevTpl, nil)
 	sqlStatement = PGTableStatement(table, template, nil)
 	sqlResult, err = tx.ExecContext(ctx, sqlStatement)
@@ -447,7 +512,7 @@ func (s StaffMember) CreatePGTable(ctx context.Context, tx *sqlx.Tx, schema, tab
 	}
 
 	tablename = fmt.Sprintf("%sskillset", basetable)
-	table = StructToTable(StaffSkillset{}, tablename, schema, temp, nil, nil)
+	table = StructToTable(StaffSkillset{}, tablename, schema, temp, id, nil, nil)
 	// sqlStatement = PGTableStatement(table, PGCreateTableDevTpl, nil)
 	sqlStatement = PGTableStatement(table, template, nil)
 	sqlResult, err = tx.ExecContext(ctx, sqlStatement)
@@ -502,9 +567,9 @@ func (s StaffMembers) InsertToPG(ctx context.Context, db *sqlx.DB, schema, table
 
 	tx := db.MustBegin()
 	var res Result
-
 	// make sure the tables exist
-	sqlResult, err := s[0].CreatePGTable(ctx, tx, schema, tablename, false)
+	id := strings.ReplaceAll(uuid.NewString(), "-", "")
+	sqlResult, err := s[0].CreatePGTable(ctx, tx, schema, tablename, false, id)
 	if sqlResult != nil {
 		res = SQLResult(res, sqlResult)
 	}
@@ -513,7 +578,8 @@ func (s StaffMembers) InsertToPG(ctx context.Context, db *sqlx.DB, schema, table
 	}
 
 	// need temp tables
-	sqlResult, err = s[0].CreatePGTable(ctx, tx, schema, tablename, true)
+	// using _tmp_uuidstring_tablename to avoid any contamination when using multiple temp tables
+	sqlResult, err = s[0].CreatePGTable(ctx, tx, schema, tablename, true, id)
 	if sqlResult != nil {
 		res = SQLResult(res, sqlResult)
 	}
@@ -527,11 +593,13 @@ func (s StaffMembers) InsertToPG(ctx context.Context, db *sqlx.DB, schema, table
 		basetable = tablename
 	}
 	// temp table
-	table := StructToTable(s[0], basetable, schema, true, nil, nil)
+	// table := StructToTable(s[0], basetable, schema, true, nil, nil)
+	table := StructToTable(s[0], basetable, schema, true, id, nil, nil)
+	// table.UUID = id
 	// sqlStatement := PGTableStatement(table, PGInsertRowsDevTpl, nil)
 	template := `
 	INSERT INTO 
-	{{- if .Temporary }}  _tmp_{{- .Name -}} 
+	{{- if .Temporary }}  _tmp_{{- .UUID -}}_{{- .Name -}} 
 	{{- else }} {{ .Schema -}}{{- if ne .Schema "" -}}.{{- end -}}{{- .Name -}}
 	{{- end }} (
 		{{- $fields := pgincludefields .Fields -}}
@@ -561,6 +629,7 @@ func (s StaffMembers) InsertToPG(ctx context.Context, db *sqlx.DB, schema, table
 	// {{ end }}
 
 	sqlStatement := PGTableStatement(table, template, nil)
+	fmt.Sprintln(sqlStatement)
 	sqlResult, err = tx.NamedExecContext(ctx, sqlStatement, s)
 	res = SQLResult(res, sqlResult)
 	if err != nil {
@@ -573,12 +642,11 @@ func (s StaffMembers) InsertToPG(ctx context.Context, db *sqlx.DB, schema, table
 	with cte_most_recent as (
 		select distinct on (s.staffkey)
 		s._raw_message,
-		s.staffkey,
-		s.emrid
+		s.staffkey
 		from {{ .Schema -}}{{- if ne .Schema "" -}}.{{- end -}}{{- .Name }} s
 		order by s.staffkey, s._extract_date_time desc nulls last
 	), cte_new as (
-		select distinct * from _tmp_{{- .Name }}
+		select distinct * from _tmp_{{- .UUID -}}_{{- .Name }}
 	), cte_updates as (
 		select
 		cn.*
@@ -620,7 +688,7 @@ func (s StaffMembers) InsertToPG(ctx context.Context, db *sqlx.DB, schema, table
 	// )
 	// sqlStatement = PGTableStatement(table, PGInsertChangesOnlyDevTpl, nil)
 	sqlStatement = PGTableStatement(table, template, nil)
-	// fmt.Println(sqlStatement)
+	fmt.Println(sqlStatement)
 	sqlResult, err = tx.ExecContext(ctx, sqlStatement)
 	res = SQLResult(res, sqlResult)
 	if err != nil {
@@ -628,6 +696,7 @@ func (s StaffMembers) InsertToPG(ctx context.Context, db *sqlx.DB, schema, table
 	}
 
 	err = tx.Commit()
+	fmt.Println("I'm Committed!")
 	return res, err
 }
 
