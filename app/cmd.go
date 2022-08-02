@@ -123,6 +123,9 @@ func NewCommand(app *App) (*cli.App, error) {
 					if err := app.ExecSchedulePipeline(); err != nil {
 						return err
 					}
+					if err := app.ExecStaffMemberPipeline(); err != nil {
+						return err
+					}
 					return nil
 				},
 			},

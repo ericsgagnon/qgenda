@@ -99,3 +99,27 @@ func (app *App) ExecSchedulePipeline() error {
 	// data := []qgenda.Schedule{}
 	return nil
 }
+
+func (app *App) ExecStaffMemberPipeline() error {
+
+	ctx := context.Background()
+	rqf := app.Config.Data["staffmember"]
+	s := qgenda.StaffMembers{}
+	result, err := s.EPL(ctx,
+		app.Client,
+		&rqf,
+		app.DBClients["postgres"],
+		app.Config.DBClients["postgres"].Schema,
+		"staffmember",
+		true)
+	if err != nil {
+		return err
+	}
+	if result != nil {
+		ra, _ := result.RowsAffected()
+		log.Printf("Schedule Rows Inserted: %d", ra)
+
+	}
+	// data := []qgenda.Schedule{}
+	return nil
+}

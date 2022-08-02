@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"io"
 	"log"
 	"os"
 
@@ -129,6 +130,41 @@ func main() {
 	for k, _ := range tvals {
 		fmt.Println(k)
 	}
+
+	req := qgenda.NewStaffMemberRequest(nil)
+	fmt.Println(req.ToURL().String())
+
+	resp, err := c.Do(ctx, req)
+	if err != nil {
+		fmt.Println(err)
+	}
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println(err)
+	}
+	if err := os.WriteFile("../.cache/test.json", data, 0644); err != nil {
+		log.Println(err)
+	}
+	// if err := json.Unmarshal(data, &sms); err != nil {
+	// 	return nil, err
+	// }
+
+	// for _, v := range sm[0:9] {
+	// 	if v.Tags != nil {
+	// 		for _, vt := range v.Tags {
+	// 			if vt.Tags != nil {
+
+	// 				for _, vtt := range vt.Tags {
+	// 					if vtt.Key != nil && vtt.Name != nil {
+
+	// 						fmt.Printf(`ExtractDateTime: %s StaffKey: %s LastModifiedDateUTC: %s TagKey: %s TagName %s\n`, *vt.ExtractDateTime, *vt.StaffKey, *vt.LastModifiedDateUTC, *vtt.Key, *vtt.Name)
+	// 					}
+	// 				}
+
+	// 			}
+	// 		}
+	// 	}
+	// }
 
 	// fmt.Println(db.ExecContext(ctx, "DROP SCHEMA IF EXISTS plonky CASCADE"))
 	// fmt.Println(db.ExecContext(ctx, "DROP SCHEMA IF EXISTS importalicious CASCADE"))

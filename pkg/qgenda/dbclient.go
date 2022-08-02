@@ -98,6 +98,7 @@ type Table struct {
 	FlattenChildren bool // by default, slices and maps will be handled by creating a child table for each and 'flattening' any nested slices or maps
 	Tags            map[string][]string
 	UpdateStrategy  string
+	Parent          string // parent table, for 'child' tables
 }
 
 type Fields []Field
@@ -115,7 +116,7 @@ type Fields []Field
 
 // )
 
-func StructToTable[T any](value T, name, schema string, temporary bool, id string, constraints map[string]string, tags map[string][]string) Table {
+func StructToTable[T any](value T, name, schema string, temporary bool, id string, constraints map[string]string, tags map[string][]string, parent string) Table {
 
 	fields := StructToFields(value)
 
@@ -162,6 +163,7 @@ func StructToTable[T any](value T, name, schema string, temporary bool, id strin
 		Fields:          fields,
 		FlattenChildren: true,
 		Tags:            tags,
+		Parent:          parent,
 	}
 
 }
