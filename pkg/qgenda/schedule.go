@@ -14,6 +14,7 @@ import (
 
 type Schedule struct {
 	RawMessage             *string       `json:"-" db:"_raw_message"`
+	ProcessedMessage       *string       `json:"-" db:"_processed_message"` // RawMessage processed, with changing fields dropped
 	ExtractDateTime        *Time         `json:"-" db:"_extract_date_time"`
 	ScheduleKey            *string       `json:"ScheduleKey,omitempty" primarykey:"true"`
 	CallRole               *string       `json:"CallRole,omitempty"`

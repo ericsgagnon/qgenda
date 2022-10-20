@@ -279,11 +279,6 @@ func NewStaffMemberRequest(rqf *RequestQueryFields) *Request {
 		"Expand",
 	}
 	rqf = DefaultStaffMemberRequestQueryFields(rqf)
-	// if rqf != nil {
-	// 	if rqf.Includes == nil {
-	// 		rqf.SetIncludes("Skillset,Tags,TTCMTags,Profiles")
-	// 	}
-	// }
 
 	r := NewRequestWithQueryField(requestPath, queryFields, rqf)
 	return r
