@@ -28,16 +28,9 @@ type ClientConfig struct {
 	CacheConfig    *CacheConfig
 }
 
-// DefaultClientConfig returns a ClientConfig pointer
-// with reasonable defaults. By default, it will recommend
-// environment variables in the form ${VARIABLE_NAME}
+// DefaultClientConfig returns a ClientConfig pointer with reasonable defaults.
+// For login credentials it defaults to environment variables in the form ${VARIABLE_NAME}
 func DefaultClientConfig() *ClientConfig {
-
-	// cc, err := NewCacheConfig("qgenda")
-	// if err != nil {
-	// 	panic(err)
-	// }
-
 	return &ClientConfig{
 		URL:            "https://api.qgenda.com/v2",
 		ClientTimeout:  time.Second * 30,
@@ -86,7 +79,10 @@ func NewClient(cc *ClientConfig) (*Client, error) {
 		return nil, err
 	}
 
-	cch, err := NewCacheConfig("qgenda")
+	cch := &CacheConfig{}
+	if cc.CacheConfig == nil {
+		cch, err = NewCacheConfig("qgenda")
+	}
 	// fmt.Printf("NewClient: %#v\n", cch)
 	if err != nil {
 		return nil, err
@@ -104,18 +100,13 @@ func NewClient(cc *ClientConfig) (*Client, error) {
 		cl.Timeout = cc.ClientTimeout
 	}
 
+	// login credentials and auth token
 	cr := &url.Values{}
-	// try expanding env vars and file contents here
 	email := ExpandEnvVars(cc.Email)
 	password := ExpandEnvVars(cc.Password)
-	// fmt.Printf("%s\t%s\n", cc.Email, email)
-	// fmt.Printf("%s\t%s\n", cc.Password, password)
 	cr.Add("email", email)
 	cr.Add("password", password)
-	// cr.Add("email", cc.Email)
-	// cr.Add("password", cc.Password)
 	tkn, err := NewAuthToken(cch)
-	// fmt.Println(tkn.Cache)
 	if err != nil {
 		return nil, err
 	}
@@ -144,13 +135,8 @@ func (c *Client) Auth() error {
 		return nil
 	}
 	tkn, err := AuthTokenFromCacheFile(c.AuthToken.Cache)
-	// if err == nil {
-	// 	fmt.Println("No issues with the cachefile")
-	// }
 	if err != nil {
 		log.Println("Client.Auth(): No Valid cache - requesting new AuthToken")
-		// fmt.Println("CacheFile didn't work so good")
-		// log.Printf("(c *Client) Auth(): %s\n", err)
 		atreq, err := NewAuthRequest(c.Credentials)
 		if err != nil {
 			return err
@@ -162,7 +148,6 @@ func (c *Client) Auth() error {
 		}
 		tkn, err = AuthTokenFromResponse(resp)
 		tkn.Cache = c.AuthToken.Cache
-		// fmt.Printf("Client.Auth: Client.AuthToken.Cache: %s\n", tkn.Cache)
 		if err != nil {
 			return err
 		}
@@ -182,30 +167,10 @@ func (c *Client) Auth() error {
 func (c *Client) Do(ctx context.Context, r *Request) (*http.Response, error) {
 
 	r.SetCompanyKey(c.ClientConfig.CompanyKey)
-	r.SetCompanyKey("8c44c075-d894-4b00-9ae7-3b3842226626")
 	req := r.ToHTTPRequest()
 	req = AddAuthToken(req, c.AuthToken).WithContext(ctx)
 
-	// yreq, err := yaml.Marshal(req)
-	// if err != nil {
-	// 	fmt.Println(err)
-	// }
-	// fmt.Println(string(yreq))
-	// fmt.Println(req.Method)
-	// header := req.Header
-	// for k, v := range header {
-	// 	fmt.Printf("Request: %25s %s\n", k, v)
-	// }
-	// fmt.Println(req.Header.Get("Authorization"))
-	// fmt.Println(req.Header)
-	// fmt.Println(req.Proto)
-	// fmt.Println(req.URL.String())
-	// req.Header.Set("Authorization", "bearer eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2Q0JDLUhTNTEyIiwidHlwIjoiSldUIn0.Q_BPwbDlA7fCQInwhvoNoYTLpk0zkrBi2FxQw1l3XbHGLrpTO8Z9lPsA7ToAtUKyMd6cPx4Gda4syO8jIFAQNvN2XQydPqbh.7ba2Gz1TESWEZL7F1qWXsg.v6na2rp2dEesCq7vS_lT8qzCOrawNpoGRJVsBr5jFzXq_srlOo-mA4_JUO3RRRG8AfUJyQsykYgCp7ZihhMGVE-iH6K5wNTqkBQykGLMEmG0sWXLI3Znhy8clXoYw5FMv438pjyGE-VmXs4IjwU47nXbWu4qv2S5WmQZxYHUbgbULl8rqSjvijJylMySP7-nM4ypxLMEPRU25AiIR3IKhvFFnnZai1oED1VaI3Pq8wUstuJVelfe-uon0UjZp4HZquY3FVmfxMIz7HoaGdDnSpFuYXX0_7EfSsMtOgO_8aIAT4sd3Uhg5y0FoI8xjvRArf6AjnWjKHxlhmUJzOMc7fgKgJM3b1PCkbcXkqEyPejy9QZzw0GXBFwCQ4tiHCIm8n2wryb4kkW0Nvjfsmft2q1WxgtWwrEmHkyIj_kpYSpP8Xvk4NcR_4hct_U0-iIGeUFCs4-_Y-9Eyq0E7jRWI11JobPORa41Td5G8q-lGj-vlutlreP8IagI_oh6VYsFelNNmw-4G7-KNrbcnGsalDKXHt0E2bwXW6XKby2R5bgVUonY4BV0pRCg1qQBhgH7yeu1i42s_RxJe1BllSYzKOpAaLUpCpipUka9KycjvZl31Siool3ybE30Vk4BKlKlDu1rcBGOs53vYLIRjY3-QP0MpMnu-NCjBcrGqZWMR9BeS2qeEIn0yfX6Z6QB3U2uVFtIJ67nZLPoLl4k9__gwA.zL9gWN-Hyt6e_AMY4ALsNZiNvjoWNv7jXa_PrN6fFT0")
-	// fmt.Println(req.Header.Get("Authorization"))
-	// fmt.Println()
-
 	return c.Client.Do(req)
-	// return &http.Response{}, nil
 }
 
 // func (c *Client) Do(ctx context.Context, req *http.Request) (*http.Response, error) {

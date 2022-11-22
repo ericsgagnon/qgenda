@@ -4,86 +4,119 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"log"
+	"os"
+	"sort"
 )
 
-type SchedulesX struct {
+// type ScheduleDataset struct {
+// 	MetaData
+// 	Schedules []XSchedule
+// }
+
+type XSchedules struct {
 	ExtractDateTime *Time `json:"extractDateTime"`
-	Schedules       []ScheduleX
+	Schedules       []XSchedule
 }
 
-type ScheduleX struct {
-	RawMessage             *string      `json:"-" db:"_raw_message"`
-	ProcessedMessage       *string      `json:"-" db:"_processed_message"` // RawMessage processed, with changing fields dropped
-	ExtractDateTime        *Time        `json:"-" db:"_extract_date_time"`
-	ScheduleKey            *string      `json:"ScheduleKey,omitempty" primarykey:"true"`
-	CallRole               *string      `json:"CallRole,omitempty"`
-	CompKey                *string      `json:"CompKey,omitempty"`
-	Credit                 *float64     `json:"Credit,omitempty"`
-	Date                   *Date        `json:"Date,omitempty"`
-	StartDateUTC           *Time        `json:"StartDateUTC,omitempty"`
-	EndDateUTC             *Time        `json:"EndDateUTC,omitempty"`
-	EndDate                *Date        `json:"EndDate,omitempty"`
-	EndTime                *TimeOfDay   `json:"EndTime,omitempty"`
-	IsCred                 *bool        `json:"IsCred,omitempty"`
-	IsPublished            *bool        `json:"IsPublished,omitempty"`
-	IsLocked               *bool        `json:"IsLocked,omitempty"`
-	IsStruck               *bool        `json:"IsStruck,omitempty"`
-	Notes                  *string      `json:"Notes,omitempty"`
-	IsNotePrivate          *bool        `json:"IsNotePrivate,omitempty"`
-	StaffAbbrev            *string      `json:"StaffAbbrev,omitempty"`
-	StaffBillSysId         *string      `json:"StaffBillSysId,omitempty"`
-	StaffEmail             *string      `json:"StaffEmail,omitempty"`
-	StaffEmrId             *string      `json:"StaffEmrId,omitempty"`
-	StaffErpId             *string      `json:"StaffErpId,omitempty"`
-	StaffInternalId        *string      `json:"StaffInternalId,omitempty"`
-	StaffExtCallSysId      *string      `json:"StaffExtCallSysId,omitempty"`
-	StaffFName             *string      `json:"StaffFName,omitempty"`
-	StaffId                *string      `json:"StaffId,omitempty"`
-	StaffKey               *string      `json:"StaffKey,omitempty"`
-	StaffLName             *string      `json:"StaffLName,omitempty"`
-	StaffMobilePhone       *string      `json:"StaffMobilePhone,omitempty"`
-	StaffNpi               *string      `json:"StaffNpi,omitempty"`
-	StaffPager             *string      `json:"StaffPager,omitempty"`
-	StaffPayrollId         *string      `json:"StaffPayrollId,omitempty"`
-	StaffTags              ScheduleTags `json:"StaffTags,omitempty"`
-	StartDate              *Date        `json:"StartDate,omitempty"`
-	StartTime              *TimeOfDay   `json:"StartTime,omitempty"`
-	TaskAbbrev             *string      `json:"TaskAbbrev,omitempty"`
-	TaskBillSysId          *string      `json:"TaskBillSysId,omitempty"`
-	TaskContactInformation *string      `json:"TaskContactInformation,omitempty"`
-	TaskExtCallSysId       *string      `json:"TaskExtCallSysId,omitempty"`
-	TaskId                 *string      `json:"TaskId,omitempty"`
-	TaskKey                *string      `json:"TaskKey,omitempty"`
-	TaskName               *string      `json:"TaskName,omitempty"`
-	TaskPayrollId          *string      `json:"TaskPayrollId,omitempty"`
-	TaskEmrId              *string      `json:"TaskEmrId,omitempty"`
-	TaskCallPriority       *string      `json:"TaskCallPriority,omitempty"`
-	TaskDepartmentId       *string      `json:"TaskDepartmentId,omitempty"`
-	TaskIsPrintEnd         *bool        `json:"TaskIsPrintEnd,omitempty"`
-	TaskIsPrintStart       *bool        `json:"TaskIsPrintStart,omitempty"`
-	TaskShiftKey           *string      `json:"TaskShiftKey,omitempty"`
-	TaskType               *string      `json:"TaskType,omitempty"`
-	TaskTags               ScheduleTags `json:"TaskTags,omitempty"`
-	LocationName           *string      `json:"LocationName,omitempty"`
-	LocationAbbrev         *string      `json:"LocationAbbrev,omitempty"`
-	LocationID             *string      `json:"LocationID,omitempty"`
-	LocationAddress        *string      `json:"LocationAddress,omitempty"`
-	TimeZone               *string      `json:"TimeZone,omitempty"`
-	LastModifiedDateUTC    *Time        `json:"LastModifiedDateUTC,omitempty" primarykey:"true" querycondition:"ge" qf:"SinceModifiedTimestamp"`
-	LocationTags           []Location   `json:"LocationTags,omitempty"`
-	IsRotationTask         *bool        `json:"IsRotationTask"`
+func (ss *XSchedules) Process() error {
+	scs := []XSchedule{}
+	for _, s := range ss.Schedules {
+		sp := &s
+		if err := sp.Process(); err != nil {
+			return err
+		}
+		scs = append(scs, s)
+
+	}
+	sort.SliceStable(scs, func(i, j int) bool {
+		return *(scs[i].ScheduleKey) < *(scs[j].ScheduleKey)
+	})
+	ss.Schedules = scs
+
+	return nil
 }
 
-func (s *ScheduleX) UnmarshalJSON(b []byte) error {
+func (ss XSchedules) MarshalJSON() ([]byte, error) {
+	return json.Marshal(ss)
+}
+
+type XSchedule struct {
+	RawMessage             *string              `json:"-" db:"_raw_message"`
+	ProcessedMessage       *string              `json:"-" db:"_processed_message"` // RawMessage processed, with changing fields dropped
+	ExtractDateTime        *Time                `json:"-" db:"_extract_date_time"`
+	HashID                 *string              `json:"-" db:"_hash_id"`
+	ScheduleKey            *string              `json:"ScheduleKey,omitempty" primarykey:"true"`
+	CallRole               *string              `json:"CallRole,omitempty"`
+	CompKey                *string              `json:"CompKey,omitempty"`
+	Credit                 *float64             `json:"Credit,omitempty"`
+	Date                   *Date                `json:"Date,omitempty"`
+	StartDateUTC           *Time                `json:"StartDateUTC,omitempty"`
+	EndDateUTC             *Time                `json:"EndDateUTC,omitempty"`
+	EndDate                *Date                `json:"EndDate,omitempty"`
+	EndTime                *TimeOfDay           `json:"EndTime,omitempty"`
+	IsCred                 *bool                `json:"IsCred,omitempty"`
+	IsPublished            *bool                `json:"IsPublished,omitempty"`
+	IsLocked               *bool                `json:"IsLocked,omitempty"`
+	IsStruck               *bool                `json:"IsStruck,omitempty"`
+	Notes                  *string              `json:"Notes,omitempty"`
+	IsNotePrivate          *bool                `json:"IsNotePrivate,omitempty"`
+	StaffAbbrev            *string              `json:"StaffAbbrev,omitempty"`
+	StaffBillSysId         *string              `json:"StaffBillSysId,omitempty"`
+	StaffEmail             *string              `json:"StaffEmail,omitempty"`
+	StaffEmrId             *string              `json:"StaffEmrId,omitempty"`
+	StaffErpId             *string              `json:"StaffErpId,omitempty"`
+	StaffInternalId        *string              `json:"StaffInternalId,omitempty"`
+	StaffExtCallSysId      *string              `json:"StaffExtCallSysId,omitempty"`
+	StaffFName             *string              `json:"StaffFName,omitempty"`
+	StaffId                *string              `json:"StaffId,omitempty"`
+	StaffKey               *string              `json:"StaffKey,omitempty"`
+	StaffLName             *string              `json:"StaffLName,omitempty"`
+	StaffMobilePhone       *string              `json:"StaffMobilePhone,omitempty"`
+	StaffNpi               *string              `json:"StaffNpi,omitempty"`
+	StaffPager             *string              `json:"StaffPager,omitempty"`
+	StaffPayrollId         *string              `json:"StaffPayrollId,omitempty"`
+	StaffTags              []XScheduleTags      `json:"StaffTags,omitempty"`
+	StartDate              *Date                `json:"StartDate,omitempty"`
+	StartTime              *TimeOfDay           `json:"StartTime,omitempty"`
+	TaskAbbrev             *string              `json:"TaskAbbrev,omitempty"`
+	TaskBillSysId          *string              `json:"TaskBillSysId,omitempty"`
+	TaskContactInformation *string              `json:"TaskContactInformation,omitempty"`
+	TaskExtCallSysId       *string              `json:"TaskExtCallSysId,omitempty"`
+	TaskId                 *string              `json:"TaskId,omitempty"`
+	TaskKey                *string              `json:"TaskKey,omitempty"`
+	TaskName               *string              `json:"TaskName,omitempty"`
+	TaskPayrollId          *string              `json:"TaskPayrollId,omitempty"`
+	TaskEmrId              *string              `json:"TaskEmrId,omitempty"`
+	TaskCallPriority       *string              `json:"TaskCallPriority,omitempty"`
+	TaskDepartmentId       *string              `json:"TaskDepartmentId,omitempty"`
+	TaskIsPrintEnd         *bool                `json:"TaskIsPrintEnd,omitempty"`
+	TaskIsPrintStart       *bool                `json:"TaskIsPrintStart,omitempty"`
+	TaskShiftKey           *string              `json:"TaskShiftKey,omitempty"`
+	TaskType               *string              `json:"TaskType,omitempty"`
+	TaskTags               []XScheduleTags      `json:"TaskTags,omitempty"`
+	LocationName           *string              `json:"LocationName,omitempty"`
+	LocationAbbrev         *string              `json:"LocationAbbrev,omitempty"`
+	LocationID             *string              `json:"LocationID,omitempty"`
+	LocationAddress        *string              `json:"LocationAddress,omitempty"`
+	TimeZone               *string              `json:"TimeZone,omitempty"`
+	LastModifiedDateUTC    *Time                `json:"LastModifiedDateUTC,omitempty" primarykey:"true" querycondition:"ge" qf:"SinceModifiedTimestamp"`
+	LocationTags           []XScheduleLocations `json:"LocationTags,omitempty"`
+	IsRotationTask         *bool                `json:"IsRotationTask"`
+}
+
+// UnmarshalJSON fulfils the json.Unmarshaler interface and
+// assigns a compact json representation to the RawMessage member
+func (s *XSchedule) UnmarshalJSON(b []byte) error {
 	// alias technique to avoid infinite recursion
-	type Alias ScheduleX
+	type Alias XSchedule
 	var a Alias
 
 	if err := json.Unmarshal(b, &a); err != nil {
 		return err
 	}
 
-	dest := ScheduleX(a)
+	dest := XSchedule(a)
 	var bb bytes.Buffer
 	if err := json.Compact(&bb, b); err != nil {
 		return err
@@ -95,27 +128,84 @@ func (s *ScheduleX) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+// MarshalJSON satisfies the json.Marshaler interface
+func (s *XSchedule) MarshalJSON() ([]byte, error) {
+	type Alias XSchedule
+	a := Alias(*s)
+
+	b, err := json.Marshal(a)
+	if err != nil {
+		return nil, err
+	}
+	var bb bytes.Buffer
+	if err := json.Compact(&bb, b); err != nil {
+		return nil, err
+	}
+
+	return bb.Bytes(), nil
+}
+
 // Process handles all the basic validating and processing of
 // from the raw version of any values. It is idempotent.
-func (s *ScheduleX) Process() error {
+func (s *XSchedule) Process() error {
 
 	if err := ProcessStruct(s); err != nil {
 		return fmt.Errorf("error processing %T:\t%q", s, err)
 	}
+	// s.StaffTags.ExtractDateTime = s.ExtractDateTime
+	// s.StaffTags.ScheduleKey = s.ScheduleKey
+	// s.StaffTags.LastModifiedDateUTC = s.LastModifiedDateUTC
+	// sp := s.StaffTags
+	// if err := sp.Process(); err != nil {
+	// 	return err
+	// }
+	// s.StaffTags = sp
 
 	// process stafftags
-	// if StaffTags(s.StaffTags) != nil {
+	if len(s.StaffTags) > 0 {
+		for _, v := range s.StaffTags {
+			v.ExtractDateTime = s.ExtractDateTime
+			v.ScheduleKey = s.ScheduleKey
+			v.LastModifiedDateUTC = s.LastModifiedDateUTC
+			if err := v.Process(); err != nil {
+				return err
+			}
+		}
 
-	// }
+	}
 
-	// process tasktags
+	// process TaskTags
+	// ss := s.TaskTags
+	if len(s.TaskTags) > 0 {
+		for _, v := range s.TaskTags {
+			v.ExtractDateTime = s.ExtractDateTime
+			v.ScheduleKey = s.ScheduleKey
+			v.LastModifiedDateUTC = s.LastModifiedDateUTC
+			if err := v.Process(); err != nil {
+				return err
+			}
+		}
 
-	// process locations
+	}
+
+	// process LocationTags
+	if len(s.LocationTags) > 0 {
+		for _, v := range s.LocationTags {
+			v.ExtractDateTime = s.ExtractDateTime
+			v.ScheduleKey = s.ScheduleKey
+			v.LastModifiedDateUTC = s.LastModifiedDateUTC
+			if err := v.Process(); err != nil {
+				return err
+			}
+		}
+
+	}
+
 	return nil
 }
 
 // SetMessage processes the struct, remarshals and compacts it, and assigns the string to .ProcessedMessage
-func (s *ScheduleX) SetMessage() error {
+func (s *XSchedule) SetMessage() error {
 	if err := s.Process(); err != nil {
 		return err
 	}
@@ -138,51 +228,31 @@ func (s *ScheduleX) SetMessage() error {
 	return nil
 }
 
-type ScheduleTags struct {
-	ExtractDateTime     *Time          `json:"-" db:"_extract_date_time"`
-	ScheduleKey         *string        `json:"ScheduleKey,omitempty"`
-	LastModifiedDateUTC *Time          `json:"LastModifiedDateUTC,omitempty"`
-	CategoryKey         *int64         `json:"CategoryKey"`
-	CategoryName        *string        `json:"CategoryName"`
-	Tags                []ScheduleTagX `json:"Tags,omitempty"`
-}
+// LoadFile is used to import any cached files
+func (s *XSchedules) LoadFile(filename string) error {
+	fi, err := os.Stat(filename)
+	if err != nil {
+		return err
+	}
+	modTime := fi.ModTime()
 
-type ScheduleTagX struct {
-	ExtractDateTime     *Time   `json:"-" db:"_extract_date_time"`
-	ScheduleKey         *string `json:"ScheduleKey,omitempty"`
-	LastModifiedDateUTC *Time   `json:"LastModifiedDateUTC,omitempty"`
-	CategoryKey         *int64  `json:"CategoryKey,omitempty"`
-	CategoryName        *string `json:"CategoryName,omitempty"`
-	TagKey              *int64  `db:"tagkey"`
-	TagName             *string `db:"tagname"`
-}
-
-func ProcessScheduleTags(st ScheduleTags) ScheduleTags {
-
-	return st
-}
-
-type ScheduleLocations struct {
-	ExtractDateTime     *Time   `json:"-" db:"_extract_date_time"`
-	ScheduleKey         *string `json:"ScheduleKey,omitempty"`
-	LastModifiedDateUTC *Time   `json:"LastModifiedDateUTC,omitempty"`
-	Locations           []Location
-}
-
-type ScheduleLocation struct {
-	CompanyKey  *string       `json:"CompanyKey,omitempty"`
-	LocationKey *int64        `json:"LocationKey,omitempty"`
-	ID          *string       `json:"Id,omitempty"`
-	Name        *string       `json:"Name,omitempty"`
-	Address     *string       `json:"Address,omitempty"`
-	Abbrev      *string       `json:"Abbrev,omitempty"`
-	Notes       *string       `json:"Notes,omitempty"`
-	TimeZone    *string       `json:"TimeZone,omitempty"`
-	Tags        []TagCategory `json:"Tags,omitempty"`
-}
-
-func ProcessScheduleLocations(sl ScheduleLocations) ScheduleLocations {
-	return sl
+	b, err := os.ReadFile(filename)
+	if err != nil {
+		log.Println(err)
+	}
+	ss := []XSchedule{}
+	if err := json.Unmarshal(b, &ss); err != nil {
+		log.Println(err)
+	}
+	for i, v := range ss {
+		if v.ExtractDateTime == nil {
+			proxyExtractDateTime := NewTime(modTime)
+			v.ExtractDateTime = &proxyExtractDateTime
+		}
+		ss[i] = v
+	}
+	s.Schedules = ss
+	return nil
 }
 
 // extract

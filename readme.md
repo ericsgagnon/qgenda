@@ -34,3 +34,16 @@ SQL:
 eg: schedule entry has schedulekey as a unique row id - use schedulekey
     staffmember omits any type of versioning id and it includes a last login timestamp - order data, including child slices, omit last login timestamp, hash resulting json (which is the src format)
 
+
+# types
+
+Methods:
+- UnmarshalJSON
+- MarshalJSON
+- Process
+- DBCreate
+- DBInsert
+- DBDelete
+- HashID
+- SetExtractDateTime
+- 

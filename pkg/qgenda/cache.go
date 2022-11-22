@@ -33,6 +33,12 @@ func NewCacheConfig(subDir string) (*CacheConfig, error) {
 	return cf, nil
 }
 
+// DefaultCacheConfig is a simple wrapper for NewCacheConfig with a
+// default directory
+func DefaultCacheConfig() (*CacheConfig, error) {
+	return NewCacheConfig("qgenda")
+}
+
 // CacheFile helps manage caches
 type CacheFile struct {
 	Name      string    // name of the file
