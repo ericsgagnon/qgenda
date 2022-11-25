@@ -42,67 +42,67 @@ func (ss XSchedules) MarshalJSON() ([]byte, error) {
 }
 
 type XSchedule struct {
-	RawMessage             *string              `json:"-" db:"_raw_message"`
-	ProcessedMessage       *string              `json:"-" db:"_processed_message"` // RawMessage processed, with changing fields dropped
-	ExtractDateTime        *Time                `json:"-" db:"_extract_date_time"`
-	HashID                 *string              `json:"-" db:"_hash_id"`
-	ScheduleKey            *string              `json:"ScheduleKey,omitempty" primarykey:"true"`
-	CallRole               *string              `json:"CallRole,omitempty"`
-	CompKey                *string              `json:"CompKey,omitempty"`
-	Credit                 *float64             `json:"Credit,omitempty"`
-	Date                   *Date                `json:"Date,omitempty"`
-	StartDateUTC           *Time                `json:"StartDateUTC,omitempty"`
-	EndDateUTC             *Time                `json:"EndDateUTC,omitempty"`
-	EndDate                *Date                `json:"EndDate,omitempty"`
-	EndTime                *TimeOfDay           `json:"EndTime,omitempty"`
-	IsCred                 *bool                `json:"IsCred,omitempty"`
-	IsPublished            *bool                `json:"IsPublished,omitempty"`
-	IsLocked               *bool                `json:"IsLocked,omitempty"`
-	IsStruck               *bool                `json:"IsStruck,omitempty"`
-	Notes                  *string              `json:"Notes,omitempty"`
-	IsNotePrivate          *bool                `json:"IsNotePrivate,omitempty"`
-	StaffAbbrev            *string              `json:"StaffAbbrev,omitempty"`
-	StaffBillSysId         *string              `json:"StaffBillSysId,omitempty"`
-	StaffEmail             *string              `json:"StaffEmail,omitempty"`
-	StaffEmrId             *string              `json:"StaffEmrId,omitempty"`
-	StaffErpId             *string              `json:"StaffErpId,omitempty"`
-	StaffInternalId        *string              `json:"StaffInternalId,omitempty"`
-	StaffExtCallSysId      *string              `json:"StaffExtCallSysId,omitempty"`
-	StaffFName             *string              `json:"StaffFName,omitempty"`
-	StaffId                *string              `json:"StaffId,omitempty"`
-	StaffKey               *string              `json:"StaffKey,omitempty"`
-	StaffLName             *string              `json:"StaffLName,omitempty"`
-	StaffMobilePhone       *string              `json:"StaffMobilePhone,omitempty"`
-	StaffNpi               *string              `json:"StaffNpi,omitempty"`
-	StaffPager             *string              `json:"StaffPager,omitempty"`
-	StaffPayrollId         *string              `json:"StaffPayrollId,omitempty"`
-	StaffTags              []XScheduleTags      `json:"StaffTags,omitempty"`
-	StartDate              *Date                `json:"StartDate,omitempty"`
-	StartTime              *TimeOfDay           `json:"StartTime,omitempty"`
-	TaskAbbrev             *string              `json:"TaskAbbrev,omitempty"`
-	TaskBillSysId          *string              `json:"TaskBillSysId,omitempty"`
-	TaskContactInformation *string              `json:"TaskContactInformation,omitempty"`
-	TaskExtCallSysId       *string              `json:"TaskExtCallSysId,omitempty"`
-	TaskId                 *string              `json:"TaskId,omitempty"`
-	TaskKey                *string              `json:"TaskKey,omitempty"`
-	TaskName               *string              `json:"TaskName,omitempty"`
-	TaskPayrollId          *string              `json:"TaskPayrollId,omitempty"`
-	TaskEmrId              *string              `json:"TaskEmrId,omitempty"`
-	TaskCallPriority       *string              `json:"TaskCallPriority,omitempty"`
-	TaskDepartmentId       *string              `json:"TaskDepartmentId,omitempty"`
-	TaskIsPrintEnd         *bool                `json:"TaskIsPrintEnd,omitempty"`
-	TaskIsPrintStart       *bool                `json:"TaskIsPrintStart,omitempty"`
-	TaskShiftKey           *string              `json:"TaskShiftKey,omitempty"`
-	TaskType               *string              `json:"TaskType,omitempty"`
-	TaskTags               []XScheduleTags      `json:"TaskTags,omitempty"`
-	LocationName           *string              `json:"LocationName,omitempty"`
-	LocationAbbrev         *string              `json:"LocationAbbrev,omitempty"`
-	LocationID             *string              `json:"LocationID,omitempty"`
-	LocationAddress        *string              `json:"LocationAddress,omitempty"`
-	TimeZone               *string              `json:"TimeZone,omitempty"`
-	LastModifiedDateUTC    *Time                `json:"LastModifiedDateUTC,omitempty" primarykey:"true" querycondition:"ge" qf:"SinceModifiedTimestamp"`
-	LocationTags           []XScheduleLocations `json:"LocationTags,omitempty"`
-	IsRotationTask         *bool                `json:"IsRotationTask"`
+	RawMessage             *string         `json:"-" db:"_raw_message"`
+	ProcessedMessage       *string         `json:"-" db:"_processed_message"` // RawMessage processed, with changing fields dropped
+	ExtractDateTime        *Time           `json:"-" db:"_extract_date_time"`
+	HashID                 *string         `json:"-" db:"_hash_id"`
+	ScheduleKey            *string         `json:"ScheduleKey,omitempty" primarykey:"true"`
+	CallRole               *string         `json:"CallRole,omitempty"`
+	CompKey                *string         `json:"CompKey,omitempty"`
+	Credit                 *float64        `json:"Credit,omitempty"`
+	Date                   *Date           `json:"Date,omitempty"`
+	StartDateUTC           *Time           `json:"StartDateUTC,omitempty"`
+	EndDateUTC             *Time           `json:"EndDateUTC,omitempty"`
+	EndDate                *Date           `json:"EndDate,omitempty"`
+	EndTime                *TimeOfDay      `json:"EndTime,omitempty"`
+	IsCred                 *bool           `json:"IsCred,omitempty"`
+	IsPublished            *bool           `json:"IsPublished,omitempty"`
+	IsLocked               *bool           `json:"IsLocked,omitempty"`
+	IsStruck               *bool           `json:"IsStruck,omitempty"`
+	Notes                  *string         `json:"Notes,omitempty"`
+	IsNotePrivate          *bool           `json:"IsNotePrivate,omitempty"`
+	StaffAbbrev            *string         `json:"StaffAbbrev,omitempty"`
+	StaffBillSysId         *string         `json:"StaffBillSysId,omitempty"`
+	StaffEmail             *string         `json:"StaffEmail,omitempty"`
+	StaffEmrId             *string         `json:"StaffEmrId,omitempty"`
+	StaffErpId             *string         `json:"StaffErpId,omitempty"`
+	StaffInternalId        *string         `json:"StaffInternalId,omitempty"`
+	StaffExtCallSysId      *string         `json:"StaffExtCallSysId,omitempty"`
+	StaffFName             *string         `json:"StaffFName,omitempty"`
+	StaffId                *string         `json:"StaffId,omitempty"`
+	StaffKey               *string         `json:"StaffKey,omitempty"`
+	StaffLName             *string         `json:"StaffLName,omitempty"`
+	StaffMobilePhone       *string         `json:"StaffMobilePhone,omitempty"`
+	StaffNpi               *string         `json:"StaffNpi,omitempty"`
+	StaffPager             *string         `json:"StaffPager,omitempty"`
+	StaffPayrollId         *string         `json:"StaffPayrollId,omitempty"`
+	StaffTags              []XScheduleTags `json:"StaffTags,omitempty"`
+	StartDate              *Date           `json:"StartDate,omitempty"`
+	StartTime              *TimeOfDay      `json:"StartTime,omitempty"`
+	TaskAbbrev             *string         `json:"TaskAbbrev,omitempty"`
+	TaskBillSysId          *string         `json:"TaskBillSysId,omitempty"`
+	TaskContactInformation *string         `json:"TaskContactInformation,omitempty"`
+	TaskExtCallSysId       *string         `json:"TaskExtCallSysId,omitempty"`
+	TaskId                 *string         `json:"TaskId,omitempty"`
+	TaskKey                *string         `json:"TaskKey,omitempty"`
+	TaskName               *string         `json:"TaskName,omitempty"`
+	TaskPayrollId          *string         `json:"TaskPayrollId,omitempty"`
+	TaskEmrId              *string         `json:"TaskEmrId,omitempty"`
+	TaskCallPriority       *string         `json:"TaskCallPriority,omitempty"`
+	TaskDepartmentId       *string         `json:"TaskDepartmentId,omitempty"`
+	TaskIsPrintEnd         *bool           `json:"TaskIsPrintEnd,omitempty"`
+	TaskIsPrintStart       *bool           `json:"TaskIsPrintStart,omitempty"`
+	TaskShiftKey           *string         `json:"TaskShiftKey,omitempty"`
+	TaskType               *string         `json:"TaskType,omitempty"`
+	TaskTags               []XScheduleTags `json:"TaskTags,omitempty"`
+	LocationName           *string         `json:"LocationName,omitempty"`
+	LocationAbbrev         *string         `json:"LocationAbbrev,omitempty"`
+	LocationID             *string         `json:"LocationID,omitempty"`
+	LocationAddress        *string         `json:"LocationAddress,omitempty"`
+	TimeZone               *string         `json:"TimeZone,omitempty"`
+	LastModifiedDateUTC    *Time           `json:"LastModifiedDateUTC,omitempty" primarykey:"true" querycondition:"ge" qf:"SinceModifiedTimestamp"`
+	LocationTags           []XScheduleTags `json:"LocationTags,omitempty"`
+	IsRotationTask         *bool           `json:"IsRotationTask"`
 }
 
 // UnmarshalJSON fulfils the json.Unmarshaler interface and
