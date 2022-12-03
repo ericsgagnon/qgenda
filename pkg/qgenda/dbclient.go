@@ -93,12 +93,23 @@ type Table struct {
 	Schema          string
 	Temporary       bool
 	UUID            string
-	Constraints     map[string]string
+	Constraints     map[string]string // these should be table constraints, not field constraints
 	Fields          Fields
 	FlattenChildren bool // by default, slices and maps will be handled by creating a child table for each and 'flattening' any nested slices or maps
 	Tags            map[string][]string
 	UpdateStrategy  string
 	Parent          string // parent table, for 'child' tables
+}
+
+func (t Table) PrimaryKey() string {
+	for k, v := range t.Constraints {
+		key := strings.ToLower(k)
+		key = strings.ReplaceAll(key, " ", "")
+		if key == "primarykey" {
+			return v
+		}
+	}
+	return ""
 }
 
 type Fields []Field
@@ -268,6 +279,7 @@ func JoinStringSlice(sep string, s []string) string {
 }
 
 // SQLResult combines any number of sql.Result's
+// note that this effectively collapses multiple results
 func SQLResult(res ...sql.Result) Result {
 	var lis, ras int64
 	var lies, raes error
@@ -296,6 +308,15 @@ type Result struct {
 	lastInsertIDError error
 	rowsAffected      int64
 	rowsAffectedError error
+}
+
+func (r *Result) AddResult(res ...sql.Result) {
+	if r != nil && len(res) > 0 {
+		rs := []sql.Result{*r}
+		rs = append(rs, res...)
+		out := SQLResult(rs...)
+		*r = out
+	}
 }
 
 func (r Result) LastInsertId() (int64, error) {

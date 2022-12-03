@@ -331,6 +331,7 @@ func (s *StaffMembers) LoadFile(filename string) error {
 		sm[i] = v
 	}
 	*s = sm
+	// s = sm
 	return nil
 }
 
