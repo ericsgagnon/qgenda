@@ -88,22 +88,8 @@ func (s *XSchedule) UnmarshalJSON(b []byte) error {
 		return err
 	}
 
-	var aa Alias
-	if err := json.Unmarshal(b, &aa); err != nil {
-		return err
-	}
-	aa.RawMessage = nil
-	aa.ProcessedMessage = nil
-	aa.ExtractDateTime = nil
-	aa.SourceQuery = nil
-	aa.HashID = nil
-	aab, err := json.Marshal(aa)
-	if err != nil {
-		return err
-	}
-
 	var bb bytes.Buffer
-	if err := json.Compact(&bb, aab); err != nil {
+	if err := json.Compact(&bb, b); err != nil {
 		return err
 	}
 	rawMessage := bb.String()
@@ -139,15 +125,6 @@ func (s *XSchedule) Process() error {
 	if err := ProcessStruct(s); err != nil {
 		return fmt.Errorf("error processing %T:\t%q", s, err)
 	}
-
-	// process stafftags
-	// if err := setScheduleTagsMetaData(s, s.StaffTags); err != nil {
-	// 	return err
-	// }
-
-	// if err := sortScheduleTagsSlice(s.StaffTags); err != nil {
-	// 	return err
-	// }
 
 	if len(s.StaffTags) > 0 {
 		for i, _ := range s.StaffTags {
@@ -210,14 +187,15 @@ func (s *XSchedule) Process() error {
 // SetMessage uses a copy, strips metadata, remarshals to JSON and compacts it, and assigns the string to .ProcessedMessage
 func (s *XSchedule) SetMessage() error {
 	// take a copy and strip metadata, for good measure
-	ss := *s
-	ss.RawMessage = nil
-	ss.ExtractDateTime = nil
-	ss.ProcessedMessage = nil
-	ss.SourceQuery = nil
-	ss.HashID = nil
+	// ss := *s
+	// ss.RawMessage = nil
+	// ss.ExtractDateTime = nil
+	// ss.ProcessedMessage = nil
+	// ss.SourceQuery = nil
+	// ss.HashID = nil
 
-	b, err := json.Marshal(ss)
+	// b, err := json.Marshal(ss)
+	b, err := json.Marshal(s)
 	if err != nil {
 		return err
 	}
@@ -375,7 +353,6 @@ func (s XSchedule) PGCreateTable(ctx context.Context, tx *sqlx.Tx, schema, table
 	if err != nil {
 		return res, err
 	}
-
 	return res, nil
 }
 
@@ -399,30 +376,3 @@ func (s XSchedule) PGQueryConstraints(ctx context.Context, db *sqlx.DB, schema, 
 	}
 	return &rqf, nil
 }
-
-// func (s XSchedules) PGInsertRows(ctx context.Context, tx *sqlx.Tx, schema, tablename string, temporary bool)
-
-var XScehduleSQLTemplates = map[string]string{
-	"postgres-createtable": `
-CREATE {{- if .Temporary }} TEMPORARY TABLE IF NOT EXISTS _tmp_{{- .UUID -}}_{{- .Name -}}
-{{ else }} TABLE IF NOT EXISTS {{ .Schema -}}{{- if ne .Schema "" -}}.{{- end -}}{{- .Name }}
-{{- end }} (
-{{- $fields := pgincludefields .Fields -}}
-{{- range  $index, $field := $fields -}}
-{{- if ne $index 0 -}},{{- end }}
-	{{ pgname $field }} {{ pgtype $field.Type }} {{ if $field.Unique }} unique {{ end -}} {{- if not $field.Nullable -}} not null {{- end }}
-{{- end -}}
-)`,
-	"postgres-insertrows":       ``,
-	"postgres-droptable":        ``,
-	"postgres-queryconstraints": ``,
-}
-
-// extract
-// process
-// load
-//   create table
-//   create temp table
-//   insert into temp table
-//   insert into table from temp table
-//

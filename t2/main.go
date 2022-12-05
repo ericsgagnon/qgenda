@@ -2,11 +2,11 @@ package main
 
 import (
 	"context"
-	"database/sql"
+	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"os"
+	"time"
 
 	"github.com/ericsgagnon/qgenda/pkg/qgenda"
 	"github.com/jmoiron/sqlx"
@@ -22,18 +22,25 @@ func val[T any](pointer *T) T {
 
 func main() {
 	ctx := context.Background()
+	var b []byte
+	// cachefile cfg ---------------------------------------------------------
+	cfcfg, err := qgenda.NewCacheConfig("qgenda-exporter")
+	if err != nil {
+		log.Println(err)
+	}
 
 	// qgenda client ---------------------------------------------------------
 	qcc := &qgenda.ClientConfig{
-		Email:    os.Getenv("QGENDA_EMAIL"),
-		Password: os.Getenv("QGENDA_PASSWORD"),
+		CompanyKey: os.Getenv("QGENDA_COMPANY_KEY"),
+		Email:      os.Getenv("QGENDA_EMAIL"),
+		Password:   os.Getenv("QGENDA_PASSWORD"),
 	}
 	c, err := qgenda.NewClient(qcc)
 	if err != nil {
 		log.Fatalln(err)
 	}
 	c.Auth()
-
+	// fmt.Println("Company Key: ", c.ClientConfig.CompanyKey)
 	// pg client -------------------------------------------------------------
 	db, err := sqlx.Open("postgres", os.Getenv("PG_CONNECTION_STRING"))
 	if err != nil {
@@ -44,21 +51,29 @@ func main() {
 	if db.Ping() == nil {
 		fmt.Printf("Connected to %s: %+v\n", db.DriverName(), db.Stats())
 	}
-	var result sql.Result
+	// var result sql.Result
 
 	// schedules -----------------------------------------------------------
-	// rqf := &qgenda.RequestQueryFields{}
-	// rqf.SetStartDate(time.Now().UTC().Add(time.Hour * 24 * -120))
-	// rqf.SetEndDate(time.Now().UTC().Add(time.Hour * 24 * -1))
-	// if rqf.SinceModifiedTimestamp == nil {
-	// 	rqf.SetSinceModifiedTimestamp(time.Now().UTC().Add(time.Hour * 24 * -30))
-	// }
+	rqf := &qgenda.RequestQueryFields{}
+	rqf.SetStartDate(time.Now().UTC().Add(time.Hour * 24 * -120))
+	rqf.SetEndDate(time.Now().UTC().Add(time.Hour * 24 * -1))
+	if rqf.SinceModifiedTimestamp == nil {
+		rqf.SetSinceModifiedTimestamp(time.Now().UTC().Add(time.Hour * 24 * -30))
+	}
 
 	// tm, _ := time.Parse(time.RFC3339, "2012-01-01T00:00:00Z")
-	// rqf.SetStartDate(tm.Add(time.Hour * 24 * 365))
-	// rqf.SetEndDate(rqf.GetStartDate().Add(time.Hour * 24 * 31))
-	// rqf.SetSinceModifiedTimestamp(rqf.GetStartDate())
-	// s := qgenda.Schedules{}
+	tm, _ := time.Parse(time.RFC3339, "2021-10-01T00:00:00Z")
+	rqf.SetStartDate(tm.Add(time.Hour * 24 * 365))
+	rqf.SetEndDate(rqf.GetStartDate().Add(time.Hour * 24 * 31))
+	rqf.SetSinceModifiedTimestamp(rqf.GetStartDate())
+	// c.Do()
+	s := qgenda.Schedules{}
+	s, err = s.Extract(ctx, c, rqf)
+	if err != nil {
+		log.Println(err)
+	}
+	fmt.Sprint(s)
+	// fmt.Print(s)
 	// result, err = s.EPL(ctx, c, rqf, db, "qgenda", "schedule", false)
 	// if err != nil {
 	// 	log.Println(err)
@@ -67,12 +82,90 @@ func main() {
 	// 	ra, err := result.RowsAffected()
 	// 	fmt.Printf("RowsAffected: %d\tErrors: %v\n", ra, err)
 	// }
+	// ss := qgenda.Schedules{}
+	// ss, err = ss.Extract(ctx, c, rqf)
+	// if err != nil {
+	// 	log.Println(err)
+	// }
+
+	// b, err = json.MarshalIndent(ss, "", "\t")
+	// if err != nil {
+	// 	log.Println(err)
+	// }
+	// fmt.Println("Length of ss schedules: ", len(ss))
+	// // fmt.Println(string(b))
+	cf, err := qgenda.NewCacheFile("schedules-sample.json", "", cfcfg)
+	if err != nil {
+		log.Println(err)
+	}
+	// if err := cf.Create(); err != nil {
+	// 	log.Println(err)
+	// }
+	// if err := cf.Write(b); err != nil {
+	// 	log.Println(err)
+	// }
+
+	cfp, err := qgenda.NewCacheFile("xschedules.json", "", cfcfg)
+	if err != nil {
+		log.Println(err)
+	}
+	// xs := []qgenda.XSchedule{}
+	var xs []qgenda.XSchedule
+	// fmt.Println(cf.String())
+	b, err = cf.Read()
+	if err != nil {
+		log.Println(err)
+	}
+	// fmt.Println(string(b))
+	// if err := xs.LoadFile(cf.String()); err != nil {
+	// 	log.Println(err)
+	// }
+	// xs.Process()
+	if err := json.Unmarshal(b, &xs); err != nil {
+		log.Println(err)
+	}
+	fmt.Println("Length of XSchedules", len(xs))
+
+	for i, _ := range xs {
+		if err := xs[i].Process(); err != nil {
+			log.Println(err)
+		}
+	}
+	// for _, v := range xs[0:9] {
+	// 	if len(v.TaskTags) > 0 {
+	// 		for _, vv := range v.TaskTags {
+	// 			if len(vv.Tags) > 0 {
+	// 				fmt.Println(*v.ScheduleKey)
+	// 				fmt.Printf("%#v\n", vv)
+	// 				// for _, vvv := range vv.Tags {
+	// 				// 	fmt.Println(*(v.ScheduleKey))
+	// 				// 	fmt.Println(*(vvv.CategoryName))
+	// 				// }
+	// 			}
+	// 		}
+	// 	}
+	// }
+	b, err = json.MarshalIndent(xs, "", "\t")
+	if err != nil {
+		log.Println(err)
+	}
+	// b, err = xs.MarshalJSON()
+	// if err != nil {
+	// 	log.Println(err)
+	// }
+	if err := cfp.Create(); err != nil {
+		log.Println(err)
+	}
+	if err := cfp.Write(b); err != nil {
+		log.Println(err)
+	}
 
 	// staffmembers -----------------------------------------------------
 	sm := qgenda.StaffMembers{}
 	if err := sm.LoadFile("../.cache/staffmember.json"); err != nil {
 		log.Println(err)
 	}
+	fmt.Println("staffmember length: ", len(sm))
 	_, err = sm.Process()
 	if err != nil {
 		log.Println(err)
@@ -84,67 +177,193 @@ func main() {
 
 		}
 	}
-	var rowsAffected int64
-	schema := "sm1"
-	result, err = sm[0:9].InsertToPG(ctx, db, schema, "")
-	rowsAffected, _ = result.RowsAffected()
-	fmt.Printf("Insert []StaffMember to %s.staffmember: %d\t%s\n", schema, rowsAffected, err)
 
-	schema = "sm2"
-	result, err = sm[0:19].InsertToPG(ctx, db, schema, "")
-	rowsAffected, _ = result.RowsAffected()
-	fmt.Printf("Insert []StaffMember to %s.staffmember: %d\t%s\n", schema, rowsAffected, err)
-
-	schema = "plonky"
-	result, err = sm[0:9].InsertToPG(ctx, db, schema, "")
-	rowsAffected, _ = result.RowsAffected()
-	fmt.Printf("Insert []StaffMember to %s.staffmember: %d\t%s\n", schema, rowsAffected, err)
-
-	result, err = sm[0:19].InsertToPG(ctx, db, schema, "")
-	rowsAffected, _ = result.RowsAffected()
-	fmt.Printf("Insert []StaffMember to %s.staffmember: %d\t%s\n", schema, rowsAffected, err)
-
-	result, err = sm[0:99].InsertToPG(ctx, db, schema, "")
-	rowsAffected, _ = result.RowsAffected()
-	fmt.Printf("Insert []StaffMember to %s.staffmember: %d\t%s\n", schema, rowsAffected, err)
-
-	schema = "importalicious"
-	var smss qgenda.StaffMembers
-	smss, err = smss.Extract(ctx, c, nil)
+	//---------------------------------------------------------------
+	// fmt.Println(xs[0].PGQuery(true, "temptest", "xschedule"))
+	// fmt.Println(xs[0].PGQuery(false, "test", "xschedule"))
+	tx, err := db.BeginTxx(ctx, nil)
 	if err != nil {
 		log.Println(err)
 	}
-	if _, err := smss.Process(); err != nil {
+	// res, err := xs[0].PGCreateTable(ctx, tx, "slurpydurpy", "", true, "")
+	// if err != nil {
+	// 	log.Println(err)
+	// }
+	// xss := qgenda.XSchedules(xs[0:1000])
+
+	xss := qgenda.XSchedules(xs)
+	res, err := xss.PGInsertRows(ctx, tx, "slurpydurpy", "", "")
+	if err != nil {
+		log.Println(err)
+	}
+	if err := tx.Commit(); err != nil {
+		log.Println(err)
+	}
+	fmt.Println(res)
+
+	sx := qgenda.XSchedules{}
+	fmt.Println(rqf.GetStartDate(), rqf.GetEndDate(), rqf.GetSinceModifiedTimestamp())
+	if err := sx.Get(ctx, c, rqf); err != nil {
+		log.Println(err)
+	}
+	if err := sx.Process(); err != nil {
+		log.Println(err)
+	}
+	tx, err = db.BeginTxx(ctx, nil)
+	if err != nil {
+		log.Println(err)
+	}
+	sres, err := sx.PGInsertRows(ctx, tx, "newschema", "", "")
+	if err != nil {
+		log.Println(err)
+	} else {
+		tx.Commit()
+	}
+	fmt.Println(sres)
+	rqfn, err := qgenda.XSchedule{}.PGQueryConstraints(ctx, db, "newschema", "schedule")
+	if err != nil {
 		log.Println(err)
 	}
 
-	smss.WriteFile(fmt.Sprintf("../.cache/staffmember-%s.json", smss[0].ExtractDateTime.Time.Format("20060102150405")))
-	result, err = smss.InsertToPG(ctx, db, schema, "")
-	rowsAffected, _ = result.RowsAffected()
-	fmt.Printf("Insert []StaffMember to %s.staffmember: %d\t%s\n", schema, rowsAffected, err)
-	tvals := map[string]bool{}
-	for _, v := range smss {
-		tstring := fmt.Sprint(v.ExtractDateTime.Time.Format("2006-01-02T15:04:05.99999999"))
-		tvals[tstring] = true
-	}
-	for k, _ := range tvals {
-		fmt.Println(k)
-	}
-
-	req := qgenda.NewStaffMemberRequest(nil)
-	fmt.Println(req.ToURL().String())
-
-	resp, err := c.Do(ctx, req)
-	if err != nil {
-		fmt.Println(err)
-	}
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		fmt.Println(err)
-	}
-	if err := os.WriteFile("../.cache/test.json", data, 0644); err != nil {
+	sxx := qgenda.XSchedules{}
+	if err := sxx.Get(ctx, c, rqfn); err != nil {
 		log.Println(err)
 	}
+	fmt.Printf("length of Schedules:\t%d\n", len(sxx))
+	if err := sxx.Process(); err != nil {
+		log.Println(err)
+	}
+
+	tx, err = db.BeginTxx(ctx, nil)
+	if err != nil {
+		log.Println(err)
+	}
+	sres, err = sxx.PGInsertRows(ctx, tx, "newschema", "", "")
+	if err != nil {
+		log.Println(err)
+	} else {
+		tx.Commit()
+	}
+	fmt.Println(sres)
+
+	// var rowsAffected int64
+	// schema := "sm1"
+	// result, err = sm[0:9].InsertToPG(ctx, db, schema, "")
+	// rowsAffected, _ = result.RowsAffected()
+	// fmt.Printf("Insert []StaffMember to %s.staffmember: %d\t%s\n", schema, rowsAffected, err)
+
+	// schema = "sm2"
+	// result, err = sm[0:19].InsertToPG(ctx, db, schema, "")
+	// rowsAffected, _ = result.RowsAffected()
+	// fmt.Printf("Insert []StaffMember to %s.staffmember: %d\t%s\n", schema, rowsAffected, err)
+
+	// schema = "plonky"
+	// result, err = sm[0:9].InsertToPG(ctx, db, schema, "")
+	// rowsAffected, _ = result.RowsAffected()
+	// fmt.Printf("Insert []StaffMember to %s.staffmember: %d\t%s\n", schema, rowsAffected, err)
+
+	// result, err = sm[0:19].InsertToPG(ctx, db, schema, "")
+	// rowsAffected, _ = result.RowsAffected()
+	// fmt.Printf("Insert []StaffMember to %s.staffmember: %d\t%s\n", schema, rowsAffected, err)
+
+	// result, err = sm[0:99].InsertToPG(ctx, db, schema, "")
+	// rowsAffected, _ = result.RowsAffected()
+	// fmt.Printf("Insert []StaffMember to %s.staffmember: %d\t%s\n", schema, rowsAffected, err)
+
+	// schema = "importalicious"
+	// var smss qgenda.StaffMembers
+	// smss, err = smss.Extract(ctx, c, nil)
+	// if err != nil {
+	// 	log.Println(err)
+	// }
+	// if _, err := smss.Process(); err != nil {
+	// 	log.Println(err)
+	// }
+	// fmt.Println("Length of staffmembers: ", len(smss))
+	// smss.WriteFile(fmt.Sprintf("../.cache/staffmember-%s.json", smss[0].ExtractDateTime.Time.Format("20060102150405")))
+	// result, err = smss.InsertToPG(ctx, db, schema, "")
+	// rowsAffected, _ = result.RowsAffected()
+	// fmt.Printf("Insert []StaffMember to %s.staffmember: %d\t%s\n", schema, rowsAffected, err)
+	// tvals := map[string]bool{}
+	// for _, v := range smss {
+	// 	tstring := fmt.Sprint(v.ExtractDateTime.Time.Format("2006-01-02T15:04:05.99999999"))
+	// 	tvals[tstring] = true
+	// }
+	// for k, _ := range tvals {
+	// 	fmt.Println(k)
+	// }
+
+	// req := qgenda.NewStaffMemberRequest(nil)
+	// fmt.Println(req.ToURL().String())
+
+	// resp, err := c.Do(ctx, req)
+	// if err != nil {
+	// 	fmt.Println(err)
+	// }
+	// data, err := io.ReadAll(resp.Body)
+	// if err != nil {
+	// 	fmt.Println(err)
+	// }
+	// if err := os.WriteFile("../.cache/test.json", data, 0644); err != nil {
+	// 	log.Println(err)
+	// }
+	// rqf := &qgenda.RequestQueryFields{}
+	// rqf = &qgenda.RequestQueryFields{}
+	// tasks -
+	// rqf.SetIncludes("Tags,TaskShifts,Profiles")
+	// fmt.Println(rqf.GetIncludes())
+	// req = qgenda.NewRequestWithQueryField(
+	// 	"task",
+	// 	[]string{"Includes"},
+	// 	rqf,
+	// )
+
+	// tags
+	// rqf.SetIncludes("")
+	// fmt.Println(rqf.GetIncludes())
+	// req = qgenda.NewRequestWithQueryField(
+	// 	"tags",
+	// 	nil,
+	// 	rqf,
+	// )
+
+	// scheduleauditlog
+	// rqf.SetIncludes("Location")
+	// rqf.SetScheduleStartDate(time.Now().Add(-1 * time.Hour * 24 * 14))
+	// rqf.SetScheduleEndDate(time.Now().Add(-1 * time.Hour * 24))
+	// fmt.Println(rqf.GetIncludes())
+	// req = qgenda.NewRequestWithQueryField(
+	// 	"schedule/auditLog",
+	// 	[]string{"ScheduleStartDate", "ScheduleEndDate", "DateFormat"},
+	// 	rqf,
+	// )
+	// fmt.Println(req.ToURL().String())
+	// resp, err = c.Do(ctx, req)
+	// if err != nil {
+	// 	log.Println(err)
+	// }
+	// data, err = io.ReadAll(resp.Body)
+	// if err != nil {
+	// 	fmt.Println(err)
+	// }
+	// if err := os.WriteFile("../.cache/sample.json", data, 0644); err != nil {
+	// 	log.Println(err)
+	// }
+
+	// dsdf := qgenda.StructToFields(qgenda.DatasetDev{})
+	// for i := range dsdf {
+	// 	fmt.Println(dsdf[i])
+	// }
+
+	// unrelated --------------------------------------------------------
+	// v := qgenda.Test{}
+	// fmt.Println(v)
+	// if err := v.Process(50); err != nil {
+	// 	log.Println(err)
+	// }
+	// fmt.Println(v)
+	// ------------------------------------------------------------------
+
 	// if err := json.Unmarshal(data, &sms); err != nil {
 	// 	return nil, err
 	// }

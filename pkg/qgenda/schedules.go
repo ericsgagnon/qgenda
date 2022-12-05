@@ -22,12 +22,18 @@ func (s *XSchedules) Get(ctx context.Context, c *Client, rqf *RequestQueryFields
 	req := NewScheduleRequest(rqf)
 	// qgenda only supports 100 days of schedules per query
 	// using 90 days in case there are other limits
+	schedules := XSchedules{}
 	duration := time.Hour * 24 * 90
 	for t := req.GetStartDate(); t.Before(req.GetEndDate()); t = t.Add(duration) {
 		vcpreq := *req
 		subreq := &(vcpreq)
 		subreq.SetStartDate(t)
-		subreq.SetEndDate(t.Add(duration))
+		endDate := subreq.GetEndDate()
+		if endDate.After(t.Add(duration)) {
+			endDate = t.Add(duration)
+		}
+		subreq.SetEndDate(endDate)
+		// fmt.Println(subreq.ToHTTPRequest().URL.String())
 		resp, err := c.Do(ctx, subreq)
 		if err != nil {
 			return err
@@ -37,24 +43,48 @@ func (s *XSchedules) Get(ctx context.Context, c *Client, rqf *RequestQueryFields
 			return err
 		}
 		ss := []XSchedule{}
+		// fmt.Printf("response header:\t%s\n", resp.Header)
+		// fmt.Printf("response body:\t%s\n", data)
 		if err := json.Unmarshal(data, &ss); err != nil {
 			return err
 		}
-		fmt.Println(resp.Request.URL.String())
+		sourceQuery := resp.Request.URL.String()
+		// user response header for extract time
+		// fmt.Println(resp.Header.Get("date"))
+		extractDateTime, err := ParseTime(resp.Header.Get("date"))
+		if err != nil {
+			return err
+		}
+
+		if len(ss) > 0 {
+			for i, _ := range ss {
+				ss[i].SourceQuery = &sourceQuery
+				ss[i].ExtractDateTime = &extractDateTime
+			}
+		}
+		log.Printf("schedules: %s - %s (modTime>= %s)\ttotal: %d\textractDateTime:%s\n", subreq.GetStartDate(), subreq.GetEndDate(), subreq.GetSinceModifiedTimestamp(), len(ss), extractDateTime)
+
+		schedules = append(schedules, ss...)
+
 	}
+	*s = schedules
 	return nil
 }
 
 func (ss *XSchedules) Process() error {
 	sss := *ss
+	// ts := map[string]bool{}
 	for i, _ := range sss {
 		if err := sss[i].Process(); err != nil {
 			return err
 		}
+		// ts[fmt.Sprint(*(sss[i].ExtractDateTime))] = true
 	}
 	sort.SliceStable(sss, func(i, j int) bool {
 		return *(sss[i].ScheduleKey) < *(sss[j].ScheduleKey)
 	})
+	// fmt.Println(ts)
+	// fmt.Println(*(sss[0].ExtractDateTime))
 	*ss = sss
 	return nil
 }
@@ -89,7 +119,7 @@ func (s *XSchedules) LoadFile(filename string) error {
 func (s XSchedules) PGInsertRows(ctx context.Context, tx *sqlx.Tx, schema, tablename, id string) (sql.Result, error) {
 
 	if len(s) < 1 {
-		return nil, fmt.Errorf("%T.PGInsertRows: length of %T < 1, nothing to do", s)
+		return nil, fmt.Errorf("%T.PGInsertRows: length of %T < 1, nothing to do", s, s)
 	}
 	var res Result
 	id = strings.ReplaceAll(uuid.NewString(), "-", "")[0:16]
@@ -139,14 +169,6 @@ func (s XSchedules) PGInsertRows(ctx context.Context, tx *sqlx.Tx, schema, table
 		}
 		v := s[i:j]
 		fmt.Printf("Schedules[%d:%d]\tRows: %d\tFields: %d\tTotal Fields: %d\n", i, j, (j - i), len(tbl.Fields), len(tbl.Fields)*(j-i))
-		// sqlResult, err := s[i:j].PGInsertRows(ctx, tx, schema, tablename, id)
-		// res = SQLResult(res, sqlResult)
-		// if err != nil {
-		// 	return res, err
-		// }
-		// id = tbl.UUID
-
-		// fmt.Println("did I get this far?")
 
 		// insert to temp tables
 
@@ -161,29 +183,43 @@ func (s XSchedules) PGInsertRows(ctx context.Context, tx *sqlx.Tx, schema, table
 	}
 	// update table
 	tbl.Temporary = false
+	// updateTpl := `
+	// with cte_most_recent as (
+	// 	select distinct on (s.schedulekey)
+	// 	s.schedulekey,
+	// 	s.lastmodifieddateutc
+	// 	from {{ .Schema -}}{{- if ne .Schema "" -}}.{{- end -}}{{- .Name }} s
+	// 	order by s.schedulekey, s.lastmodifieddateutc desc nulls last
+	// ), cte_new as (
+	// 	select distinct * from _tmp_{{- .UUID -}}_{{- .Name }}
+	// ), cte_updates as (
+	// 	select
+	// 	cn.*
+	// 	from cte_new cn
+	// 	where not exists (
+	// 		select 1
+	// 		from cte_most_recent cmr
+	// 		where cmr.lastmodifieddateutc = cn.lastmodifieddateutc
+	// 		and   cmr.schedulekey     = cn.schedulekey
+	// 	)
+	// ) insert into {{ if ne .Schema "" -}}{{ .Schema -}}.{{- end -}}{{- .Name }} (
+	// select cu.* from cte_updates cu
+	// )
+	// `
+
 	updateTpl := `
-	with cte_most_recent as (
-		select distinct on (s.schedulekey)		
-		s.schedulekey, 
-		s.lastmodifieddateutc
-		from {{ .Schema -}}{{- if ne .Schema "" -}}.{{- end -}}{{- .Name }} s
-		order by s.schedulekey, s.lastmodifieddateutc desc nulls last
-	), cte_new as (
-		select distinct * from _tmp_{{- .UUID -}}_{{- .Name }}
-	), cte_updates as (
-		select
-		cn.*
-		from cte_new cn
+	insert into {{ if ne .Schema "" -}}{{ .Schema -}}.{{- end -}}{{- .Name }} (
+		select distinct tmp.* 
+		from _tmp_{{- .UUID -}}_{{- .Name }} tmp
 		where not exists (
 			select 1
-			from cte_most_recent cmr 
-			where cmr.lastmodifieddateutc = cn.lastmodifieddateutc
-			and   cmr.schedulekey     = cn.schedulekey
+			from {{ if ne .Schema "" -}}{{ .Schema -}}.{{- end -}}{{- .Name }} dst
+			where dst.lastmodifieddateutc	=	tmp.lastmodifieddateutc
+			and   dst.schedulekey			=	tmp.schedulekey
 		)
-	) insert into {{ if ne .Schema "" -}}{{ .Schema -}}.{{- end -}}{{- .Name }} (
-	select cu.* from cte_updates cu
 	)
 	`
+
 	sqlStatement := PGTableStatement(tbl, updateTpl, nil)
 	// fmt.Println(sqlStatement)
 	sqlResult, err = tx.ExecContext(ctx, sqlStatement)
@@ -200,7 +236,8 @@ func (s XSchedules) PGInsertRows(ctx context.Context, tx *sqlx.Tx, schema, table
 		from _tmp_{{- .UUID -}}_{{- .Name }} tmp
 		-- inner join on parent refs
 		inner join {{ .Schema -}}{{- if ne .Schema "" -}}.{{- end -}}{{- .Parent }} prnt on (
-			    prnt.schedulekey         = tmp.schedulekey
+				prnt._extract_date_time = tmp._extract_date_time
+			and prnt.schedulekey         = tmp.schedulekey
 			and prnt.lastmodifieddateutc = tmp.lastmodifieddateutc
 		) 
 		-- exclude on duplicates
@@ -208,7 +245,8 @@ func (s XSchedules) PGInsertRows(ctx context.Context, tx *sqlx.Tx, schema, table
 			select 1
 			from {{ if ne .Schema "" -}}{{ .Schema -}}.{{- end -}}{{- .Name }} dst 
 			where
-			    dst.lastmodifieddateutc = tmp.lastmodifieddateutc
+				dst._extract_date_time  = tmp._extract_date_time
+			and dst.lastmodifieddateutc = tmp.lastmodifieddateutc
 			and dst.schedulekey 		= tmp.schedulekey
 			and dst.categorykey 		= tmp.categorykey
 			and dst.categoryname 		= tmp.categoryname
@@ -220,6 +258,22 @@ func (s XSchedules) PGInsertRows(ctx context.Context, tx *sqlx.Tx, schema, table
 	)
 	`
 
+	// childUpdateTpl = `
+	// with cte_updates as (
+	// 	select
+	// 	tmp.*
+	// 	from _tmp_{{- .UUID -}}_{{- .Name }} tmp
+	// 	-- inner join on parent refs
+	// 	inner join {{ .Schema -}}{{- if ne .Schema "" -}}.{{- end -}}{{- .Parent }} prnt on (
+	// 			prnt._extract_date_time = tmp._extract_date_time
+	// 		and prnt.schedulekey         = tmp.schedulekey
+	// 		and prnt.lastmodifieddateutc = tmp.lastmodifieddateutc
+	// 	)
+	// ) insert into {{ if ne .Schema "" -}}{{ .Schema -}}.{{- end -}}{{- .Name }} (
+	// 	select cu.* from cte_updates cu
+	// )
+	// `
+
 	// stafftags
 	stafftags := []XScheduleTag{}
 	for _, schedule := range s {
@@ -228,7 +282,7 @@ func (s XSchedules) PGInsertRows(ctx context.Context, tx *sqlx.Tx, schema, table
 		}
 	}
 	tablename = basetable + "stafftag"
-	stafftagTbl := StructToTable(stafftags[0], tablename, schema, true, id, nil, nil, "")
+	stafftagTbl := StructToTable(XScheduleTag{}, tablename, schema, true, id, nil, nil, "")
 	stafftagTbl.Parent = basetable
 	chunkSize = 65535 / len(stafftagTbl.Fields)
 	// sqlStatement = PGTableStatement(stafftagTbl, childUpdateTpl, nil)
@@ -269,7 +323,7 @@ func (s XSchedules) PGInsertRows(ctx context.Context, tx *sqlx.Tx, schema, table
 		}
 	}
 	tablename = basetable + "tasktag"
-	tasktagTbl := StructToTable(tasktags[0], tablename, schema, true, id, nil, nil, "")
+	tasktagTbl := StructToTable(XScheduleTag{}, tablename, schema, true, id, nil, nil, "")
 	tasktagTbl.Parent = basetable
 	chunkSize = 65535 / len(tasktagTbl.Fields)
 	// sqlStatement = PGTableStatement(tasktagTbl, childUpdateTpl, nil)
@@ -345,4 +399,8 @@ func (s XSchedules) PGInsertRows(ctx context.Context, tx *sqlx.Tx, schema, table
 
 	// fmt.Println("finished inserting to permanent table?")
 	return res, nil
+}
+
+func (s XSchedules) Extract(ctx context.Context, c *Client, rqf *RequestQueryFields) error {
+	return nil
 }
