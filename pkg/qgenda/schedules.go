@@ -16,13 +16,13 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-type XSchedules []XSchedule
+type Schedules []Schedule
 
-func (s *XSchedules) Get(ctx context.Context, c *Client, rqf *RequestQueryFields) error {
+func (s *Schedules) Get(ctx context.Context, c *Client, rqf *RequestQueryFields) error {
 	req := NewScheduleRequest(rqf)
 	// qgenda only supports 100 days of schedules per query
 	// using 90 days in case there are other limits
-	schedules := XSchedules{}
+	schedules := Schedules{}
 	duration := time.Hour * 24 * 90
 	for t := req.GetStartDate(); t.Before(req.GetEndDate()); t = t.Add(duration) {
 		vcpreq := *req
@@ -42,7 +42,7 @@ func (s *XSchedules) Get(ctx context.Context, c *Client, rqf *RequestQueryFields
 		if err != nil {
 			return err
 		}
-		ss := []XSchedule{}
+		ss := []Schedule{}
 		// fmt.Printf("response header:\t%s\n", resp.Header)
 		// fmt.Printf("response body:\t%s\n", data)
 		if err := json.Unmarshal(data, &ss); err != nil {
@@ -71,7 +71,7 @@ func (s *XSchedules) Get(ctx context.Context, c *Client, rqf *RequestQueryFields
 	return nil
 }
 
-func (ss *XSchedules) Process() error {
+func (ss *Schedules) Process() error {
 	sss := *ss
 	// ts := map[string]bool{}
 	for i, _ := range sss {
@@ -90,7 +90,7 @@ func (ss *XSchedules) Process() error {
 }
 
 // LoadFile is used to import any cached files
-func (s *XSchedules) LoadFile(filename string) error {
+func (s *Schedules) LoadFile(filename string) error {
 	fi, err := os.Stat(filename)
 	if err != nil {
 		return err
@@ -101,7 +101,7 @@ func (s *XSchedules) LoadFile(filename string) error {
 	if err != nil {
 		log.Println(err)
 	}
-	ss := []XSchedule{}
+	ss := []Schedule{}
 	if err := json.Unmarshal(b, &ss); err != nil {
 		log.Println(err)
 	}
@@ -116,14 +116,14 @@ func (s *XSchedules) LoadFile(filename string) error {
 	return nil
 }
 
-func (s XSchedules) PGInsertRows(ctx context.Context, tx *sqlx.Tx, schema, tablename, id string) (sql.Result, error) {
+func (s Schedules) PGInsertRows(ctx context.Context, tx *sqlx.Tx, schema, tablename, id string) (sql.Result, error) {
 
 	if len(s) < 1 {
 		return nil, fmt.Errorf("%T.PGInsertRows: length of %T < 1, nothing to do", s, s)
 	}
 	var res Result
 	id = strings.ReplaceAll(uuid.NewString(), "-", "")[0:16]
-	// fmt.Println("Length of these XSchedules: ", len(s))
+	// fmt.Println("Length of these Schedules: ", len(s))
 	if tablename == "" {
 		tablename = "schedule"
 	}
@@ -160,7 +160,7 @@ func (s XSchedules) PGInsertRows(ctx context.Context, tx *sqlx.Tx, schema, table
 	)
 	`
 	// postgres has a 65535 'parameter' limit, there is an 'unnest' work around, but for now we're just going to chunk it
-	chunkSize := 65535 / len(tbl.Fields) // reflect.ValueOf(XSchedule{}).NumField()
+	chunkSize := 65535 / len(tbl.Fields) // reflect.ValueOf(Schedule{}).NumField()
 	// this shouldn't be an issue for StaffMember, only implement if you need to
 	for i := 0; i < len(s); i += chunkSize {
 		j := i + chunkSize
@@ -275,14 +275,14 @@ func (s XSchedules) PGInsertRows(ctx context.Context, tx *sqlx.Tx, schema, table
 	// `
 
 	// stafftags
-	stafftags := []XScheduleTag{}
+	stafftags := []ScheduleTag{}
 	for _, schedule := range s {
 		for _, tags := range schedule.StaffTags {
 			stafftags = append(stafftags, tags.Tags...)
 		}
 	}
 	tablename = basetable + "stafftag"
-	stafftagTbl := StructToTable(XScheduleTag{}, tablename, schema, true, id, nil, nil, "")
+	stafftagTbl := StructToTable(ScheduleTag{}, tablename, schema, true, id, nil, nil, "")
 	stafftagTbl.Parent = basetable
 	chunkSize = 65535 / len(stafftagTbl.Fields)
 	// sqlStatement = PGTableStatement(stafftagTbl, childUpdateTpl, nil)
@@ -316,14 +316,14 @@ func (s XSchedules) PGInsertRows(ctx context.Context, tx *sqlx.Tx, schema, table
 	}
 
 	// tasktags
-	tasktags := []XScheduleTag{}
+	tasktags := []ScheduleTag{}
 	for _, schedule := range s {
 		for _, tags := range schedule.TaskTags {
 			tasktags = append(tasktags, tags.Tags...)
 		}
 	}
 	tablename = basetable + "tasktag"
-	tasktagTbl := StructToTable(XScheduleTag{}, tablename, schema, true, id, nil, nil, "")
+	tasktagTbl := StructToTable(ScheduleTag{}, tablename, schema, true, id, nil, nil, "")
 	tasktagTbl.Parent = basetable
 	chunkSize = 65535 / len(tasktagTbl.Fields)
 	// sqlStatement = PGTableStatement(tasktagTbl, childUpdateTpl, nil)
@@ -357,14 +357,14 @@ func (s XSchedules) PGInsertRows(ctx context.Context, tx *sqlx.Tx, schema, table
 	}
 
 	// locationtags
-	locationtags := []XScheduleTag{}
+	locationtags := []ScheduleTag{}
 	for _, schedule := range s {
 		for _, tags := range schedule.LocationTags {
 			locationtags = append(locationtags, tags.Tags...)
 		}
 	}
 	tablename = basetable + "locationtag"
-	locationtagTbl := StructToTable(XScheduleTag{}, tablename, schema, true, id, nil, nil, "")
+	locationtagTbl := StructToTable(ScheduleTag{}, tablename, schema, true, id, nil, nil, "")
 	locationtagTbl.Parent = basetable
 	chunkSize = 65535 / len(locationtagTbl.Fields)
 	// sqlStatement = PGTableStatement(locationtagTbl, childUpdateTpl, nil)
@@ -401,6 +401,42 @@ func (s XSchedules) PGInsertRows(ctx context.Context, tx *sqlx.Tx, schema, table
 	return res, nil
 }
 
-func (s XSchedules) Extract(ctx context.Context, c *Client, rqf *RequestQueryFields) error {
-	return nil
+func (s *Schedules) EPL(ctx context.Context, c *Client, rqf *RequestQueryFields,
+	db *sqlx.DB, schema, table string, newRowsOnly bool) (sql.Result, error) {
+
+	rqf = DefaultScheduleRequestQueryFields(rqf)
+
+	var res Result
+
+	tx := db.MustBeginTx(ctx, nil)
+	sqlResult, err := Schedule{}.PGCreateTable(ctx, tx, schema, table, false, "")
+	res.AddResult(sqlResult)
+	if err != nil {
+		return res, err
+	}
+
+	qrqf, err := Schedule{}.PGQueryConstraints(ctx, db, schema, table)
+	if err != nil {
+		return res, err
+	}
+	if qrqf.SinceModifiedTimestamp != nil && newRowsOnly {
+		rqf.SetSinceModifiedTimestamp(qrqf.GetSinceModifiedTimestamp())
+	}
+	if err := s.Get(ctx, c, rqf); err != nil {
+		return res, err
+	}
+	if err := s.Process(); err != nil {
+		return res, err
+	}
+	sqlResult, err = s.PGInsertRows(ctx, tx, schema, table, "")
+	res.AddResult(sqlResult)
+	if err != nil {
+		return res, err
+
+	}
+	err = tx.Commit()
+	if err != nil {
+		return res, err
+	}
+	return res, nil
 }

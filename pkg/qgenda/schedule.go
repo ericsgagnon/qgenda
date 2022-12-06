@@ -1,91 +1,220 @@
 package qgenda
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"io"
-	"log"
+	"sort"
 	"time"
 
 	"github.com/jmoiron/sqlx"
 )
 
 type Schedule struct {
-	RawMessage             *string       `json:"-" db:"_raw_message"`
-	ProcessedMessage       *string       `json:"-" db:"_processed_message"` // RawMessage processed, with changing fields dropped
-	ExtractDateTime        *Time         `json:"-" db:"_extract_date_time"`
-	ScheduleKey            *string       `json:"ScheduleKey,omitempty" primarykey:"true"`
-	CallRole               *string       `json:"CallRole,omitempty"`
-	CompKey                *string       `json:"CompKey,omitempty"`
-	Credit                 *float64      `json:"Credit,omitempty"`
-	Date                   *Date         `json:"Date,omitempty"`
-	StartDateUTC           *Time         `json:"StartDateUTC,omitempty"`
-	EndDateUTC             *Time         `json:"EndDateUTC,omitempty"`
-	EndDate                *Date         `json:"EndDate,omitempty"`
-	EndTime                *TimeOfDay    `json:"EndTime,omitempty"`
-	IsCred                 *bool         `json:"IsCred,omitempty"`
-	IsPublished            *bool         `json:"IsPublished,omitempty"`
-	IsLocked               *bool         `json:"IsLocked,omitempty"`
-	IsStruck               *bool         `json:"IsStruck,omitempty"`
-	Notes                  *string       `json:"Notes,omitempty"`
-	IsNotePrivate          *bool         `json:"IsNotePrivate,omitempty"`
-	StaffAbbrev            *string       `json:"StaffAbbrev,omitempty"`
-	StaffBillSysId         *string       `json:"StaffBillSysId,omitempty"`
-	StaffEmail             *string       `json:"StaffEmail,omitempty"`
-	StaffEmrId             *string       `json:"StaffEmrId,omitempty"`
-	StaffErpId             *string       `json:"StaffErpId,omitempty"`
-	StaffInternalId        *string       `json:"StaffInternalId,omitempty"`
-	StaffExtCallSysId      *string       `json:"StaffExtCallSysId,omitempty"`
-	StaffFName             *string       `json:"StaffFName,omitempty"`
-	StaffId                *string       `json:"StaffId,omitempty"`
-	StaffKey               *string       `json:"StaffKey,omitempty"`
-	StaffLName             *string       `json:"StaffLName,omitempty"`
-	StaffMobilePhone       *string       `json:"StaffMobilePhone,omitempty"`
-	StaffNpi               *string       `json:"StaffNpi,omitempty"`
-	StaffPager             *string       `json:"StaffPager,omitempty"`
-	StaffPayrollId         *string       `json:"StaffPayrollId,omitempty"`
-	StaffTags              []ScheduleTag `json:"StaffTags,omitempty"`
-	StartDate              *Date         `json:"StartDate,omitempty"`
-	StartTime              *TimeOfDay    `json:"StartTime,omitempty"`
-	TaskAbbrev             *string       `json:"TaskAbbrev,omitempty"`
-	TaskBillSysId          *string       `json:"TaskBillSysId,omitempty"`
-	TaskContactInformation *string       `json:"TaskContactInformation,omitempty"`
-	TaskExtCallSysId       *string       `json:"TaskExtCallSysId,omitempty"`
-	TaskId                 *string       `json:"TaskId,omitempty"`
-	TaskKey                *string       `json:"TaskKey,omitempty"`
-	TaskName               *string       `json:"TaskName,omitempty"`
-	TaskPayrollId          *string       `json:"TaskPayrollId,omitempty"`
-	TaskEmrId              *string       `json:"TaskEmrId,omitempty"`
-	TaskCallPriority       *string       `json:"TaskCallPriority,omitempty"`
-	TaskDepartmentId       *string       `json:"TaskDepartmentId,omitempty"`
-	TaskIsPrintEnd         *bool         `json:"TaskIsPrintEnd,omitempty"`
-	TaskIsPrintStart       *bool         `json:"TaskIsPrintStart,omitempty"`
-	TaskShiftKey           *string       `json:"TaskShiftKey,omitempty"`
-	TaskType               *string       `json:"TaskType,omitempty"`
-	TaskTags               []ScheduleTag `json:"TaskTags,omitempty"`
-	LocationName           *string       `json:"LocationName,omitempty"`
-	LocationAbbrev         *string       `json:"LocationAbbrev,omitempty"`
-	LocationID             *string       `json:"LocationID,omitempty"`
-	LocationAddress        *string       `json:"LocationAddress,omitempty"`
-	TimeZone               *string       `json:"TimeZone,omitempty"`
-	LastModifiedDateUTC    *Time         `json:"LastModifiedDateUTC,omitempty" primarykey:"true" querycondition:"ge" qf:"SinceModifiedTimestamp"`
-	LocationTags           []Location    `json:"LocationTags,omitempty"`
-	IsRotationTask         *bool         `json:"IsRotationTask"`
+	RawMessage             *string        `json:"-" db:"_raw_message"`
+	ProcessedMessage       *string        `json:"-" db:"_processed_message"` // RawMessage processed, with changing fields dropped
+	SourceQuery            *string        `json:"_source_query" db:"_source_query"`
+	ExtractDateTime        *Time          `json:"_extract_date_time" db:"_extract_date_time"`
+	HashID                 *string        `json:"_hash_id" db:"_hash_id"` // hash of processed message
+	ScheduleKey            *string        `json:"ScheduleKey,omitempty" primarykey:"true"`
+	CallRole               *string        `json:"CallRole,omitempty"`
+	CompKey                *string        `json:"CompKey,omitempty"`
+	Credit                 *float64       `json:"Credit,omitempty"`
+	Date                   *Date          `json:"Date,omitempty"`
+	StartDateUTC           *Time          `json:"StartDateUTC,omitempty"`
+	EndDateUTC             *Time          `json:"EndDateUTC,omitempty"`
+	EndDate                *Date          `json:"EndDate,omitempty"`
+	EndTime                *TimeOfDay     `json:"EndTime,omitempty"`
+	IsCred                 *bool          `json:"IsCred,omitempty"`
+	IsPublished            *bool          `json:"IsPublished,omitempty"`
+	IsLocked               *bool          `json:"IsLocked,omitempty"`
+	IsStruck               *bool          `json:"IsStruck,omitempty"`
+	Notes                  *string        `json:"Notes,omitempty"`
+	IsNotePrivate          *bool          `json:"IsNotePrivate,omitempty"`
+	StaffAbbrev            *string        `json:"StaffAbbrev,omitempty"`
+	StaffBillSysId         *string        `json:"StaffBillSysId,omitempty"`
+	StaffEmail             *string        `json:"StaffEmail,omitempty"`
+	StaffEmrId             *string        `json:"StaffEmrId,omitempty"`
+	StaffErpId             *string        `json:"StaffErpId,omitempty"`
+	StaffInternalId        *string        `json:"StaffInternalId,omitempty"`
+	StaffExtCallSysId      *string        `json:"StaffExtCallSysId,omitempty"`
+	StaffFName             *string        `json:"StaffFName,omitempty"`
+	StaffId                *string        `json:"StaffId,omitempty"`
+	StaffKey               *string        `json:"StaffKey,omitempty"`
+	StaffLName             *string        `json:"StaffLName,omitempty"`
+	StaffMobilePhone       *string        `json:"StaffMobilePhone,omitempty"`
+	StaffNpi               *string        `json:"StaffNpi,omitempty"`
+	StaffPager             *string        `json:"StaffPager,omitempty"`
+	StaffPayrollId         *string        `json:"StaffPayrollId,omitempty"`
+	StaffTags              []ScheduleTags `json:"StaffTags,omitempty"`
+	StartDate              *Date          `json:"StartDate,omitempty"`
+	StartTime              *TimeOfDay     `json:"StartTime,omitempty"`
+	TaskAbbrev             *string        `json:"TaskAbbrev,omitempty"`
+	TaskBillSysId          *string        `json:"TaskBillSysId,omitempty"`
+	TaskContactInformation *string        `json:"TaskContactInformation,omitempty"`
+	TaskExtCallSysId       *string        `json:"TaskExtCallSysId,omitempty"`
+	TaskId                 *string        `json:"TaskId,omitempty"`
+	TaskKey                *string        `json:"TaskKey,omitempty"`
+	TaskName               *string        `json:"TaskName,omitempty"`
+	TaskPayrollId          *string        `json:"TaskPayrollId,omitempty"`
+	TaskEmrId              *string        `json:"TaskEmrId,omitempty"`
+	TaskCallPriority       *string        `json:"TaskCallPriority,omitempty"`
+	TaskDepartmentId       *string        `json:"TaskDepartmentId,omitempty"`
+	TaskIsPrintEnd         *bool          `json:"TaskIsPrintEnd,omitempty"`
+	TaskIsPrintStart       *bool          `json:"TaskIsPrintStart,omitempty"`
+	TaskShiftKey           *string        `json:"TaskShiftKey,omitempty"`
+	TaskType               *string        `json:"TaskType,omitempty"`
+	TaskTags               []ScheduleTags `json:"TaskTags,omitempty"`
+	LocationName           *string        `json:"LocationName,omitempty"`
+	LocationAbbrev         *string        `json:"LocationAbbrev,omitempty"`
+	LocationID             *string        `json:"LocationID,omitempty"`
+	LocationAddress        *string        `json:"LocationAddress,omitempty"`
+	TimeZone               *string        `json:"TimeZone,omitempty"`
+	LastModifiedDateUTC    *Time          `json:"LastModifiedDateUTC,omitempty" primarykey:"true" querycondition:"ge" qf:"SinceModifiedTimestamp"`
+	LocationTags           []ScheduleTags `json:"LocationTags,omitempty"`
+	IsRotationTask         *bool          `json:"IsRotationTask"`
 }
 
-type Schedules []Schedule
+// UnmarshalJSON fulfils the json.Unmarshaler interface and
+// assigns a compact json representation to .RawMessage
+func (s *Schedule) UnmarshalJSON(b []byte) error {
+	// alias technique to avoid infinite recursion
+	type Alias Schedule
+	var a Alias
 
-type ScheduleTag struct {
-	ScheduleKey         *string `json:"-" nullable:"false"`
-	LastModifiedDateUTC *Time   `json:"-" nullable:"false"`
-	CategoryKey         *int64  `json:"CategoryKey" nullable:"false"`
-	CategoryName        *string `json:"CategoryName" nullable:"false"`
-	Tags                []struct {
-		Key  *int64  `json:"Key" db:"tagkey" nullable:"false"`
-		Name *string `json:"Name" db:"tagname" nullable:"false"`
+	if err := json.Unmarshal(b, &a); err != nil {
+		return err
 	}
+
+	var bb bytes.Buffer
+	if err := json.Compact(&bb, b); err != nil {
+		return err
+	}
+	rawMessage := bb.String()
+
+	dest := Schedule(a)
+	dest.RawMessage = &rawMessage
+
+	*s = dest
+	return nil
+}
+
+// MarshalJSON satisfies the json.Marshaler interface
+func (s Schedule) MarshalJSON() ([]byte, error) {
+	type Alias Schedule
+	a := Alias(s)
+
+	b, err := json.Marshal(a)
+	if err != nil {
+		return nil, err
+	}
+	var bb bytes.Buffer
+	if err := json.Compact(&bb, b); err != nil {
+		return nil, err
+	}
+
+	return bb.Bytes(), nil
+}
+
+// Process handles all the basic validating and processing of
+// from the raw version of any values. It is idempotent.
+func (s *Schedule) Process() error {
+
+	if err := ProcessStruct(s); err != nil {
+		return fmt.Errorf("error processing %T:\t%q", s, err)
+	}
+
+	if len(s.StaffTags) > 0 {
+		for i, _ := range s.StaffTags {
+			s.StaffTags[i].ExtractDateTime = s.ExtractDateTime
+			s.StaffTags[i].ScheduleKey = s.ScheduleKey
+			s.StaffTags[i].LastModifiedDateUTC = s.LastModifiedDateUTC
+			if err := s.StaffTags[i].Process(); err != nil {
+				return err
+			}
+		}
+		// sortScheduleTagsSlice(s.StaffTags)
+		sort.SliceStable(s.StaffTags, func(i, j int) bool {
+			return *(s.StaffTags[i].CategoryKey) < *(s.StaffTags[j].CategoryKey)
+		})
+
+	}
+
+	// process TaskTags
+	if len(s.TaskTags) > 0 {
+		for i, _ := range s.TaskTags {
+			s.TaskTags[i].ExtractDateTime = s.ExtractDateTime
+			s.TaskTags[i].ScheduleKey = s.ScheduleKey
+			s.TaskTags[i].LastModifiedDateUTC = s.LastModifiedDateUTC
+			if err := s.TaskTags[i].Process(); err != nil {
+				return err
+			}
+		}
+		// sortScheduleTagsSlice(s.TaskTags)
+		sort.SliceStable(s.TaskTags, func(i, j int) bool {
+			return *(s.TaskTags[i].CategoryKey) < *(s.TaskTags[j].CategoryKey)
+		})
+
+	}
+
+	// process LocationTags
+	if len(s.LocationTags) > 0 {
+		for i, _ := range s.LocationTags {
+			s.LocationTags[i].ExtractDateTime = s.ExtractDateTime
+			s.LocationTags[i].ScheduleKey = s.ScheduleKey
+			s.LocationTags[i].LastModifiedDateUTC = s.LastModifiedDateUTC
+			if err := s.LocationTags[i].Process(); err != nil {
+				return err
+			}
+		}
+		// sortScheduleTagsSlice(s.LocationTags)
+		sort.SliceStable(s.LocationTags, func(i, j int) bool {
+			return *(s.LocationTags[i].CategoryKey) < *(s.LocationTags[j].CategoryKey)
+		})
+
+	}
+	if err := s.SetMessage(); err != nil {
+		return err
+	}
+	if err := s.SetHashID(); err != nil {
+		return err
+	}
+	return nil
+}
+
+// SetMessage uses a copy, strips metadata, remarshals to JSON and compacts it, and assigns the string to .ProcessedMessage
+func (s *Schedule) SetMessage() error {
+	// take a copy and strip metadata, for good measure
+	// ss := *s
+	// ss.RawMessage = nil
+	// ss.ExtractDateTime = nil
+	// ss.ProcessedMessage = nil
+	// ss.SourceQuery = nil
+	// ss.HashID = nil
+
+	// b, err := json.Marshal(ss)
+	b, err := json.Marshal(s)
+	if err != nil {
+		return err
+	}
+	var bb bytes.Buffer
+	if err := json.Compact(&bb, b); err != nil {
+		return err
+	}
+	processedMessage := bb.String()
+	s.ProcessedMessage = &processedMessage
+	return nil
+}
+
+func (s *Schedule) SetHashID() error {
+	if s.ProcessedMessage == nil {
+		return fmt.Errorf("ProcessedMessage is empty, cannot hash")
+	}
+	h := Hash(*s.ProcessedMessage)
+	s.HashID = &h
+	return nil
 }
 
 func DefaultScheduleRequestQueryFields(rqf *RequestQueryFields) *RequestQueryFields {
@@ -131,371 +260,119 @@ func NewScheduleRequest(rqf *RequestQueryFields) *Request {
 	return r
 }
 
-type pgScheduleTag struct {
-	ScheduleKey         *string `json:"ScheduleKey,omitempty" nullable:"false"`
-	LastModifiedDateUTC *Time   `json:"LastModifiedDateUTC,omitempty" nullable:"false"`
-	CategoryKey         *int64  `json:"CategoryKey" nullable:"false"`
-	CategoryName        *string `json:"CategoryName" nullable:"false"`
-	TagKey              *int64  `db:"tagkey" nullable:"false"`
-	TagName             *string `db:"tagname" nullable:"false"`
-}
+// func (s Schedule) PGQuery(temporary bool, schema, table string) string {
+// 	tbl := StructToTable(Schedule{}, table, schema, temporary, "", nil, nil, "")
+// 	tpl := `
+// 	CREATE {{- if .Temporary }} TEMPORARY TABLE IF NOT EXISTS _tmp_{{- .UUID -}}_{{- .Name -}}
+// 	{{ else }} TABLE IF NOT EXISTS {{ .Schema -}}{{- if ne .Schema "" -}}.{{- end -}}{{- .Name }}
+// 	{{- end }} (
+// 	{{- $fields := pgincludefields .Fields -}}
+// 	{{- range  $index, $field := $fields -}}
+// 	{{- if ne $index 0 -}},{{- end }}
+// 		{{ pgname $field }} {{ pgtype $field.Type }} {{ if $field.Unique }} unique {{ end -}} {{- if not $field.Nullable -}} not null {{- end }}
+// 	{{- end -}}
+// 	{{- if not .Temporary }}{{- if .PrimaryKey }},
+// 		PRIMARY KEY ({{ .PrimaryKey }}){{- end -}}{{- end }}
+// 	)
+// 	`
 
-func (s Schedules) InsertRows(ctx context.Context, db *sqlx.DB, schema, table string) (sql.Result, error) {
-	switch db.DriverName() {
-	case "postgres":
-		return s.InsertPGRows(ctx, db, schema, table)
-	default:
-		return nil, fmt.Errorf("%s not found in imported drivers: %s", db.DriverName(), sql.Drivers())
+// 	return PGTableStatement(tbl, tpl, nil)
+// 	// return PGStatement(*new(Schedule), schema, table, tpl)
+// }
+
+//	func (s Schedule) ToTable(tablename, schema, id string, temporary bool, constraints map[string]string, tags map[string][]string, parent string) Table {
+//		return StructToTable(Schedule{}, tablename, schema, temporary, id, nil, nil, "")
+//	}
+func (s Schedule) PGCreateTable(ctx context.Context, tx *sqlx.Tx, schema, tablename string, temporary bool, id string) (sql.Result, error) {
+
+	basetable := "schedule"
+	if tablename != "" {
+		basetable = tablename
 	}
-}
-
-// Load is just a wrapper for InsertRows
-func (s Schedules) Load(ctx context.Context, db *sqlx.DB, schema, table string) (sql.Result, error) {
-	return s.InsertRows(ctx, db, schema, table)
-}
-
-func (s Schedules) InsertPGRows(ctx context.Context, db *sqlx.DB, schema, table string) (sql.Result, error) {
-	// fmt.Printf("InsertPGRows: length of schedules: %d\n", len(s))
-	sch := []Schedule{}
-	for _, v := range s {
-		sch = append(sch, v)
-	}
-	return LoadSchedulesToPG(ctx, db, sch, schema, table)
-}
-func (s Schedules) QueryConstraints(ctx context.Context, db *sqlx.DB, schema, table string) (*RequestQueryFields, error) {
-	switch db.DriverName() {
-	case "postgres":
-		return s.QueryPGConstraints(ctx, db, schema, table)
-	default:
-		return nil, fmt.Errorf("%s not found in imported drivers: %s", db.DriverName(), sql.Drivers())
-	}
-}
-
-func (s Schedules) QueryPGConstraints(ctx context.Context, db *sqlx.DB, schema, table string) (*RequestQueryFields, error) {
-	rqf := RequestQueryFields{}
-	if err := db.GetContext(
-		ctx,
-		&rqf,
-		PGQueryConstraintsStatement(Schedule{}, schema, table),
-	); err != nil {
-		return nil, err
-	}
-	return &rqf, nil
-}
-
-func (s Schedules) CreateTable(ctx context.Context, db *sqlx.DB, schema, table string) (sql.Result, error) {
-	switch db.DriverName() {
-	case "postgres":
-		return s.CreatePGTable(ctx, db, schema, table)
-	default:
-		return nil, fmt.Errorf("%s not found in imported drivers: %s", db.DriverName(), sql.Drivers())
-	}
-}
-
-func (s Schedules) CreatePGTable(ctx context.Context, db *sqlx.DB, schema, table string) (sql.Result, error) {
-	cstResult, err := PGCreateTable(ctx, db, s, schema, table)
-	if err != nil {
-		return cstResult, err
-	}
-
-	sttablename := fmt.Sprintf("%sstafftag", table)
-	stafftags := []pgScheduleTag{}
-	csstResult, err := PGCreateTable(ctx, db, stafftags, schema, sttablename)
-	if err != nil {
-		return csstResult, err
-	}
-
-	tttablename := fmt.Sprintf("%stasktag", table)
-	tasktags := []pgScheduleTag{}
-	csttResult, err := PGCreateTable(ctx, db, tasktags, schema, tttablename)
-	if err != nil {
-		return csttResult, err
-	}
-
-	return cstResult, nil
-}
-
-func (s Schedules) DropTable(ctx context.Context, db *sqlx.DB, schema, table string) (sql.Result, error) {
-	switch db.DriverName() {
-	case "postgres":
-		// fmt.Println("DropTable: DriverName ", db.DriverName())
-		return s.DropPGTable(ctx, db, schema, table)
-		// fmt.Println("----------------------------------------")
-	default:
-		return nil, fmt.Errorf("%s not found in imported drivers: %s", db.DriverName(), sql.Drivers())
-	}
-}
-
-func (s Schedules) DropPGTable(ctx context.Context, db *sqlx.DB, schema, table string) (sql.Result, error) {
-
 	var res Result
-	sqlResult, err := PGDropTable(ctx, db, s, schema, table)
-	if sqlResult != nil {
+
+	if !temporary && schema != "" {
+		sqlResult, err := tx.ExecContext(ctx, fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s", schema))
 		res = SQLResult(res, sqlResult)
+		if err != nil {
+			return res, err
+		}
 	}
+
+	tablename = basetable
+	tpl := `{{- $table := . -}}
+	CREATE {{- if .Temporary }} TEMPORARY TABLE IF NOT EXISTS _tmp_{{- .UUID -}}_{{- .Name -}}
+	{{ else }} TABLE IF NOT EXISTS {{ .Schema -}}{{- if ne .Schema "" -}}.{{- end -}}{{- .Name }}
+	{{- end }} (
+		{{- $fields := pgincludefields .Fields -}}
+	{{- range  $index, $field := $fields -}}
+	{{- if ne $index 0 -}},{{- end }}
+	{{ pgname $field }} {{ pgtype $field.Type }} {{ if not $table.Temporary }}{{ if $field.Unique }} unique {{ end -}} {{- if not $field.Nullable -}} not null {{- end }}{{- end }}
+	{{- end -}}
+	{{- if not .Temporary }}{{- if .PrimaryKey }}, 
+		PRIMARY KEY ({{ .PrimaryKey }}){{- end -}}{{- end }}
+	)	
+	`
+
+	table := StructToTable(Schedule{}, tablename, schema, temporary, id, nil, nil, "")
+	sqlStatement := PGTableStatement(table, tpl, nil)
+	// fmt.Println(sqlStatement)
+
+	sqlResult, err := tx.ExecContext(ctx, sqlStatement)
+	res = SQLResult(res, sqlResult)
 	if err != nil {
 		return res, err
 	}
 
-	sttablename := fmt.Sprintf("%sstafftag", table)
-	stafftags := []pgScheduleTag{}
-	sqlResult, err = PGDropTable(ctx, db, stafftags, schema, sttablename)
-	if sqlResult != nil {
-		res = SQLResult(res, sqlResult)
-	}
+	tablename = fmt.Sprint(basetable, "stafftag")
+	table = StructToTable(ScheduleTag{}, tablename, schema, temporary, id, nil, nil, basetable)
+	// sqlStatement = PGTableStatement(table, PGCreateTableDevTpl, nil)
+	sqlStatement = PGTableStatement(table, tpl, nil)
+	sqlResult, err = tx.ExecContext(ctx, sqlStatement)
+	res = SQLResult(res, sqlResult)
 	if err != nil {
 		return res, err
 	}
 
-	tttablename := fmt.Sprintf("%stasktag", table)
-	tasktags := []pgScheduleTag{}
-	sqlResult, err = PGDropTable(ctx, db, tasktags, schema, tttablename)
-	if sqlResult != nil {
-		res = SQLResult(res, sqlResult)
-	}
+	tablename = fmt.Sprint(basetable, "tasktag")
+	table = StructToTable(ScheduleTag{}, tablename, schema, temporary, id, nil, nil, basetable)
+	// sqlStatement = PGTableStatement(table, PGCreateTableDevTpl, nil)
+	sqlStatement = PGTableStatement(table, tpl, nil)
+	sqlResult, err = tx.ExecContext(ctx, sqlStatement)
+	res = SQLResult(res, sqlResult)
 	if err != nil {
 		return res, err
 	}
 
+	tablename = fmt.Sprint(basetable, "locationtag")
+	table = StructToTable(ScheduleTag{}, tablename, schema, temporary, id, nil, nil, basetable)
+	// sqlStatement = PGTableStatement(table, PGCreateTableDevTpl, nil)
+	sqlStatement = PGTableStatement(table, tpl, nil)
+	sqlResult, err = tx.ExecContext(ctx, sqlStatement)
+	res = SQLResult(res, sqlResult)
+	if err != nil {
+		return res, err
+	}
 	return res, nil
 }
 
-func LoadSchedulesToPG(ctx context.Context, db *sqlx.DB, value []Schedule, schema, table string) (sql.Result, error) {
-	if len(value) < 1 {
-		return nil, fmt.Errorf("LoadSchedulesToPG: length of %T < 1, nothing to do", value)
+func (s Schedule) PGQueryConstraints(ctx context.Context, db *sqlx.DB, schema, table string) (*RequestQueryFields, error) {
+	rqf := RequestQueryFields{}
+	tbl := StructToTable(Schedule{}, table, schema, false, "", nil, nil, "")
+	tpl := `
+	SELECT
+	{{- $fields := pgqueryfields .Fields -}}
+	{{- range  $index, $field := $fields -}}
+	{{- if ne $index 0 -}},{{- end }}
+	MAX( {{ pgname $field }} ) AS {{ qfname $field }}
+	{{- end }}
+	FROM 
+		{{ .Schema -}}{{- if ne .Schema "" -}}.{{- end -}}{{- .Name }}	
+	`
+	query := PGTableStatement(tbl, tpl, nil)
+	// query := PGStatement(*new(Schedule), schema, table, tpl)
+	if err := db.GetContext(ctx, &rqf, query); err != nil {
+		return nil, err
 	}
-	// fmt.Println("Creating Schedule Table")
-	// rename - maybe pgloader or similar
-	var res Result
-	sqlResult, err := PGCreateTable(ctx, db, value, schema, table)
-	if sqlResult != nil {
-		res = SQLResult(res, sqlResult)
-	}
-	if err != nil {
-		return res, err
-	}
-	// fmt.Println("Inserting Schedule Rows")
-	sqlResult, err = PGInsertRows(ctx, db, value, schema, table)
-	if sqlResult != nil {
-		res = SQLResult(res, sqlResult)
-	}
-	if err != nil {
-		return res, err
-	}
-
-	sttablename := fmt.Sprintf("%sstafftag", table)
-	stafftags := []pgScheduleTag{}
-	// csstResult, err := PGCreateTable(ctx, db, value[0].StaffTags, schema, sttablename)
-	for _, sch := range value {
-		for _, cat := range sch.StaffTags {
-			for _, tag := range cat.Tags {
-				stafftag := pgScheduleTag{
-					ScheduleKey:         sch.ScheduleKey,
-					LastModifiedDateUTC: sch.LastModifiedDateUTC,
-					CategoryKey:         cat.CategoryKey,
-					CategoryName:        cat.CategoryName,
-					TagKey:              tag.Key,
-					TagName:             tag.Name,
-				}
-				stafftags = append(stafftags, stafftag)
-			}
-		}
-	}
-	// fmt.Println("Creating ScheduleStaffTag Table")
-	sqlResult, err = PGCreateTable(ctx, db, stafftags, schema, sttablename)
-	if sqlResult != nil {
-		res = SQLResult(res, sqlResult)
-	}
-	if err != nil {
-		return res, err
-	}
-	// fmt.Println("Inserting ScheduleStaffTag Rows")
-	sqlResult, err = PGInsertRows(ctx, db, stafftags, schema, sttablename)
-	if sqlResult != nil {
-		res = SQLResult(res, sqlResult)
-	}
-	if err != nil {
-		return res, err
-	}
-
-	tttablename := fmt.Sprintf("%stasktag", table)
-	tasktags := []pgScheduleTag{}
-	for _, sch := range value {
-		for _, cat := range sch.TaskTags {
-			for _, tag := range cat.Tags {
-				tasktag := pgScheduleTag{
-					ScheduleKey:         sch.ScheduleKey,
-					LastModifiedDateUTC: sch.LastModifiedDateUTC,
-					CategoryKey:         cat.CategoryKey,
-					CategoryName:        cat.CategoryName,
-					TagKey:              tag.Key,
-					TagName:             tag.Name,
-				}
-				tasktags = append(tasktags, tasktag)
-			}
-		}
-	}
-	// fmt.Println("Creating ScheduleTaskTag Table")
-	sqlResult, err = PGCreateTable(ctx, db, tasktags, schema, tttablename)
-	if sqlResult != nil {
-		res = SQLResult(res, sqlResult)
-	}
-	if err != nil {
-		return res, err
-	}
-	// fmt.Println("Inserting ScheduleTaskTag Rows")
-	sqlResult, err = PGInsertRows(ctx, db, tasktags, schema, fmt.Sprintf("%stasktag", table))
-	if sqlResult != nil {
-		res = SQLResult(res, sqlResult)
-	}
-	if err != nil {
-		return res, err
-	}
-	// fmt.Println("actually managed to insert all rows?")
-	return res, err
-}
-
-func (s Schedules) Extract(ctx context.Context, c *Client, rqf *RequestQueryFields) (Schedules, error) {
-	req := NewScheduleRequest(rqf)
-	sch := Schedules{}
-	// qgenda only supports 100 days of schedules per query
-	// using 90 days in case there are other limits
-	duration := time.Hour * 24 * 90
-	// if req.GetEndDate().Sub(req.GetStartDate()) > duration {
-	for t := req.GetStartDate(); t.Before(req.GetEndDate()); t = t.Add(duration) {
-		vcpreq := *req
-		subreq := &(vcpreq)
-		subreq.SetStartDate(t)
-		subreq.SetEndDate(t.Add(duration))
-		// fmt.Printf("Original StartDate: %s\t Current StartDate: %s\n", req.GetStartDate(), subreq.GetStartDate())
-		// fmt.Printf("Original SinceModified: %s\tCurrent SinceModified: %s\n", req.GetSinceModifiedTimestamp(), subreq.GetSinceModifiedTimestamp())
-		resp, err := c.Do(ctx, subreq)
-		if err != nil {
-			return nil, err
-		}
-		data, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return nil, err
-		}
-		ts := Schedules{}
-		if err := json.Unmarshal(data, &ts); err != nil {
-			return nil, err
-		}
-
-		// user response header for extract time
-		// fmt.Println(resp.Header.Get("date"))
-		et, err := ParseTime(resp.Header.Get("date"))
-		if err != nil {
-			return nil, err
-		}
-		var messages []any
-		if err := json.Unmarshal(data, &messages); err != nil {
-			return nil, err
-		}
-		for i, v := range messages {
-			rw, err := json.Marshal(v)
-			if err != nil {
-				return nil, err
-			}
-			srw := string(rw)
-			ts[i].RawMessage = &srw
-			ts[i].ExtractDateTime = &et
-			// *s[i].RawMessage = string(rw)
-		}
-		log.Printf("schedules: %s - %s (modTime>= %s)\ttotal: %d", subreq.GetStartDate(), subreq.GetEndDate(), subreq.GetSinceModifiedTimestamp(), len(ts))
-		sch = append(sch, ts...)
-	}
-	// }
-	return sch, nil
-	// resp, err := c.Do(ctx, req)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// data, err := io.ReadAll(resp.Body)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// if err := json.Unmarshal(data, &s); err != nil {
-	// 	return nil, err
-	// }
-
-	// user response header for extract time
-	// fmt.Println(resp.Header.Get("date"))
-	// t, err := ParseTime(resp.Header.Get("date"))
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// grab the 'raw message'
-	// var messages []any
-	// if err := json.Unmarshal(data, &messages); err != nil {
-	// 	return nil, err
-	// }
-	// for i, v := range messages {
-	// 	rw, err := json.Marshal(v)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	srw := string(rw)
-	// 	s[i].RawMessage = &srw
-	// 	s[i].ExtractDateTime = &t
-	// 	// *s[i].RawMessage = string(rw)
-	// }
-	// return s, nil
-
-}
-
-func (s Schedules) Process() (Schedules, error) {
-	out := []Schedule{}
-	for _, v := range s {
-		if err := Process(&v); err != nil {
-			return nil, err
-		}
-		out = append(out, v)
-	}
-	return out, nil
-}
-
-func (s Schedules) EPL(ctx context.Context, c *Client, rqf *RequestQueryFields,
-	db *sqlx.DB, schema, table string, newRowsOnly bool) (sql.Result, error) {
-	rqf = DefaultScheduleRequestQueryFields(rqf)
-
-	var res Result
-	sqlResult, err := PGCreateSchema(ctx, db, s, schema, table)
-	if sqlResult != nil {
-		res = SQLResult(res, sqlResult)
-	}
-	if err != nil {
-		return res, err
-	}
-
-	sqlResult, err = s.CreateTable(ctx, db, schema, table)
-	if sqlResult != nil {
-		res = SQLResult(res, sqlResult)
-	}
-	if err != nil {
-		return res, err
-	}
-
-	qrqf, err := s.QueryConstraints(ctx, db, schema, table)
-	if err != nil {
-		return res, err
-	}
-	if qrqf.SinceModifiedTimestamp != nil && newRowsOnly {
-		rqf.SetSinceModifiedTimestamp(qrqf.GetSinceModifiedTimestamp())
-	}
-	s, err = s.Extract(ctx, c, rqf)
-	if err != nil {
-		return res, err
-	}
-	s, err = s.Process()
-	if err != nil {
-		return res, err
-	}
-	sqlResult, err = s.Load(ctx, db, schema, table)
-	if sqlResult != nil {
-		res = SQLResult(res, sqlResult)
-	}
-	return res, err
+	return &rqf, nil
 }

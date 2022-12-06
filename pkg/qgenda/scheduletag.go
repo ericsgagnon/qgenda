@@ -4,7 +4,7 @@ import (
 	"sort"
 )
 
-type XScheduleTag struct {
+type ScheduleTag struct {
 	ExtractDateTime     *Time   `json:"-" db:"_extract_date_time"`
 	LastModifiedDateUTC *Time   `json:"-" db:"lastmodifieddateutc"`
 	ScheduleKey         *string `json:"-" db:"schedulekey"`
@@ -14,20 +14,20 @@ type XScheduleTag struct {
 	TagName             *string `json:"Name" db:"tagname"`
 }
 
-func (st *XScheduleTag) Process() error {
+func (st *ScheduleTag) Process() error {
 	return ProcessStruct(st)
 }
 
-type XScheduleTags struct {
+type ScheduleTags struct {
 	ExtractDateTime     *Time          `json:"-"`
 	ScheduleKey         *string        `json:"-"`
 	LastModifiedDateUTC *Time          `json:"-"`
 	CategoryKey         *int64         `json:"CategoryKey"`
 	CategoryName        *string        `json:"CategoryName"`
-	Tags                []XScheduleTag `json:"Tags,omitempty"`
+	Tags                []ScheduleTag `json:"Tags,omitempty"`
 }
 
-func (sts *XScheduleTags) Process() error {
+func (sts *ScheduleTags) Process() error {
 	if len(sts.Tags) > 0 {
 		// sts.setTagMetaData()
 		for i, _ := range sts.Tags {
@@ -48,7 +48,7 @@ func (sts *XScheduleTags) Process() error {
 	return nil
 }
 
-// func processScheduleTagsSlice(st []XScheduleTags) error {
+// func processScheduleTagsSlice(st []ScheduleTags) error {
 // 	if len(st) > 0 {
 // 		for i, _ := range st {
 // 			if err := st[i].Process(); err != nil {
@@ -59,7 +59,7 @@ func (sts *XScheduleTags) Process() error {
 // 	return nil
 // }
 
-// func setScheduleTagsMetaData(s *XSchedule, sts []XScheduleTags) error {
+// func setScheduleTagsMetaData(s *Schedule, sts []ScheduleTags) error {
 // 	if len(sts) > 0 {
 // 		for i, _ := range sts {
 // 			sts[i].ExtractDateTime = s.ExtractDateTime
@@ -71,14 +71,14 @@ func (sts *XScheduleTags) Process() error {
 // }
 
 // // sortScheduleTagsSlice sorts based on CategoryKey
-// func sortScheduleTagsSlice(st []XScheduleTags) error {
+// func sortScheduleTagsSlice(st []ScheduleTags) error {
 // 	sort.SliceStable(st, func(i, j int) bool {
 // 		return *(st[i].CategoryKey) < *(st[j].CategoryKey)
 // 	})
 // 	return nil
 // }
 
-// func (sts *XScheduleTags) setTagMetaData() {
+// func (sts *ScheduleTags) setTagMetaData() {
 // 	for i, _ := range sts.Tags {
 // 		sts.Tags[i].ExtractDateTime = sts.ExtractDateTime
 // 		sts.Tags[i].ScheduleKey = sts.ScheduleKey
@@ -86,7 +86,7 @@ func (sts *XScheduleTags) Process() error {
 // 	}
 // }
 
-// 	tags := []XScheduleTag{}
+// 	tags := []ScheduleTag{}
 // 	for _, v := range sts.Tags {
 // 		// p := &v
 // 		if err := v.Process(); err != nil {

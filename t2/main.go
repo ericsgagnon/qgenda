@@ -68,9 +68,9 @@ func main() {
 	rqf.SetSinceModifiedTimestamp(rqf.GetStartDate())
 	// c.Do()
 	s := qgenda.Schedules{}
-	s, err = s.Extract(ctx, c, rqf)
-	if err != nil {
+	if err := s.Get(ctx, c, rqf); err != nil {
 		log.Println(err)
+
 	}
 	fmt.Sprint(s)
 	// fmt.Print(s)
@@ -110,7 +110,7 @@ func main() {
 		log.Println(err)
 	}
 	// xs := []qgenda.XSchedule{}
-	var xs []qgenda.XSchedule
+	var xs []qgenda.Schedule
 	// fmt.Println(cf.String())
 	b, err = cf.Read()
 	if err != nil {
@@ -191,7 +191,7 @@ func main() {
 	// }
 	// xss := qgenda.XSchedules(xs[0:1000])
 
-	xss := qgenda.XSchedules(xs)
+	xss := qgenda.Schedules(xs)
 	res, err := xss.PGInsertRows(ctx, tx, "slurpydurpy", "", "")
 	if err != nil {
 		log.Println(err)
@@ -201,7 +201,7 @@ func main() {
 	}
 	fmt.Println(res)
 
-	sx := qgenda.XSchedules{}
+	sx := qgenda.Schedules{}
 	fmt.Println(rqf.GetStartDate(), rqf.GetEndDate(), rqf.GetSinceModifiedTimestamp())
 	if err := sx.Get(ctx, c, rqf); err != nil {
 		log.Println(err)
@@ -220,12 +220,12 @@ func main() {
 		tx.Commit()
 	}
 	fmt.Println(sres)
-	rqfn, err := qgenda.XSchedule{}.PGQueryConstraints(ctx, db, "newschema", "schedule")
+	rqfn, err := qgenda.Schedule{}.PGQueryConstraints(ctx, db, "newschema", "schedule")
 	if err != nil {
 		log.Println(err)
 	}
 
-	sxx := qgenda.XSchedules{}
+	sxx := qgenda.Schedules{}
 	if err := sxx.Get(ctx, c, rqfn); err != nil {
 		log.Println(err)
 	}
