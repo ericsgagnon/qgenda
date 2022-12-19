@@ -42,7 +42,7 @@ type OpenShift struct {
 	TimeZone               *string       `json:"TimeZone,omitempty"`
 }
 
-func NewOpenShiftsRequest(rqf *RequestQueryFields) *Request {
+func NewOpenShiftsRequest(rqf *RequestConfig) *Request {
 	requestPath := "schedule/openshifts"
 	queryFields := []string{
 		"StartDate",

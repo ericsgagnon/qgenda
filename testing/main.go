@@ -99,7 +99,7 @@ func main() {
 	// fmt.Println(qgenda.PGCreateTableStatement(qgenda.ScheduleTag{}, "", "scheduletag"))
 	// fmt.Println(qgenda.PGInsertStatement(qgenda.ScheduleTag{}, "", "scheduletag"))
 	// fmt.Println(qgenda.PGQueryConstraintsStatement(qgenda.Schedule{}, "", "schedule"))
-	rqf := qgenda.RequestQueryFields{}
+	rqf := qgenda.RequestConfig{}
 	if err := db.Get(
 		&rqf,
 		qgenda.PGQueryConstraintsStatement(qgenda.Schedule{}, "", "schedule"),

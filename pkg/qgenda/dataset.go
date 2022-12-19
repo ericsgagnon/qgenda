@@ -24,8 +24,8 @@ type DatasetConfig struct {
 }
 
 type DatasetDevInterfaceType interface {
-	DefaultRequestQueryFields(*RequestQueryFields) *RequestQueryFields
-	NewRequest(*RequestQueryFields) *Request
+	DefaultRequestConfig(*RequestConfig) *RequestConfig
+	NewRequest(*RequestConfig) *Request
 }
 
 type MetaData struct {

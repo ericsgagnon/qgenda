@@ -67,7 +67,7 @@ func (app *App) Run(args []string) error {
 // 	Client      qgenda.ClientConfig
 // 	Logger      zap.Config
 // 	DBClients   map[string]url.URL `yaml:"dbClients"`
-// 	DataObjects map[string]qgenda.RequestQueryFields
+// 	DataObjects map[string]qgenda.RequestConfig
 // }
 
 func (app *App) ExecDataPipelines() error {

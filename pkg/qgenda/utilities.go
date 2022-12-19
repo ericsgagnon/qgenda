@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
+	"time"
 )
 
 func Value[T any](a *T) T {
@@ -275,4 +276,44 @@ func ExpandFileContents(s string) string {
 		s = strings.ReplaceAll(s, k, v)
 	}
 	return s
+}
+
+// since we're trying pointer-members, it's better to pass
+// literal's as needed rather than create temporary variables
+// that we might inadvertently tamper with
+func stringPointer(s string) *string     { return &s }
+func intPointer(i int) *int              { return &i }
+func boolPointer(b bool) *bool           { return &b }
+func timePointer(t time.Time) *time.Time { return &t }
+func floatPointer(f float64) *float64    { return &f }
+
+func stringFromPointer(s *string) string {
+	if s != nil {
+		return *s
+	}
+	return ""
+}
+func intFromPointer(i *int) int {
+	if i != nil {
+		return *i
+	}
+	return 0
+}
+func boolFromPointer(b *bool) bool {
+	if b != nil {
+		return *b
+	}
+	return false
+}
+func timeFromPointer(t *time.Time) time.Time {
+	if t != nil {
+		return *t
+	}
+	return time.Time{}
+}
+func floatFromPointer(f *float64) float64 {
+	if f != nil {
+		return *f
+	}
+	return float64(0)
 }

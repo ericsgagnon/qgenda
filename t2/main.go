@@ -54,7 +54,7 @@ func main() {
 	// var result sql.Result
 
 	// schedules -----------------------------------------------------------
-	rqf := &qgenda.RequestQueryFields{}
+	rqf := &qgenda.RequestConfig{}
 	rqf.SetStartDate(time.Now().UTC().Add(time.Hour * 24 * -120))
 	rqf.SetEndDate(time.Now().UTC().Add(time.Hour * 24 * -1))
 	if rqf.SinceModifiedTimestamp == nil {
@@ -307,8 +307,8 @@ func main() {
 	// if err := os.WriteFile("../.cache/test.json", data, 0644); err != nil {
 	// 	log.Println(err)
 	// }
-	// rqf := &qgenda.RequestQueryFields{}
-	// rqf = &qgenda.RequestQueryFields{}
+	// rqf := &qgenda.RequestConfig{}
+	// rqf = &qgenda.RequestConfig{}
 	// tasks -
 	// rqf.SetIncludes("Tags,TaskShifts,Profiles")
 	// fmt.Println(rqf.GetIncludes())

@@ -2,7 +2,7 @@ package qgenda
 
 // calling this file requests since we need to request.go for the app itself
 
-func NewRequestsRequest(rqf *RequestQueryFields) *Request {
+func NewRequestsRequest(rqf *RequestConfig) *Request {
 	requestPath := "request"
 	queryFields := []string{
 		"CompanyKey",
@@ -21,7 +21,7 @@ func NewRequestsRequest(rqf *RequestQueryFields) *Request {
 	r := NewRequestWithQueryField(requestPath, queryFields, rqf)
 	return r
 }
-func NewRequestsApprovedRequest(rqf *RequestQueryFields) *Request {
+func NewRequestsApprovedRequest(rqf *RequestConfig) *Request {
 	requestPath := "request/approved"
 	queryFields := []string{
 		"CompanyKey",

@@ -51,7 +51,7 @@ func main() {
 	// Schedule
 
 	// configure request
-	srrqf := &qgenda.RequestQueryFields{}
+	srrqf := &qgenda.RequestConfig{}
 	srrqf.SetStartDate(time.Now().UTC().Add(-1 * 14 * 24 * time.Hour))
 	srrqf.SetEndDate(time.Now().UTC())
 	srrqf.SetSinceModifiedTimestamp(time.Now().UTC().Add(-1 * 14 * 24 * time.Hour))
@@ -100,7 +100,7 @@ func main() {
 	os.WriteFile("rawschedule.json", data, 0644)
 
 	// var locationdata []byte
-	// lrqf := &qgenda.RequestQueryFields{}
+	// lrqf := &qgenda.RequestConfig{}
 	// lr := qgenda.NewLocationRequest(lrqf)
 	// resp, err = c.Do(ctx, lr)
 	// if err != nil {
@@ -118,55 +118,55 @@ func main() {
 	// 	log.Println(err)
 	// }
 
-	if err := MakeItHappen(ctx, c, qgenda.NewCompanyRequest(&qgenda.RequestQueryFields{}), "company.json"); err != nil {
+	if err := MakeItHappen(ctx, c, qgenda.NewCompanyRequest(&qgenda.RequestConfig{}), "company.json"); err != nil {
 		log.Println(err)
 	}
-	// if err := MakeItHappen(ctx, c, qgenda.NewDailyCaseRequest(&qgenda.RequestQueryFields{}), "dailycase.json"); err != nil {
+	// if err := MakeItHappen(ctx, c, qgenda.NewDailyCaseRequest(&qgenda.RequestConfig{}), "dailycase.json"); err != nil {
 	// 	log.Println(err)
 	// }
-	// if err := MakeItHappen(ctx, c, qgenda.NewDailyDailyConfigurationRequest(&qgenda.RequestQueryFields{}), "dailydailyconfiguration.json"); err != nil {
+	// if err := MakeItHappen(ctx, c, qgenda.NewDailyDailyConfigurationRequest(&qgenda.RequestConfig{}), "dailydailyconfiguration.json"); err != nil {
 	// 	log.Println(err)
 	// }
-	// if err := MakeItHappen(ctx, c, qgenda.NewDailyPatientEncounterRequest(&qgenda.RequestQueryFields{}), "dailypatientencounter.json"); err != nil {
+	// if err := MakeItHappen(ctx, c, qgenda.NewDailyPatientEncounterRequest(&qgenda.RequestConfig{}), "dailypatientencounter.json"); err != nil {
 	// 	log.Println(err)
 	// }
-	// if err := MakeItHappen(ctx, c, qgenda.NewDailyRoomRequest(&qgenda.RequestQueryFields{}), "dailyroom.json"); err != nil {
+	// if err := MakeItHappen(ctx, c, qgenda.NewDailyRoomRequest(&qgenda.RequestConfig{}), "dailyroom.json"); err != nil {
 	// 	log.Println(err)
 	// }
-	// if err := MakeItHappen(ctx, c, qgenda.NewLocationRequest(&qgenda.RequestQueryFields{}), "locations.json"); err != nil {
+	// if err := MakeItHappen(ctx, c, qgenda.NewLocationRequest(&qgenda.RequestConfig{}), "locations.json"); err != nil {
 	// 	log.Println(err)
 	// }
-	// if err := MakeItHappen(ctx, c, qgenda.NewLocationStaffRequest(&qgenda.RequestQueryFields{}), "locationstaff.json"); err != nil {
+	// if err := MakeItHappen(ctx, c, qgenda.NewLocationStaffRequest(&qgenda.RequestConfig{}), "locationstaff.json"); err != nil {
 	// 	log.Println(err)
 	// }
-	// if err := MakeItHappen(ctx, c, qgenda.NewLocationTasksRequest(&qgenda.RequestQueryFields{}), "locationtasks.json"); err != nil {
+	// if err := MakeItHappen(ctx, c, qgenda.NewLocationTasksRequest(&qgenda.RequestConfig{}), "locationtasks.json"); err != nil {
 	// 	log.Println(err)
 	// }
-	if err := MakeItHappen(ctx, c, qgenda.NewOpenShiftsRequest(&qgenda.RequestQueryFields{}), "openshifts.json"); err != nil {
+	if err := MakeItHappen(ctx, c, qgenda.NewOpenShiftsRequest(&qgenda.RequestConfig{}), "openshifts.json"); err != nil {
 		log.Println(err)
 	}
-	// if err := MakeItHappen(ctx, c, qgenda.NewOrganizationRequest(&qgenda.RequestQueryFields{}), "organization.json"); err != nil {
+	// if err := MakeItHappen(ctx, c, qgenda.NewOrganizationRequest(&qgenda.RequestConfig{}), "organization.json"); err != nil {
 	// 	log.Println(err)
 	// }
-	// if err := MakeItHappen(ctx, c, qgenda.NewPayRateRequest(&qgenda.RequestQueryFields{}), "payrate.json"); err != nil {
+	// if err := MakeItHappen(ctx, c, qgenda.NewPayRateRequest(&qgenda.RequestConfig{}), "payrate.json"); err != nil {
 	// 	log.Println(err)
 	// }
-	if err := MakeItHappen(ctx, c, qgenda.NewProfileRequest(&qgenda.RequestQueryFields{}), "profile.json"); err != nil {
+	if err := MakeItHappen(ctx, c, qgenda.NewProfileRequest(&qgenda.RequestConfig{}), "profile.json"); err != nil {
 		log.Println(err)
 	}
 	if err := MakeItHappen(ctx, c, qgenda.NewRequestsApprovedRequest(
-		&qgenda.RequestQueryFields{
+		&qgenda.RequestConfig{
 			StartDate: qgenda.Pointer(time.Now().UTC().Add(-1 * 14 * 24 * time.Hour)),
 			EndDate:   qgenda.Pointer(time.Now().UTC()),
 		}), "requestapproved.json"); err != nil {
 		log.Println(err)
 	}
-	if err := MakeItHappen(ctx, c, qgenda.NewRequestsRequest(&qgenda.RequestQueryFields{}), "request.json"); err != nil {
+	if err := MakeItHappen(ctx, c, qgenda.NewRequestsRequest(&qgenda.RequestConfig{}), "request.json"); err != nil {
 		log.Println(err)
 	}
 	// configure request
 	// rr := qgenda.NewRequestsRequest(
-	// 	&qgenda.RequestQueryFields{
+	// 	&qgenda.RequestConfig{
 	// 		StartDate: qgenda.Pointer(time.Now().UTC().Add(-1 * 14 * 24 * time.Hour)),
 	// 		EndDate:   qgenda.Pointer(time.Now().UTC()),
 	// 	})
@@ -193,22 +193,22 @@ func main() {
 	// }
 	// os.WriteFile("requests.json", jsonOut, 0644)
 
-	if err := HandleStructuredData[qgenda.StaffMember](ctx, c, qgenda.NewStaffMemberRequest(&qgenda.RequestQueryFields{}), "out/staffmember.json"); err != nil {
+	if err := HandleStructuredData[qgenda.StaffMember](ctx, c, qgenda.NewStaffMemberRequest(&qgenda.RequestConfig{}), "out/staffmember.json"); err != nil {
 		log.Println(err)
 	}
-	if err := HandleStructuredData[qgenda.Schedule](ctx, c, qgenda.NewScheduleRequest(&qgenda.RequestQueryFields{}), "out/schedule.json"); err != nil {
+	if err := HandleStructuredData[qgenda.Schedule](ctx, c, qgenda.NewScheduleRequest(&qgenda.RequestConfig{}), "out/schedule.json"); err != nil {
 		log.Println(err)
 	}
-	if err := HandleStructuredData[qgenda.Requests](ctx, c, qgenda.NewRequestsRequest(&qgenda.RequestQueryFields{}), "out/requests.json"); err != nil {
+	if err := HandleStructuredData[qgenda.Requests](ctx, c, qgenda.NewRequestsRequest(&qgenda.RequestConfig{}), "out/requests.json"); err != nil {
 		log.Println(err)
 	}
-	// if err := MakeItHappen(ctx, c, qgenda.NewStaffMemberLocationRequest(&qgenda.RequestQueryFields{}), "staffmemberlocation.json"); err != nil {
+	// if err := MakeItHappen(ctx, c, qgenda.NewStaffMemberLocationRequest(&qgenda.RequestConfig{}), "staffmemberlocation.json"); err != nil {
 	// 	log.Println(err)
 	// }
-	if err := MakeItHappen(ctx, c, qgenda.NewScheduleAuditLogRequest(&qgenda.RequestQueryFields{}), "scheduleauditlog.json"); err != nil {
+	if err := MakeItHappen(ctx, c, qgenda.NewScheduleAuditLogRequest(&qgenda.RequestConfig{}), "scheduleauditlog.json"); err != nil {
 		log.Println(err)
 	}
-	if err := MakeItHappen(ctx, c, qgenda.NewScheduleRequest(&qgenda.RequestQueryFields{
+	if err := MakeItHappen(ctx, c, qgenda.NewScheduleRequest(&qgenda.RequestConfig{
 		StartDate:              qgenda.Pointer(time.Now().UTC().Add(-1 * 14 * 24 * time.Hour)),
 		EndDate:                qgenda.Pointer(time.Now().UTC()),
 		SinceModifiedTimestamp: qgenda.Pointer(time.Now().UTC().Add(-1 * 14 * 24 * time.Hour)),
@@ -216,42 +216,42 @@ func main() {
 		log.Println(err)
 	}
 
-	if err := MakeItHappen(ctx, c, qgenda.NewStaffMemberRequest(&qgenda.RequestQueryFields{}), "out/rawstaffmember.json"); err != nil {
+	if err := MakeItHappen(ctx, c, qgenda.NewStaffMemberRequest(&qgenda.RequestConfig{}), "out/rawstaffmember.json"); err != nil {
 		log.Println(err)
 	}
-	// if err := MakeItHappen(ctx, c, qgenda.NewStaffMemberRequestLimitRequest(&qgenda.RequestQueryFields{}), "staffmemberrequestlimit.json"); err != nil {
+	// if err := MakeItHappen(ctx, c, qgenda.NewStaffMemberRequestLimitRequest(&qgenda.RequestConfig{}), "staffmemberrequestlimit.json"); err != nil {
 	// 	log.Println(err)
 	// }
-	// if err := MakeItHappen(ctx, c, qgenda.NewStaffMemberStaffIdRequest(&qgenda.RequestQueryFields{}), "staffmemberstaffid.json"); err != nil {
+	// if err := MakeItHappen(ctx, c, qgenda.NewStaffMemberStaffIdRequest(&qgenda.RequestConfig{}), "staffmemberstaffid.json"); err != nil {
 	// 	log.Println(err)
 	// }
-	// if err := MakeItHappen(ctx, c, qgenda.NewStaffTargetRequest(&qgenda.RequestQueryFields{}), "stafftarget.json"); err != nil {
+	// if err := MakeItHappen(ctx, c, qgenda.NewStaffTargetRequest(&qgenda.RequestConfig{}), "stafftarget.json"); err != nil {
 	// 	log.Println(err)
 	// }
-	if err := MakeItHappen(ctx, c, qgenda.NewTagRequest(&qgenda.RequestQueryFields{}), "tags.json"); err != nil {
+	if err := MakeItHappen(ctx, c, qgenda.NewTagRequest(&qgenda.RequestConfig{}), "tags.json"); err != nil {
 		log.Println(err)
 	}
 
-	// if err := MakeItHappen(ctx, c, qgenda.NewTaskLocationRequest(&qgenda.RequestQueryFields{}), "tasklocation.json"); err != nil {
+	// if err := MakeItHappen(ctx, c, qgenda.NewTaskLocationRequest(&qgenda.RequestConfig{}), "tasklocation.json"); err != nil {
 	// 	log.Println(err)
 	// }
-	if err := MakeItHappen(ctx, c, qgenda.NewTaskRequest(&qgenda.RequestQueryFields{}), "task.json"); err != nil {
+	if err := MakeItHappen(ctx, c, qgenda.NewTaskRequest(&qgenda.RequestConfig{}), "task.json"); err != nil {
 		log.Println(err)
 	}
-	// if err := MakeItHappen(ctx, c, qgenda.NewTimeEventRequest(&qgenda.RequestQueryFields{}), "timeevent.json"); err != nil {
+	// if err := MakeItHappen(ctx, c, qgenda.NewTimeEventRequest(&qgenda.RequestConfig{}), "timeevent.json"); err != nil {
 	// 	log.Println(err)
 	// }
-	if err := MakeItHappen(ctx, c, qgenda.NewUserRequest(&qgenda.RequestQueryFields{}), "user.json"); err != nil {
+	if err := MakeItHappen(ctx, c, qgenda.NewUserRequest(&qgenda.RequestConfig{}), "user.json"); err != nil {
 		log.Println(err)
 	}
-	// if err := MakeItHappen(ctx, c, qgenda.NewUserRequest(&qgenda.RequestQueryFields{Expand: qgenda.Pointer("Companies")}), "userExpandedCompanies.json"); err != nil {
+	// if err := MakeItHappen(ctx, c, qgenda.NewUserRequest(&qgenda.RequestConfig{Expand: qgenda.Pointer("Companies")}), "userExpandedCompanies.json"); err != nil {
 	// 	log.Println(err)
 	// }
-	// if err := MakeItHappen(ctx, c, qgenda.NewUserRequest(&qgenda.RequestQueryFields{Expand: qgenda.Pointer("Companies/Locations")}), "userExpandedCompaniesLocations.json"); err != nil {
+	// if err := MakeItHappen(ctx, c, qgenda.NewUserRequest(&qgenda.RequestConfig{Expand: qgenda.Pointer("Companies/Locations")}), "userExpandedCompaniesLocations.json"); err != nil {
 	// 	log.Println(err)
 	// }
 	// // ScheduleAuditLog
-	// salrqf := &qgenda.RequestQueryFields{}
+	// salrqf := &qgenda.RequestConfig{}
 	// sal := qgenda.NewScheduleAuditLogRequest(salrqf)
 	// sal.SetScheduleStartDate(time.Now().UTC().Add(-1 * 14 * 24 * time.Hour))
 	// sal.SetScheduleEndDate(time.Now().UTC())
@@ -274,7 +274,7 @@ func main() {
 	// os.WriteFile("scheduleAuditLog.json", jsonOut, 0644)
 
 	// // Tag
-	// talrqf := &qgenda.RequestQueryFields{}
+	// talrqf := &qgenda.RequestConfig{}
 	// tr := qgenda.NewTagRequest(talrqf)
 	// resp, err = c.Do(ctx, tr)
 	// if err != nil {
@@ -350,7 +350,7 @@ func HandleStructuredData[T any](ctx context.Context, c *qgenda.Client, r *qgend
 // data in data models
 type Parameters map[any]any
 
-/////////////////////////////////////////////
+// ///////////////////////////////////////////
 type App struct {
 	Config      interface{}
 	Clients     []*http.Client
@@ -409,7 +409,7 @@ type Model interface {
 // x.SetRangeEndDate(time.Now().UTC())
 // x.StartDate = timePointer(time.Now().UTC().AddDate(0, 0, -5))
 // x.SetStartDate(time.Now().UTC().AddDate(0, 0, -5))
-// v, _ := query.Values(x.RequestQueryFields)
+// v, _ := query.Values(x.RequestConfig)
 // fmt.Println(v.Encode())
 // fmt.Println(x.Parse().Encode())
 // y := qgenda.NewScheduleRequest(nil)

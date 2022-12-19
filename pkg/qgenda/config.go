@@ -31,7 +31,7 @@ type AppConfig struct {
 	Retries   int
 	Timezone  string
 	Tags      map[string]string
-	Objects   map[string]RequestQueryFields
+	Objects   map[string]RequestConfig
 }
 
 // Endpoint is an attempt at a generic

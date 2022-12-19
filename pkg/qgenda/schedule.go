@@ -13,11 +13,14 @@ import (
 )
 
 type Schedule struct {
-	RawMessage             *string        `json:"-" db:"_raw_message"`
-	ProcessedMessage       *string        `json:"-" db:"_processed_message"` // RawMessage processed, with changing fields dropped
-	SourceQuery            *string        `json:"_source_query" db:"_source_query"`
-	ExtractDateTime        *Time          `json:"_extract_date_time" db:"_extract_date_time"`
-	HashID                 *string        `json:"_hash_id" db:"_hash_id"` // hash of processed message
+	// ------- metadata ------------------- //
+	RawMessage       *string `json:"-" db:"_raw_message"`
+	ProcessedMessage *string `json:"-" db:"_processed_message"` // RawMessage processed, omits 'message' metadata and 'noisy' fields (eg lastlogin)
+	SourceQuery      *string `json:"_source_query,omitempty" db:"_source_query"`
+	ExtractDateTime  *Time   `json:"_extract_date_time,omitempty" db:"_extract_date_time"`
+	IDHash           *string `json:"_id_hash,omitempty" db:"_id_hash"` // hash of identifying fields: schedulekey-lastmodifieddateutc (rfc3339nano)
+	// MessageHash      *string `json:"_message_hash,omitempty" db:"_message_hash"` // hash of processed message (omitting metadata)
+	// ------------------------------------ //
 	ScheduleKey            *string        `json:"ScheduleKey,omitempty" primarykey:"true"`
 	CallRole               *string        `json:"CallRole,omitempty"`
 	CompKey                *string        `json:"CompKey,omitempty"`
@@ -178,24 +181,22 @@ func (s *Schedule) Process() error {
 	if err := s.SetMessage(); err != nil {
 		return err
 	}
-	if err := s.SetHashID(); err != nil {
+	if err := s.SetIDHash(); err != nil {
 		return err
 	}
 	return nil
 }
 
-// SetMessage uses a copy, strips metadata, remarshals to JSON and compacts it, and assigns the string to .ProcessedMessage
+// SetMessage uses a copy, strips message metadata, remarshals to JSON and compacts it, and assigns the string to .ProcessedMessage
 func (s *Schedule) SetMessage() error {
 	// take a copy and strip metadata, for good measure
-	// ss := *s
-	// ss.RawMessage = nil
-	// ss.ExtractDateTime = nil
-	// ss.ProcessedMessage = nil
-	// ss.SourceQuery = nil
-	// ss.HashID = nil
+	ss := *s
+	ss.RawMessage = nil
+	ss.ProcessedMessage = nil
+	// ss.MessageHash = nil
 
-	// b, err := json.Marshal(ss)
-	b, err := json.Marshal(s)
+	b, err := json.Marshal(ss)
+	// b, err := json.Marshal(s)
 	if err != nil {
 		return err
 	}
@@ -208,18 +209,35 @@ func (s *Schedule) SetMessage() error {
 	return nil
 }
 
-func (s *Schedule) SetHashID() error {
+// SetIDHash takes the hash of the json encoded fields that (should) uniquely identify this instance
+// for schedule, this is schedulekey, lastmodifieddateutc (in rfc3339 with nano precision)
+func (s *Schedule) SetIDHash() error {
 	if s.ProcessedMessage == nil {
 		return fmt.Errorf("ProcessedMessage is empty, cannot hash")
 	}
-	h := Hash(*s.ProcessedMessage)
-	s.HashID = &h
+	id := map[string]any{
+		"ScheduleKey":         (*s.ScheduleKey),
+		"LastModifiedDateUTC": (*s.LastModifiedDateUTC).Time.Format(time.RFC3339Nano),
+	}
+
+	b, err := json.Marshal(id)
+	if err != nil {
+		return err
+	}
+	var bb bytes.Buffer
+	if err := json.Compact(&bb, b); err != nil {
+		return err
+	}
+
+	// id := fmt.Sprint(*s.ScheduleKey, "-", (*s.LastModifiedDateUTC).Time.Format(time.RFC3339Nano))
+	h := Hash(bb.String())
+	s.IDHash = &h
 	return nil
 }
 
-func DefaultScheduleRequestQueryFields(rqf *RequestQueryFields) *RequestQueryFields {
+func DefaultScheduleRequestConfig(rqf *RequestConfig) *RequestConfig {
 	if rqf == nil {
-		rqf = &RequestQueryFields{}
+		rqf = &RequestConfig{}
 	}
 	if rqf.StartDate == nil {
 		rqf.SetStartDate(time.Now().UTC().Add(time.Hour * 24 * -15).Truncate(time.Hour * 24))
@@ -239,7 +257,7 @@ func DefaultScheduleRequestQueryFields(rqf *RequestQueryFields) *RequestQueryFie
 	return rqf
 }
 
-func NewScheduleRequest(rqf *RequestQueryFields) *Request {
+func NewScheduleRequest(rqf *RequestConfig) *Request {
 	requestPath := "schedule"
 	queryFields := []string{
 		"CompanyKey",
@@ -254,35 +272,12 @@ func NewScheduleRequest(rqf *RequestQueryFields) *Request {
 		"OrderBy",
 		"Expand",
 	}
-	rqf = DefaultScheduleRequestQueryFields(rqf)
+	rqf = DefaultScheduleRequestConfig(rqf)
 
 	r := NewRequestWithQueryField(requestPath, queryFields, rqf)
 	return r
 }
 
-// func (s Schedule) PGQuery(temporary bool, schema, table string) string {
-// 	tbl := StructToTable(Schedule{}, table, schema, temporary, "", nil, nil, "")
-// 	tpl := `
-// 	CREATE {{- if .Temporary }} TEMPORARY TABLE IF NOT EXISTS _tmp_{{- .UUID -}}_{{- .Name -}}
-// 	{{ else }} TABLE IF NOT EXISTS {{ .Schema -}}{{- if ne .Schema "" -}}.{{- end -}}{{- .Name }}
-// 	{{- end }} (
-// 	{{- $fields := pgincludefields .Fields -}}
-// 	{{- range  $index, $field := $fields -}}
-// 	{{- if ne $index 0 -}},{{- end }}
-// 		{{ pgname $field }} {{ pgtype $field.Type }} {{ if $field.Unique }} unique {{ end -}} {{- if not $field.Nullable -}} not null {{- end }}
-// 	{{- end -}}
-// 	{{- if not .Temporary }}{{- if .PrimaryKey }},
-// 		PRIMARY KEY ({{ .PrimaryKey }}){{- end -}}{{- end }}
-// 	)
-// 	`
-
-// 	return PGTableStatement(tbl, tpl, nil)
-// 	// return PGStatement(*new(Schedule), schema, table, tpl)
-// }
-
-//	func (s Schedule) ToTable(tablename, schema, id string, temporary bool, constraints map[string]string, tags map[string][]string, parent string) Table {
-//		return StructToTable(Schedule{}, tablename, schema, temporary, id, nil, nil, "")
-//	}
 func (s Schedule) PGCreateTable(ctx context.Context, tx *sqlx.Tx, schema, tablename string, temporary bool, id string) (sql.Result, error) {
 
 	basetable := "schedule"
@@ -356,8 +351,8 @@ func (s Schedule) PGCreateTable(ctx context.Context, tx *sqlx.Tx, schema, tablen
 	return res, nil
 }
 
-func (s Schedule) PGQueryConstraints(ctx context.Context, db *sqlx.DB, schema, table string) (*RequestQueryFields, error) {
-	rqf := RequestQueryFields{}
+func (s Schedule) PGQueryConstraints(ctx context.Context, db *sqlx.DB, schema, table string) (*RequestConfig, error) {
+	rqf := RequestConfig{}
 	tbl := StructToTable(Schedule{}, table, schema, false, "", nil, nil, "")
 	tpl := `
 	SELECT
@@ -374,5 +369,29 @@ func (s Schedule) PGQueryConstraints(ctx context.Context, db *sqlx.DB, schema, t
 	if err := db.GetContext(ctx, &rqf, query); err != nil {
 		return nil, err
 	}
+	return &rqf, nil
+}
+
+// PGGetCDC returns a single row from the destination that (should) only have relevant CDC data
+// for conversion to a RequestConfig using ToRequestConfig
+func (s *Schedule) PGGetCDC(ctx context.Context, db *sqlx.DB, schema, table string) (*Schedule, error) {
+	var ss *Schedule
+	if schema != "" {
+		table = schema + "." + table
+	}
+	query := fmt.Sprintf("SELECT MAX ( lastmodifieddateutc ) FROM %s ", table)
+	if err := db.GetContext(ctx, ss, query); err != nil {
+		return nil, err
+	}
+	return ss, nil
+
+}
+
+func (s Schedule) ToRequestConfig() (*RequestConfig, error) {
+	if s.LastModifiedDateUTC == nil {
+		return nil, fmt.Errorf("*LastModifiedDateUTC is nil")
+	}
+	rqf := RequestConfig{}
+	rqf.SetSinceModifiedTimestamp(s.LastModifiedDateUTC.Time)
 	return &rqf, nil
 }

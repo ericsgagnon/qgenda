@@ -112,7 +112,7 @@ func (tr TagRelation) Flatten() []FlatTagRelation {
 	return ftrs
 }
 
-// func NewTagRequest(rqf *RequestQueryFields) *Request {
+// func NewTagRequest(rqf *RequestConfig) *Request {
 // 	rPath := "tags"
 // 	allowableFields := []string{
 // 		"CompanyKey",
@@ -149,7 +149,7 @@ func (tr TagRelation) Flatten() []FlatTagRelation {
 // 	return r
 // }
 
-func NewTagRequest(rqf *RequestQueryFields) *Request {
+func NewTagRequest(rqf *RequestConfig) *Request {
 	requestPath := "tags"
 	queryFields := []string{
 		"CompanyKey",

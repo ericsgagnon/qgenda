@@ -1,6 +1,6 @@
 package qgenda
 
-func NewLocationRequest(rqf *RequestQueryFields) *Request {
+func NewLocationRequest(rqf *RequestConfig) *Request {
 	requestPath := "location"
 	queryFields := []string{
 		"CompanyKey",
@@ -32,7 +32,7 @@ type Location struct {
 	Tags        []TagCategory `json:"Tags,omitempty"`
 }
 
-// func NewLocationStaffRequest(rqf *RequestQueryFields) *Request {
+// func NewLocationStaffRequest(rqf *RequestConfig) *Request {
 // 	requestPath := "location/:locationId/staff"
 // 	queryFields := []string{
 // 		"CompanyKey",
@@ -45,7 +45,7 @@ type Location struct {
 // 	r := NewRequestWithQueryField(requestPath, queryFields, rqf)
 // 	return r
 // }
-// func NewLocationTasksRequest(rqf *RequestQueryFields) *Request {
+// func NewLocationTasksRequest(rqf *RequestConfig) *Request {
 // 	requestPath := "location/:locationId/tasks"
 // 	queryFields := []string{
 // 		"CompanyKey",

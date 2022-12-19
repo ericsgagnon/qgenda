@@ -78,7 +78,7 @@ type StaffMember struct {
 
 type StaffMembers []StaffMember
 
-func (s StaffMembers) Extract(ctx context.Context, c *Client, rqf *RequestQueryFields) (StaffMembers, error) {
+func (s StaffMembers) Extract(ctx context.Context, c *Client, rqf *RequestConfig) (StaffMembers, error) {
 	req := NewStaffMemberRequest(rqf)
 	sms := []StaffMember{}
 
@@ -259,9 +259,9 @@ type StaffProfile struct {
 	IsSchedulable   *bool   `json:"IsSchedulable,omitempty"`
 }
 
-func DefaultStaffMemberRequestQueryFields(rqf *RequestQueryFields) *RequestQueryFields {
+func DefaultStaffMemberRequestConfig(rqf *RequestConfig) *RequestConfig {
 	if rqf == nil {
-		rqf = &RequestQueryFields{}
+		rqf = &RequestConfig{}
 	}
 	if rqf.Includes == nil {
 		rqf.SetIncludes("Tags,TTCMTags,Skillset,Profiles")
@@ -269,7 +269,7 @@ func DefaultStaffMemberRequestQueryFields(rqf *RequestQueryFields) *RequestQuery
 	return rqf
 }
 
-func NewStaffMemberRequest(rqf *RequestQueryFields) *Request {
+func NewStaffMemberRequest(rqf *RequestConfig) *Request {
 	requestPath := "staffmember"
 	queryFields := []string{
 		"Includes",
@@ -278,7 +278,7 @@ func NewStaffMemberRequest(rqf *RequestQueryFields) *Request {
 		"OrderBy",
 		"Expand",
 	}
-	rqf = DefaultStaffMemberRequestQueryFields(rqf)
+	rqf = DefaultStaffMemberRequestConfig(rqf)
 
 	r := NewRequestWithQueryField(requestPath, queryFields, rqf)
 	return r
@@ -771,7 +771,7 @@ func (s StaffMembers) InsertToPG(ctx context.Context, db *sqlx.DB, schema, table
 	return res, err
 }
 
-func (s StaffMembers) EPL(ctx context.Context, c *Client, rqf *RequestQueryFields,
+func (s StaffMembers) EPL(ctx context.Context, c *Client, rqf *RequestConfig,
 	db *sqlx.DB, schema, table string, newRowsOnly bool) (sql.Result, error) {
 	var res Result
 

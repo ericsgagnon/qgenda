@@ -18,7 +18,7 @@ import (
 
 type Schedules []Schedule
 
-func (s *Schedules) Get(ctx context.Context, c *Client, rqf *RequestQueryFields) error {
+func (s *Schedules) Get(ctx context.Context, c *Client, rqf *RequestConfig) error {
 	req := NewScheduleRequest(rqf)
 	// qgenda only supports 100 days of schedules per query
 	// using 90 days in case there are other limits
@@ -401,10 +401,10 @@ func (s Schedules) PGInsertRows(ctx context.Context, tx *sqlx.Tx, schema, tablen
 	return res, nil
 }
 
-func (s *Schedules) EPL(ctx context.Context, c *Client, rqf *RequestQueryFields,
+func (s *Schedules) EPL(ctx context.Context, c *Client, rqf *RequestConfig,
 	db *sqlx.DB, schema, table string, newRowsOnly bool) (sql.Result, error) {
 
-	rqf = DefaultScheduleRequestQueryFields(rqf)
+	rqf = DefaultScheduleRequestConfig(rqf)
 
 	var res Result
 

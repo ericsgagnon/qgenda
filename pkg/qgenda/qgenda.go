@@ -19,6 +19,6 @@ func typeName(a any) string {
 }
 
 var (
-	ErrNope    = errors.New("Nope! Can't be done...")
-	ErrMissing = errors.New("Missing or nil argument.")
+	ErrNope    = errors.New("nope! can't be done...")
+	ErrMissing = errors.New("missing or nil value")
 )

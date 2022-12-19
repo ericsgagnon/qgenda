@@ -26,7 +26,7 @@ type ScheduleAuditLog struct {
 	IPAddress                 *string    `json:"IPAddress,omitempty"`
 }
 
-func NewScheduleAuditLogRequest(rqf *RequestQueryFields) *Request {
+func NewScheduleAuditLogRequest(rqf *RequestConfig) *Request {
 	requestPath := "schedule/auditLog"
 	queryFields := []string{
 		"CompanyKey",

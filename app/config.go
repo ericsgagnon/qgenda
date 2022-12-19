@@ -19,7 +19,7 @@ type Config struct {
 	Client    qgenda.ClientConfig
 	Logger    LogConfig                        //zap.Config         `yaml:"-"`
 	DBClients map[string]qgenda.DBClientConfig `yaml:"dbClients"`
-	Data      map[string]qgenda.RequestQueryFields
+	Data      map[string]qgenda.RequestConfig
 	// DBClients map[string]url.URL `yaml:"dbClients"`
 }
 
@@ -41,8 +41,8 @@ func DefaultConfig(ac *AppConfig) *Config {
 		DBClients: map[string]qgenda.DBClientConfig{
 			"odbc": qgenda.ExampleDBClientConfig(),
 		},
-		Data: map[string]qgenda.RequestQueryFields{
-			"schedule": *qgenda.DefaultScheduleRequestQueryFields(nil),
+		Data: map[string]qgenda.RequestConfig{
+			"schedule": *qgenda.DefaultScheduleRequestConfig(nil),
 		},
 	}
 }
@@ -138,9 +138,10 @@ func ConfigToYAML(cfg Config) (string, error) {
 	return string(b), nil
 }
 
-// func (c Config) MarshalYAML() (any, error) {
-// 	return ConfigToYAML(c)
-// }
+//	func (c Config) MarshalYAML() (any, error) {
+//		return ConfigToYAML(c)
+//	}
+//
 // initConfig reads in config file / Env vars
 // and returns a Config
 func initConfig(cf string) (Config, error) {
