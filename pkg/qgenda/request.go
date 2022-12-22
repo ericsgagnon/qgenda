@@ -64,16 +64,6 @@ func (r *Request) AppendPath(p string) {
 	r.Path = path.Join(r.Path, p)
 }
 
-type QueryFieldFlag int8
-
-const (
-	QFProhibited QueryFieldFlag = iota - 1
-	QFAllowed
-	QFRequired
-)
-
-type AQF map[string]QueryFieldFlag
-
 func NewRequestWithQueryField(requestPath string, allowableQueryFields []string, rqf *RequestConfig) *Request {
 	aqfMap := map[string]interface{}{}
 	for _, v := range allowableQueryFields {

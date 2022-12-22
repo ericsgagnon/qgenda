@@ -19,7 +19,6 @@ type Schedule struct {
 	SourceQuery      *string `json:"_source_query,omitempty" db:"_source_query"`
 	ExtractDateTime  *Time   `json:"_extract_date_time,omitempty" db:"_extract_date_time"`
 	IDHash           *string `json:"_id_hash,omitempty" db:"_id_hash"` // hash of identifying fields: schedulekey-lastmodifieddateutc (rfc3339nano)
-	// MessageHash      *string `json:"_message_hash,omitempty" db:"_message_hash"` // hash of processed message (omitting metadata)
 	// ------------------------------------ //
 	ScheduleKey            *string        `json:"ScheduleKey,omitempty" primarykey:"true"`
 	CallRole               *string        `json:"CallRole,omitempty"`
@@ -235,29 +234,35 @@ func (s *Schedule) SetIDHash() error {
 	return nil
 }
 
-func DefaultScheduleRequestConfig(rqf *RequestConfig) *RequestConfig {
-	if rqf == nil {
-		rqf = &RequestConfig{}
+func DefaultScheduleRequestConfig() *RequestConfig {
+	requestPath := "schedule"
+	allowedFields := []string{
+		"CompanyKey",
+		"StartDate",
+		"EndDate",
+		"IncludeDeletes",
+		"SinceModifiedTimestamp",
+		"DateFormat",
+		"Includes",
+		"Select",
+		"Filter",
+		"OrderBy",
+		"Expand",
 	}
-	if rqf.StartDate == nil {
-		rqf.SetStartDate(time.Now().UTC().Add(time.Hour * 24 * -15).Truncate(time.Hour * 24))
-	}
-	if rqf.EndDate == nil {
-		rqf.SetEndDate(time.Now().UTC())
-	}
-	if rqf.EndDate.Sub(rqf.GetStartDate()) < time.Hour*0 {
-		rqf.SetEndDate(rqf.GetStartDate().Add(time.Hour * 24 * 14))
-	}
-	if rqf.SinceModifiedTimestamp == nil {
-		rqf.SetSinceModifiedTimestamp(rqf.GetStartDate())
-	}
-	if rqf.Includes == nil {
-		rqf.SetIncludes("StaffTags,TaskTags,LocationTags")
-	}
-	return rqf
+	rc := NewRequestConfig(requestPath, allowedFields)
+	rc.SetStartDate(time.Now().UTC().Add(time.Hour * 24 * -15).Truncate(time.Hour * 24))
+	rc.SetEndDate(time.Now().UTC())
+	rc.SetEndDate(rc.GetStartDate().Add(time.Hour * 24 * 14))
+	rc.SetSinceModifiedTimestamp(rc.GetStartDate())
+	rc.SetIncludes("StaffTags,TaskTags,LocationTags")
+	return rc
 }
 
-func NewScheduleRequest(rqf *RequestConfig) *Request {
+func NewScheduleRequestConfig(rc *RequestConfig) *RequestConfig {
+	return DefaultScheduleRequestConfig().Merge(rc)
+}
+
+func NewScheduleRequest(rc *RequestConfig) *Request {
 	requestPath := "schedule"
 	queryFields := []string{
 		"CompanyKey",
@@ -272,9 +277,9 @@ func NewScheduleRequest(rqf *RequestConfig) *Request {
 		"OrderBy",
 		"Expand",
 	}
-	rqf = DefaultScheduleRequestConfig(rqf)
+	rc = NewScheduleRequestConfig(rc)
 
-	r := NewRequestWithQueryField(requestPath, queryFields, rqf)
+	r := NewRequestWithQueryField(requestPath, queryFields, rc)
 	return r
 }
 
@@ -352,7 +357,7 @@ func (s Schedule) PGCreateTable(ctx context.Context, tx *sqlx.Tx, schema, tablen
 }
 
 func (s Schedule) PGQueryConstraints(ctx context.Context, db *sqlx.DB, schema, table string) (*RequestConfig, error) {
-	rqf := RequestConfig{}
+	rc := RequestConfig{}
 	tbl := StructToTable(Schedule{}, table, schema, false, "", nil, nil, "")
 	tpl := `
 	SELECT
@@ -366,10 +371,10 @@ func (s Schedule) PGQueryConstraints(ctx context.Context, db *sqlx.DB, schema, t
 	`
 	query := PGTableStatement(tbl, tpl, nil)
 	// query := PGStatement(*new(Schedule), schema, table, tpl)
-	if err := db.GetContext(ctx, &rqf, query); err != nil {
+	if err := db.GetContext(ctx, &rc, query); err != nil {
 		return nil, err
 	}
-	return &rqf, nil
+	return &rc, nil
 }
 
 // PGGetCDC returns a single row from the destination that (should) only have relevant CDC data
@@ -391,7 +396,7 @@ func (s Schedule) ToRequestConfig() (*RequestConfig, error) {
 	if s.LastModifiedDateUTC == nil {
 		return nil, fmt.Errorf("*LastModifiedDateUTC is nil")
 	}
-	rqf := RequestConfig{}
-	rqf.SetSinceModifiedTimestamp(s.LastModifiedDateUTC.Time)
-	return &rqf, nil
+	rc := RequestConfig{}
+	rc.SetSinceModifiedTimestamp(s.LastModifiedDateUTC.Time)
+	return &rc, nil
 }

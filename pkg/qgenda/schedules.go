@@ -18,8 +18,8 @@ import (
 
 type Schedules []Schedule
 
-func (s *Schedules) Get(ctx context.Context, c *Client, rqf *RequestConfig) error {
-	req := NewScheduleRequest(rqf)
+func (s *Schedules) Get(ctx context.Context, c *Client, rc *RequestConfig) error {
+	req := NewScheduleRequest(rc)
 	// qgenda only supports 100 days of schedules per query
 	// using 90 days in case there are other limits
 	schedules := Schedules{}
@@ -401,10 +401,10 @@ func (s Schedules) PGInsertRows(ctx context.Context, tx *sqlx.Tx, schema, tablen
 	return res, nil
 }
 
-func (s *Schedules) EPL(ctx context.Context, c *Client, rqf *RequestConfig,
+func (s *Schedules) EPL(ctx context.Context, c *Client, rc *RequestConfig,
 	db *sqlx.DB, schema, table string, newRowsOnly bool) (sql.Result, error) {
 
-	rqf = DefaultScheduleRequestConfig(rqf)
+	rc = NewScheduleRequestConfig(rc)
 
 	var res Result
 
@@ -420,9 +420,9 @@ func (s *Schedules) EPL(ctx context.Context, c *Client, rqf *RequestConfig,
 		return res, err
 	}
 	if qrqf.SinceModifiedTimestamp != nil && newRowsOnly {
-		rqf.SetSinceModifiedTimestamp(qrqf.GetSinceModifiedTimestamp())
+		rc.SetSinceModifiedTimestamp(qrqf.GetSinceModifiedTimestamp())
 	}
-	if err := s.Get(ctx, c, rqf); err != nil {
+	if err := s.Get(ctx, c, rc); err != nil {
 		return res, err
 	}
 	if err := s.Process(); err != nil {

@@ -42,7 +42,7 @@ func DefaultConfig(ac *AppConfig) *Config {
 			"odbc": qgenda.ExampleDBClientConfig(),
 		},
 		Data: map[string]qgenda.RequestConfig{
-			"schedule": *qgenda.DefaultScheduleRequestConfig(nil),
+			"schedule": *qgenda.DefaultScheduleRequestConfig(),
 		},
 	}
 }
