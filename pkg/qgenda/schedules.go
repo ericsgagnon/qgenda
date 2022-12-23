@@ -20,6 +20,7 @@ type Schedules []Schedule
 
 func (s *Schedules) Get(ctx context.Context, c *Client, rc *RequestConfig) error {
 	req := NewScheduleRequest(rc)
+	
 	// qgenda only supports 100 days of schedules per query
 	// using 90 days in case there are other limits
 	schedules := Schedules{}

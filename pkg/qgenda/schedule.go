@@ -263,23 +263,25 @@ func NewScheduleRequestConfig(rc *RequestConfig) *RequestConfig {
 }
 
 func NewScheduleRequest(rc *RequestConfig) *Request {
-	requestPath := "schedule"
-	queryFields := []string{
-		"CompanyKey",
-		"StartDate",
-		"EndDate",
-		"IncludeDeletes",
-		"SinceModifiedTimestamp",
-		"DateFormat",
-		"Includes",
-		"Select",
-		"Filter",
-		"OrderBy",
-		"Expand",
-	}
+	// requestPath := "schedule"
+	// queryFields := []string{
+	// 	"CompanyKey",
+	// 	"StartDate",
+	// 	"EndDate",
+	// 	"IncludeDeletes",
+	// 	"SinceModifiedTimestamp",
+	// 	"DateFormat",
+	// 	"Includes",
+	// 	"Select",
+	// 	"Filter",
+	// 	"OrderBy",
+	// 	"Expand",
+	// }
 	rc = NewScheduleRequestConfig(rc)
 
-	r := NewRequestWithQueryField(requestPath, queryFields, rc)
+	// r := NewRequestWithQueryField(requestPath, queryFields, rc)
+	r := NewRequest(rc)
+
 	return r
 }
 

@@ -2,6 +2,7 @@ package qgenda
 
 import (
 	"bytes"
+	"fmt"
 	"net/http"
 	"net/url"
 	"path"
@@ -23,13 +24,13 @@ type Request struct {
 
 // NewRequest returns a Request with only common members
 // it is expected to a base for other 'request' functions
-func NewRequest() *Request {
+func NewRequest(rc *RequestConfig) *Request {
 	r := Request{
 		Scheme:        "https",
 		Header:        http.Header{},
 		Host:          "api.qgenda.com",
-		Path:          "v2",
-		RequestConfig: RequestConfig{},
+		Path:          path.Join("v2", *rc.Path),
+		RequestConfig: *rc,
 	}
 	// r.SetDateFormat("yyyy-MM-ddTHH:mm:ssZ")
 	return &r
@@ -70,7 +71,7 @@ func NewRequestWithQueryField(requestPath string, allowableQueryFields []string,
 		aqfMap[v] = struct{}{}
 	}
 
-	r := NewRequest()
+	r := NewRequest(rqf)
 	r.Path = path.Join(r.Path, requestPath)
 	// if rqf.Select != nil {
 	// 	r.SetSelect(rqf.GetSelect())
@@ -203,6 +204,7 @@ func NewRequestWithQueryField(requestPath string, allowableQueryFields []string,
 		return NewRequestWithQueryField(requestPath, allowableQueryFields, &qf)
 	}
 	r.RequestConfig = qf
+	fmt.Println(r.ToURL().String())
 	return r
 }
 

@@ -38,11 +38,13 @@ func NewAuthToken(cfg *CacheConfig) (*AuthToken, error) {
 // api. The url.Values should have email and password keys with valid credentials
 // see the login section of https://restapi.qgenda.com for more details.
 func NewAuthRequest(u *url.Values) (*Request, error) {
-	r := NewRequest()
-	r.AppendPath("/login")
+	rc := NewRequestConfig("login", nil)
+	fmt.Printf("%#v\n", rc)
+	r := NewRequest(rc)
 	r.Method = http.MethodPost
 	r.Body = []byte(u.Encode())
 	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
 	return r, nil
 }
 
