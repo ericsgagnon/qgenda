@@ -263,26 +263,8 @@ func NewScheduleRequestConfig(rc *RequestConfig) *RequestConfig {
 }
 
 func NewScheduleRequest(rc *RequestConfig) *Request {
-	// requestPath := "schedule"
-	// queryFields := []string{
-	// 	"CompanyKey",
-	// 	"StartDate",
-	// 	"EndDate",
-	// 	"IncludeDeletes",
-	// 	"SinceModifiedTimestamp",
-	// 	"DateFormat",
-	// 	"Includes",
-	// 	"Select",
-	// 	"Filter",
-	// 	"OrderBy",
-	// 	"Expand",
-	// }
 	rc = NewScheduleRequestConfig(rc)
-
-	// r := NewRequestWithQueryField(requestPath, queryFields, rc)
-	r := NewRequest(rc)
-
-	return r
+	return NewRequest(rc)
 }
 
 func (s Schedule) PGCreateTable(ctx context.Context, tx *sqlx.Tx, schema, tablename string, temporary bool, id string) (sql.Result, error) {
@@ -395,10 +377,15 @@ func (s *Schedule) PGGetCDC(ctx context.Context, db *sqlx.DB, schema, table stri
 }
 
 func (s Schedule) ToRequestConfig() (*RequestConfig, error) {
-	if s.LastModifiedDateUTC == nil {
-		return nil, fmt.Errorf("*LastModifiedDateUTC is nil")
+	// if s.LastModifiedDateUTC == nil {
+	// 	return nil, fmt.Errorf("*LastModifiedDateUTC is nil")
+	// }
+	// rc := RequestConfig{}
+
+	rc := DefaultScheduleRequestConfig()
+	if s.LastModifiedDateUTC != nil {
+		rc.SetSinceModifiedTimestamp(s.LastModifiedDateUTC.Time)
 	}
-	rc := RequestConfig{}
-	rc.SetSinceModifiedTimestamp(s.LastModifiedDateUTC.Time)
-	return &rc, nil
+
+	return rc, nil
 }

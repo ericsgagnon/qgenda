@@ -2,7 +2,6 @@ package qgenda
 
 import (
 	"bytes"
-	"fmt"
 	"net/http"
 	"net/url"
 	"path"
@@ -204,7 +203,6 @@ func NewRequestWithQueryField(requestPath string, allowableQueryFields []string,
 		return NewRequestWithQueryField(requestPath, allowableQueryFields, &qf)
 	}
 	r.RequestConfig = qf
-	fmt.Println(r.ToURL().String())
 	return r
 }
 

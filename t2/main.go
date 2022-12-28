@@ -39,8 +39,9 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
+	fmt.Println("preauth")
 	c.Auth()
-	// fmt.Println("Company Key: ", c.ClientConfig.CompanyKey)
+	fmt.Println("Company Key: ", c.ClientConfig.CompanyKey)
 	// pg client -------------------------------------------------------------
 	db, err := sqlx.Open("postgres", os.Getenv("PG_CONNECTION_STRING"))
 	if err != nil {
@@ -68,7 +69,8 @@ func main() {
 	rqf.SetSinceModifiedTimestamp(rqf.GetStartDate())
 	// c.Do()
 	s := qgenda.Schedules{}
-	if err := s.Get(ctx, c, rqf); err != nil {
+	rc := qgenda.DefaultScheduleRequestConfig()
+	if err := s.Get(ctx, c, rc); err != nil {
 		log.Println(err)
 
 	}
