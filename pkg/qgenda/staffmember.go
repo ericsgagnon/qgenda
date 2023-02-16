@@ -460,7 +460,7 @@ func (s StaffMember) CreatePGTable(ctx context.Context, tx *sqlx.Tx, schema, tab
 	)
 	`
 
-	table := StructToTable(StaffMember{}, basetable, schema, temp, id, nil, nil, "")
+	table := StructToTable(StaffMember{}, basetable, schema, temp, id, nil, nil, nil)
 	// sqlStatement := PGTableStatement(table, PGCreateTableDevTpl, nil)
 	sqlStatement := PGTableStatement(table, template, nil)
 	// fmt.Println(sqlStatement)
@@ -471,7 +471,7 @@ func (s StaffMember) CreatePGTable(ctx context.Context, tx *sqlx.Tx, schema, tab
 	}
 
 	tablename = fmt.Sprintf("%stag", basetable)
-	table = StructToTable(FlatStaffTag{}, tablename, schema, temp, id, nil, nil, basetable)
+	table = StructToTable(FlatStaffTag{}, tablename, schema, temp, id, nil, nil, nil)
 	// sqlStatement = PGTableStatement(table, PGCreateTableDevTpl, nil)
 	sqlStatement = PGTableStatement(table, template, nil)
 	sqlResult, err = tx.ExecContext(ctx, sqlStatement)
@@ -481,7 +481,7 @@ func (s StaffMember) CreatePGTable(ctx context.Context, tx *sqlx.Tx, schema, tab
 	}
 
 	tablename = fmt.Sprintf("%sttcmtag", basetable)
-	table = StructToTable(FlatStaffTag{}, tablename, schema, temp, id, nil, nil, basetable)
+	table = StructToTable(FlatStaffTag{}, tablename, schema, temp, id, nil, nil, nil)
 	// sqlStatement = PGTableStatement(table, PGCreateTableDevTpl, nil)
 	sqlStatement = PGTableStatement(table, template, nil)
 	sqlResult, err = tx.ExecContext(ctx, sqlStatement)
@@ -491,7 +491,7 @@ func (s StaffMember) CreatePGTable(ctx context.Context, tx *sqlx.Tx, schema, tab
 	}
 
 	tablename = fmt.Sprintf("%sskillset", basetable)
-	table = StructToTable(StaffSkillset{}, tablename, schema, temp, id, nil, nil, basetable)
+	table = StructToTable(StaffSkillset{}, tablename, schema, temp, id, nil, nil, nil)
 	// sqlStatement = PGTableStatement(table, PGCreateTableDevTpl, nil)
 	sqlStatement = PGTableStatement(table, template, nil)
 	sqlResult, err = tx.ExecContext(ctx, sqlStatement)
@@ -501,7 +501,7 @@ func (s StaffMember) CreatePGTable(ctx context.Context, tx *sqlx.Tx, schema, tab
 	}
 
 	tablename = fmt.Sprintf("%sprofile", basetable)
-	table = StructToTable(StaffProfile{}, tablename, schema, temp, id, nil, nil, basetable)
+	table = StructToTable(StaffProfile{}, tablename, schema, temp, id, nil, nil, nil)
 	// sqlStatement = PGTableStatement(table, PGCreateTableDevTpl, nil)
 	sqlStatement = PGTableStatement(table, template, nil)
 	sqlResult, err = tx.ExecContext(ctx, sqlStatement)
@@ -559,7 +559,7 @@ func (s StaffMembers) InsertToPG(ctx context.Context, db *sqlx.DB, schema, table
 	}
 	// temp table
 	// table := StructToTable(s[0], basetable, schema, true, nil, nil)
-	table := StructToTable(s[0], basetable, schema, true, id, nil, nil, basetable)
+	table := StructToTable(s[0], basetable, schema, true, id, nil, nil, nil)
 	// table.UUID = id
 	// sqlStatement := PGTableStatement(table, PGInsertRowsDevTpl, nil)
 	insertTpl := `
@@ -685,7 +685,7 @@ func (s StaffMembers) InsertToPG(ctx context.Context, db *sqlx.DB, schema, table
 		tags = append(tags, fts...)
 	}
 	tablename = fmt.Sprintf("%stag", basetable)
-	table = StructToTable(FlatStaffTag{}, tablename, schema, true, id, nil, nil, basetable)
+	table = StructToTable(FlatStaffTag{}, tablename, schema, true, id, nil, nil, nil)
 	sqlStatement = PGTableStatement(table, insertTpl, nil)
 	// fmt.Println(sqlStatement)
 	sqlResult, err = tx.NamedExecContext(ctx, sqlStatement, tags)
@@ -707,7 +707,7 @@ func (s StaffMembers) InsertToPG(ctx context.Context, db *sqlx.DB, schema, table
 		ttcmtags = append(ttcmtags, fts...)
 	}
 	tablename = fmt.Sprintf("%sttcmtag", basetable)
-	table = StructToTable(FlatStaffTag{}, tablename, schema, true, id, nil, nil, basetable)
+	table = StructToTable(FlatStaffTag{}, tablename, schema, true, id, nil, nil, nil)
 	sqlStatement = PGTableStatement(table, insertTpl, nil)
 	// fmt.Println(sqlStatement)
 	sqlResult, err = tx.NamedExecContext(ctx, sqlStatement, ttcmtags)
@@ -729,7 +729,7 @@ func (s StaffMembers) InsertToPG(ctx context.Context, db *sqlx.DB, schema, table
 		skillsets = append(skillsets, ss...)
 	}
 	tablename = fmt.Sprintf("%sskillset", basetable)
-	table = StructToTable(StaffSkillset{}, tablename, schema, true, id, nil, nil, basetable)
+	table = StructToTable(StaffSkillset{}, tablename, schema, true, id, nil, nil, nil)
 	sqlStatement = PGTableStatement(table, insertTpl, nil)
 	// fmt.Println(sqlStatement)
 	sqlResult, err = tx.NamedExecContext(ctx, sqlStatement, skillsets)
@@ -751,7 +751,7 @@ func (s StaffMembers) InsertToPG(ctx context.Context, db *sqlx.DB, schema, table
 		profiles = append(profiles, p...)
 	}
 	tablename = fmt.Sprintf("%sprofile", basetable)
-	table = StructToTable(StaffProfile{}, tablename, schema, true, id, nil, nil, basetable)
+	table = StructToTable(StaffProfile{}, tablename, schema, true, id, nil, nil, nil)
 	sqlStatement = PGTableStatement(table, insertTpl, nil)
 	// fmt.Println(sqlStatement)
 	sqlResult, err = tx.NamedExecContext(ctx, sqlStatement, profiles)

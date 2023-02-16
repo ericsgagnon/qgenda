@@ -20,7 +20,7 @@ type Schedules []Schedule
 
 func (s *Schedules) Get(ctx context.Context, c *Client, rc *RequestConfig) error {
 	req := NewScheduleRequest(rc)
-	
+
 	// qgenda only supports 100 days of schedules per query
 	// using 90 days in case there are other limits
 	schedules := Schedules{}
@@ -135,7 +135,7 @@ func (s Schedules) PGInsertRows(ctx context.Context, tx *sqlx.Tx, schema, tablen
 	if err != nil {
 		return res, err
 	}
-	tbl := StructToTable(s[0], tablename, schema, true, id, nil, nil, "")
+	tbl := StructToTable(s[0], tablename, schema, true, id, nil, nil, nil)
 	// temp tables
 	sqlResult, err = s[0].PGCreateTable(ctx, tx, "", basetable, true, id)
 	res.AddResult(sqlResult)
@@ -236,7 +236,7 @@ func (s Schedules) PGInsertRows(ctx context.Context, tx *sqlx.Tx, schema, tablen
 		tmp.*
 		from _tmp_{{- .UUID -}}_{{- .Name }} tmp
 		-- inner join on parent refs
-		inner join {{ .Schema -}}{{- if ne .Schema "" -}}.{{- end -}}{{- .Parent }} prnt on (
+		inner join {{ .Schema -}}{{- if ne .Schema "" -}}.{{- end -}}{{- .Parent.Name }} prnt on (
 				prnt._extract_date_time = tmp._extract_date_time
 			and prnt.schedulekey         = tmp.schedulekey
 			and prnt.lastmodifieddateutc = tmp.lastmodifieddateutc
@@ -276,19 +276,21 @@ func (s Schedules) PGInsertRows(ctx context.Context, tx *sqlx.Tx, schema, tablen
 	// `
 
 	// stafftags
-	stafftags := []ScheduleTag{}
+	// stafftags := []ScheduleTag{}
+	stafftags := ScheduleTags{}
 	for _, schedule := range s {
-		for _, tags := range schedule.StaffTags {
-			stafftags = append(stafftags, tags.Tags...)
-		}
+		stafftags = append(stafftags, schedule.StaffTags...)
+		// for _, tags := range schedule.StaffTags {
+		// 	stafftags = append(stafftags, tags)
+		// }
 	}
+
 	tablename = basetable + "stafftag"
-	stafftagTbl := StructToTable(ScheduleTag{}, tablename, schema, true, id, nil, nil, "")
-	stafftagTbl.Parent = basetable
+	stafftagTbl := StructToTable(ScheduleTag{}, tablename, schema, true, id, nil, nil, nil)
+	stafftagTbl.Parent = &tbl
 	chunkSize = 65535 / len(stafftagTbl.Fields)
 	// sqlStatement = PGTableStatement(stafftagTbl, childUpdateTpl, nil)
 	// fmt.Println(sqlStatement)
-
 	if len(stafftags) > 0 {
 
 		for i := 0; i < len(stafftags); i += chunkSize {
@@ -317,15 +319,17 @@ func (s Schedules) PGInsertRows(ctx context.Context, tx *sqlx.Tx, schema, tablen
 	}
 
 	// tasktags
-	tasktags := []ScheduleTag{}
+	// tasktags := []ScheduleTag{}
+	tasktags := ScheduleTags{}
 	for _, schedule := range s {
-		for _, tags := range schedule.TaskTags {
-			tasktags = append(tasktags, tags.Tags...)
-		}
+		tasktags = append(tasktags, schedule.TaskTags...)
+		// for _, tags := range schedule.TaskTags {
+		// 	tasktags = append(tasktags, tags)
+		// }
 	}
 	tablename = basetable + "tasktag"
-	tasktagTbl := StructToTable(ScheduleTag{}, tablename, schema, true, id, nil, nil, "")
-	tasktagTbl.Parent = basetable
+	tasktagTbl := StructToTable(ScheduleTag{}, tablename, schema, true, id, nil, nil, nil)
+	tasktagTbl.Parent = &tbl
 	chunkSize = 65535 / len(tasktagTbl.Fields)
 	// sqlStatement = PGTableStatement(tasktagTbl, childUpdateTpl, nil)
 	// fmt.Println(sqlStatement)
@@ -358,15 +362,17 @@ func (s Schedules) PGInsertRows(ctx context.Context, tx *sqlx.Tx, schema, tablen
 	}
 
 	// locationtags
-	locationtags := []ScheduleTag{}
+	// locationtags := []ScheduleTag{}
+	locationtags := ScheduleTags{}
 	for _, schedule := range s {
-		for _, tags := range schedule.LocationTags {
-			locationtags = append(locationtags, tags.Tags...)
-		}
+		locationtags = append(locationtags, schedule.LocationTags...)
+		// for _, tags := range schedule.LocationTags {
+		// 	locationtags = append(locationtags, tags)
+		// }
 	}
 	tablename = basetable + "locationtag"
-	locationtagTbl := StructToTable(ScheduleTag{}, tablename, schema, true, id, nil, nil, "")
-	locationtagTbl.Parent = basetable
+	locationtagTbl := StructToTable(ScheduleTag{}, tablename, schema, true, id, nil, nil, nil)
+	locationtagTbl.Parent = &tbl
 	chunkSize = 65535 / len(locationtagTbl.Fields)
 	// sqlStatement = PGTableStatement(locationtagTbl, childUpdateTpl, nil)
 	// fmt.Println(sqlStatement)
@@ -440,4 +446,20 @@ func (s *Schedules) EPL(ctx context.Context, c *Client, rc *RequestConfig,
 		return res, err
 	}
 	return res, nil
+}
+
+func GetFromFile[P *[]T, T any](filename string, dst P) error {
+
+	b, err := os.ReadFile(filename)
+	if err != nil {
+		return err
+	}
+
+	t := []T{}
+	if err := json.Unmarshal(b, &t); err != nil {
+		log.Println(err)
+	}
+	*dst = t
+	return nil
+
 }

@@ -128,13 +128,20 @@ func ProcessMap(a any) error {
 }
 
 // ProcessStruct doesn't attempt to check/use the struct's Process method.
-//  Instead it iterates through each member and attempts to Process them.
+//
+//	Instead it iterates through each member and attempts to Process them.
+//
 // It also makes no effort to process members that are nil pointers or
 // otherwise result in reflect.Kind() == reflect.Invalid.
 func ProcessStruct(a any) error {
 	v := reflect.ValueOf(a)
 	iv := reflect.Indirect(v)
-	fields := StructFields(iv)
+	// fields := StructFields(iv)
+	var fields []reflect.StructField
+	for i := 0; i < iv.Type().NumField(); i++ {
+		fields = append(fields, iv.Type().Field(i))
+	}
+
 	// fmt.Printf("ProcessStruct %s %s\n", iv.Type(), iv.Kind())
 
 	for i := 0; i < iv.NumField(); i++ {

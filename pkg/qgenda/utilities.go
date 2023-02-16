@@ -128,7 +128,9 @@ func IndirectReflectionKind(a any) reflect.Kind {
 func IsKind(a any, t string) bool {
 	// v := reflect.Indirect(reflect.ValueOf(a))
 	v := IndirectReflectionValue(a)
-	k := v.Type().Kind()
+	// k := v.Type().Kind()
+	k := v.Kind()
+
 	return (k.String() == t)
 }
 
@@ -178,17 +180,18 @@ func CanSet(a any) bool {
 
 // StructFields de-references as
 func StructFields(a any) []reflect.StructField {
-	var structFields []reflect.StructField
-	if IsStruct(a) {
-		v := IndirectReflectionValue(a)
-		// v := reflect.Indirect(reflect.ValueOf(a))
-		t := v.Type()
-		for i := 0; i < t.NumField(); i++ {
-			f := t.Field(i)
-			structFields = append(structFields, f)
+	var sf []reflect.StructField
+	switch rt := reflect.TypeOf(a); {
+	case rt.Kind() != reflect.Struct:
+		return nil
+	case rt.NumField() == 0:
+		return nil
+	default:
+		for i := 0; i < rt.NumField(); i++ {
+			sf = append(sf, rt.Field(i))
 		}
 	}
-	return structFields
+	return sf
 }
 
 func StructFieldNames(a any) []string {

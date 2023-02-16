@@ -17,7 +17,7 @@ type Staff struct {
 	ProcessedMessage *string `json:"-" db:"_processed_message"` // RawMessage processed, omits 'message' metadata and 'noisy' fields (eg lastlogin)
 	SourceQuery      *string `json:"_source_query,omitempty" db:"_source_query"`
 	ExtractDateTime  *Time   `json:"_extract_date_time,omitempty" db:"_extract_date_time"`
-	IDHash           *string `json:"-" db:"_id_hash"` // hash of identifying fields: for staffmember, this is the processed message hash
+	IDHash           *string `json:"-" primarykey:"table"  db:"_id_hash"` // hash of identifying fields: for staffmember, this is the processed message hash
 	// ------------------------------------ //
 	Abbrev                   *string         `json:"Abbrev,omitempty"`
 	BgColor                  *string         `json:"BgColor,omitempty"`
@@ -137,7 +137,7 @@ func (s *Staff) Process() error {
 
 	// TTCMTags
 	if len(s.TTCMTags) > 0 {
-		for i, _ := range s.Tags {
+		for i, _ := range s.TTCMTags {
 			s.TTCMTags[i].ExtractDateTime = s.ExtractDateTime
 			s.TTCMTags[i].IDHash = s.IDHash
 			s.TTCMTags[i].StaffKey = s.StaffKey
@@ -152,7 +152,7 @@ func (s *Staff) Process() error {
 
 	// Skillset
 	if len(s.Skillset) > 0 {
-		for i, _ := range s.Tags {
+		for i, _ := range s.Skillset {
 			s.Skillset[i].ExtractDateTime = s.ExtractDateTime
 			s.Skillset[i].IDHash = s.IDHash
 			s.Skillset[i].StaffKey = s.StaffKey
@@ -167,7 +167,7 @@ func (s *Staff) Process() error {
 
 	// Profiles
 	if len(s.Profiles) > 0 {
-		for i, _ := range s.Tags {
+		for i, _ := range s.Profiles {
 			s.Profiles[i].ExtractDateTime = s.ExtractDateTime
 			s.Profiles[i].IDHash = s.IDHash
 			s.Profiles[i].StaffKey = s.StaffKey
@@ -284,6 +284,15 @@ func (s Staff) PGCreateTable(ctx context.Context, tx *sqlx.Tx, schema, tablename
 		basetable = tablename
 	}
 	var res Result
+
+	if !temporary && schema != "" {
+		sqlResult, err := tx.ExecContext(ctx, fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s", schema))
+		res = SQLResult(res, sqlResult)
+		if err != nil {
+			return res, err
+		}
+	}
+
 	tablename = basetable
 	tpl := `{{- $table := . -}}
 	CREATE {{- if .Temporary }} TEMPORARY TABLE IF NOT EXISTS _tmp_{{- .UUID -}}_{{- .Name -}}
@@ -298,7 +307,7 @@ func (s Staff) PGCreateTable(ctx context.Context, tx *sqlx.Tx, schema, tablename
 		PRIMARY KEY ({{ .PrimaryKey }}){{- end -}}{{- end }}
 	)	
 	`
-	table := StructToTable(Staff{}, tablename, schema, temporary, id, nil, nil, "")
+	table := StructToTable(Staff{}, tablename, schema, temporary, id, nil, nil, nil)
 	sqlStatement := PGTableStatement(table, tpl, nil)
 	// fmt.Println(sqlStatement)
 
@@ -309,7 +318,7 @@ func (s Staff) PGCreateTable(ctx context.Context, tx *sqlx.Tx, schema, tablename
 	}
 
 	tablename = fmt.Sprint(basetable, "tag")
-	table = StructToTable(XStaffTag{}, tablename, schema, temporary, id, nil, nil, basetable)
+	table = StructToTable(XStaffTag{}, tablename, schema, temporary, id, nil, nil, nil)
 	// sqlStatement = PGTableStatement(table, PGCreateTableDevTpl, nil)
 	sqlStatement = PGTableStatement(table, tpl, nil)
 	sqlResult, err = tx.ExecContext(ctx, sqlStatement)
@@ -319,7 +328,7 @@ func (s Staff) PGCreateTable(ctx context.Context, tx *sqlx.Tx, schema, tablename
 	}
 
 	tablename = fmt.Sprint(basetable, "ttcmtag")
-	table = StructToTable(XStaffTag{}, tablename, schema, temporary, id, nil, nil, basetable)
+	table = StructToTable(XStaffTag{}, tablename, schema, temporary, id, nil, nil, nil)
 	// sqlStatement = PGTableStatement(table, PGCreateTableDevTpl, nil)
 	sqlStatement = PGTableStatement(table, tpl, nil)
 	sqlResult, err = tx.ExecContext(ctx, sqlStatement)
@@ -329,7 +338,7 @@ func (s Staff) PGCreateTable(ctx context.Context, tx *sqlx.Tx, schema, tablename
 	}
 
 	tablename = fmt.Sprint(basetable, "skill")
-	table = StructToTable(StaffSkill{}, tablename, schema, temporary, id, nil, nil, basetable)
+	table = StructToTable(StaffSkill{}, tablename, schema, temporary, id, nil, nil, nil)
 	// sqlStatement = PGTableStatement(table, PGCreateTableDevTpl, nil)
 	sqlStatement = PGTableStatement(table, tpl, nil)
 	sqlResult, err = tx.ExecContext(ctx, sqlStatement)
@@ -339,7 +348,7 @@ func (s Staff) PGCreateTable(ctx context.Context, tx *sqlx.Tx, schema, tablename
 	}
 
 	tablename = fmt.Sprint(basetable, "profile")
-	table = StructToTable(XStaffProfile{}, tablename, schema, temporary, id, nil, nil, basetable)
+	table = StructToTable(XStaffProfile{}, tablename, schema, temporary, id, nil, nil, nil)
 	// sqlStatement = PGTableStatement(table, PGCreateTableDevTpl, nil)
 	sqlStatement = PGTableStatement(table, tpl, nil)
 	sqlResult, err = tx.ExecContext(ctx, sqlStatement)

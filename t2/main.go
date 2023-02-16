@@ -126,7 +126,7 @@ func main() {
 	if err := json.Unmarshal(b, &xs); err != nil {
 		log.Println(err)
 	}
-	fmt.Println("Length of XSchedules", len(xs))
+	fmt.Println("Length of Schedules", len(xs))
 
 	for i, _ := range xs {
 		if err := xs[i].Process(); err != nil {
@@ -247,6 +247,29 @@ func main() {
 		tx.Commit()
 	}
 	fmt.Println(sres)
+
+	// new schedules code
+	tx, err = db.BeginTxx(ctx, nil)
+	if err != nil {
+		log.Println(err)
+	}
+
+	staffs := qgenda.Staffs{}
+	if err := staffs.Get(ctx, c, nil); err != nil {
+		log.Println(err)
+	}
+	if err := staffs.Process(); err != nil {
+		log.Println(err)
+	}
+	staffsResult, err := staffs[0:100].PGInsertRows(ctx, tx, "staff_test", "", "")
+	if err != nil {
+		log.Println(err)
+		// log.Println(tx.Rollback())
+	}
+	if err := tx.Commit(); err != nil {
+		log.Println(err)
+	}
+	fmt.Println(staffsResult)
 
 	// var rowsAffected int64
 	// schema := "sm1"

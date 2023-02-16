@@ -284,9 +284,9 @@ func GoToPGType(gotype string) string {
 // of the name.
 func PGName(field Field) string {
 	var name string
-	nametags, ok := field.Tags[PGTag]
+	nametags, ok := field.Tags()[PGTag]
 	if !ok {
-		nametags, ok = field.Tags["db"]
+		nametags, ok = field.Tags()["db"]
 	}
 	if ok {
 		name = nametags[0]
@@ -367,7 +367,7 @@ func PGStatement[T any](value T, schema, table, tpl string) string {
 func PGQueryConditionFields(fields []Field) []Field {
 	qfields := []Field{}
 	for _, field := range fields {
-		if _, ok := field.Tags["querycondition"]; ok {
+		if _, ok := field.Tags()["querycondition"]; ok {
 			qfields = append(qfields, field)
 		}
 	}

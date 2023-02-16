@@ -13,6 +13,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"golang.org/x/exp/slices"
 )
 
 type DBClient interface {
@@ -89,16 +90,33 @@ func NewDBClient(cfg *DBClientConfig) (*sqlx.DB, error) {
 }
 
 type Table struct {
-	Name            string
-	Schema          string
-	Temporary       bool
-	UUID            string
-	Constraints     map[string]string // these should be table constraints, not field constraints
-	Fields          Fields
-	FlattenChildren bool // by default, slices and maps will be handled by creating a child table for each and 'flattening' any nested slices or maps
-	Tags            map[string][]string
-	UpdateStrategy  string
-	Parent          string // parent table, for 'child' tables
+	Name           string
+	Type           reflect.Type
+	Schema         string
+	Temporary      bool
+	UUID           string
+	Constraints    map[string]string // these should be table constraints, not field constraints
+	Fields         Fields
+	Children       []Table
+	Tags           map[string][]string
+	UpdateStrategy string
+	Parent         *Table
+}
+
+func (t Table) FullIdentifier() string {
+	schema := strings.ToLower(t.Schema)
+	name := strings.ToLower(t.Name)
+	uuid := strings.ReplaceAll(t.UUID, "-", "")
+	switch {
+	case t.Temporary && t.UUID != "":
+		return "_tmp_" + uuid + "_" + t.Name
+	case t.Temporary && uuid == "":
+		return "_tmp_" + name
+	case t.Schema != "":
+		return schema + "." + name
+	default:
+		return name
+	}
 }
 
 func (t Table) PrimaryKey() string {
@@ -121,18 +139,59 @@ type Fields []Field
 // }
 
 // const (
-// 	AppendNew UpdateStrategy = iota
-// 	FullReplace
-// 	AppendAll
-
+//  AppendChanges UpdateStrategy = iota
+// AppendAll
+// ReplaceChanges
+// ReplaceAll
 // )
 
-func StructToTable[T any](value T, name, schema string, temporary bool, id string, constraints map[string]string, tags map[string][]string, parent string) Table {
+// ReflectType converts value to a reflect.Type
+// if value is already a reflect.Type, it asserts and returns it
+func ReflectType(value any) reflect.Type {
+	if rt, ok := value.(reflect.Type); ok {
+		return rt
+	}
+	return reflect.TypeOf(value)
+	// rt := reflect.TypeOf(value)
+	// rtta := reflect.TypeOf(reflect.TypeOf(any("")))
+
+	// if rt == rtta {
+	// 	rt = value.(reflect.Type)
+	// }
+	// return rt
+}
+
+func NewTable(value any) Table {
+
+	rt := reflect.TypeOf(value)
+	if v, ok := value.(reflect.Type); ok {
+		rt = v
+	}
+	if rt.Kind() != reflect.Struct {
+		panic(fmt.Errorf("%T is not a struct", value))
+	}
+
+	return Table{}
+}
+
+func StructToTable[T any](value T, name, schema string, temporary bool, id string, constraints map[string]string, tags map[string][]string, parent *Table) Table {
 
 	fields := StructToFields(value)
+	// fields := StructToFields(*new(T))
+	// rv := reflect.ValueOf(value)
+	// fmt.Println("---------------------------------------------------")
+	// fmt.Printf("\t%T\n", *new(T))
+	// rv := reflect.ValueOf(*new(T))
+	// rv := reflect.ValueOf(value)
+	// fmt.Println(rv)
+	// rt := rv.Type()
+	rt := ReflectType(value)
+	if rt.Kind() != reflect.Struct {
+		panic(fmt.Errorf("%T is not a struct", value))
+	}
 
 	if name == "" {
-		name = strings.ToLower(reflect.ValueOf(value).Type().Name())
+		name = strings.ToLower(rt.Name())
 	}
 
 	if len(constraints) == 0 {
@@ -151,10 +210,10 @@ func StructToTable[T any](value T, name, schema string, temporary bool, id strin
 			constraints["unique"] = strings.Join(uf, ", ")
 		}
 	}
-
 	if id == "" {
 		id = strings.ReplaceAll(uuid.NewString(), "-", "")
 	}
+
 	// check https://www.postgresql.org/docs/current/limits.html for current
 	// identifier limits. Limit is 63 at time of coding.
 	pgIDLimit := 63
@@ -165,77 +224,142 @@ func StructToTable[T any](value T, name, schema string, temporary bool, id strin
 		id = id[0:maxIDLength]
 		log.Printf("length of _tmp_[id]_[name] is %d, exceeding postgres identifier limit of %d, truncating [id] to %d characters: %s", (permIDLength + idLength), pgIDLimit, maxIDLength, id)
 	}
+	// for _, field := range fields {
+	// 	if field.Kind == "slice" || field.Kind == "map" {
+	// 		field.StructField.Interface()
+	// 	}
+	// }
 	return Table{
-		Name:            name,
-		Schema:          schema,
-		Temporary:       temporary,
-		UUID:            id,
-		Constraints:     constraints,
-		Fields:          fields,
-		FlattenChildren: true,
-		Tags:            tags,
-		Parent:          parent,
+		Name:        name,
+		Type:        rt,
+		Schema:      schema,
+		Temporary:   temporary,
+		UUID:        id,
+		Constraints: constraints,
+		Fields:      fields,
+		Tags:        tags,
+		Parent:      parent,
 	}
-
 }
 
 type Field struct {
 	Name        string
-	Kind        string
-	Type        string
-	Pointer     bool
-	PrimaryKey  bool
-	Unique      bool
-	Nullable    bool // nullable follows the sql standard of defaulting to true
+	Type        string // the type, after dereferencing
+	Pointer     bool   // since we dereference, was it originally a pointer
+	Client      string // client name - eg: pg, sqlserver, mysql, oracle
+	ClientType  string // intended client data type - eg: numeric, text, char[n], etc
+	PrimaryKey  bool   // is it part of the table's primary key
+	Unique      bool   // does it have a unique constraint
+	Nullable    bool   // nullable follows the sql standard of defaulting to true
 	Constraints []string
-	Tags        map[string][]string
-	StructField reflect.StructField
+	// Tags        map[string][]string
+	StructField reflect.StructField // should this be embedded?
 }
 
 func StructToFields[T any](value T) []Field {
 
-	v := reflect.ValueOf(*new(T))
-	iv := reflect.Indirect(v)
-	// fmt.Printf("%+v\n", iv)
-	// handle zero pointers - look up code above
-	structfields := StructFields(iv)
+	rt := reflect.TypeOf(value)
+	structfields := StructFields(value)
 	fields := []Field{}
-	for i := 0; i < iv.NumField(); i++ {
+	for i := 0; i < rt.NumField(); i++ {
 		sf := structfields[i]
-		ivField := iv.Field(i)
-
-		fieldType := reflect.TypeOf(ivField.Interface())
-		if ivField.Kind() == reflect.Pointer {
-			fieldType = reflect.TypeOf(ivField.Interface()).Elem()
-		}
-		fieldKind := fieldType.Kind()
-		pointer := ivField.Kind() == reflect.Pointer
-		tags := TagKeyValues(fmt.Sprint(sf.Tag))
-		val, ok := tags["primarykey"]
-		primarykey := ok && strings.ToLower(val[0]) != "false"
-		val, ok = tags["unique"]
-		unique := ok && strings.ToLower(val[0]) != "false"
-		val, ok = tags["nullable"]
-		nullable := !ok || strings.ToLower(val[0]) != "false"
-
+		tf := Field{StructField: sf}
 		field := Field{
 			Name:        sf.Name,
-			Kind:        fieldKind.String(),
-			Type:        fieldType.String(),
-			Pointer:     pointer,
-			PrimaryKey:  primarykey,
-			Unique:      unique,
-			Nullable:    nullable,
-			Constraints: tags["constraints"],
-			Tags:        tags,
+			Type:        fmt.Sprint(tf.UnderlyingType()),
+			Pointer:     sf.Type.Kind() == reflect.Pointer,
+			PrimaryKey:  tf.TagKeyIsPositive("primarykey"),
+			Unique:      tf.TagKeyIsPositive("unique"),
+			Nullable:    tf.TagKeyIsPositive("nullable"),
+			Constraints: tf.Tags()["constraints"],
 			StructField: sf,
 		}
 
-		field.StructField = sf
 		fields = append(fields, field)
 	}
 
 	return fields
+}
+
+func (f Field) Kind() reflect.Kind {
+	sf := f.StructField
+	kind := sf.Type.Kind()
+	switch {
+	case kind == reflect.Pointer:
+		// this isn't really any more readable when you expand it, is there an easier way?
+		kind = reflect.Indirect(reflect.New(sf.Type.Elem())).Type().Kind()
+	}
+	return kind
+}
+
+func (f Field) UnderlyingType() reflect.Type {
+	ft := f.StructField.Type
+	if ft.Kind() == reflect.Pointer {
+		return reflect.Indirect(reflect.New(ft.Elem())).Type()
+	}
+	return ft
+}
+
+// ElementType returns the string representation of the element type of slices and maps
+func (f Field) ElementType() reflect.Type {
+	ft := f.StructField.Type
+	if f.Kind() == reflect.Slice || f.Kind() == reflect.Map {
+		return reflect.Indirect(reflect.New(ft.Elem())).Type()
+	}
+	return nil
+}
+
+func (f Field) Tags() map[string][]string {
+	tagString := string(f.StructField.Tag)
+	pattern := regexp.MustCompile(`(?m)(?P<key>\w+):\"(?P<value>[^"]+)\"`)
+	matches := pattern.FindAllStringSubmatch(tagString, -1)
+	var tkv = map[string][]string{}
+	for _, match := range matches {
+		tkv[match[1]] = strings.Split(match[2], ",")
+	}
+	return tkv
+}
+
+// TagKeyIsPostive returns false if the key is missing, or
+// if the first value matches any of false, -, or ""
+func (f Field) TagKeyIsPositive(key string) bool {
+	values, ok := f.Tags()[key]
+	// fmt.Println(values[0])
+	value := ""
+	if values != nil {
+		value = strings.ToLower(values[0])
+	}
+	return ok && value != "false" && value != "-" && value != ""
+}
+
+// TagIsTrue returns true if the tag exists and the first value isn't empty, false, or -
+func (f Field) TagIsTrue(key string) bool {
+	values, ok := f.Tags()[key]
+	return values != nil && ok && values[0] != "false" && values[0] != "-" && values[0] != ""
+	// switch values, ok := f.Tags()[key]; {
+	// case values == nil || !ok:
+	// 	return false
+	// default:
+	// 	return values[0] != "false" && values[0] != "-" && values[0] != ""
+	// }
+}
+
+// TagIsFalse returns true only if the tag exists and the first value is false or -
+func (f Field) TagIsFalse(key string) bool {
+	switch values, ok := f.Tags()[key]; {
+	case values == nil || !ok:
+		return false
+	default:
+		return values[0] == "false" || values[0] == "-"
+	}
+}
+
+func (f Field) TagKeyValueExists(key string, value string) bool {
+	tvs, ok := f.Tags()[key]
+	for i, v := range tvs {
+		tvs[i] = strings.ToLower(v)
+	}
+	return ok && slices.Contains(tvs, strings.ToLower(value))
 }
 
 func TagKeyValues(s string) map[string][]string {
@@ -260,7 +384,7 @@ func PrimaryKey(fields []Field) []string {
 }
 
 func QueryFieldName(field Field) string {
-	if nametags, ok := field.Tags["qf"]; ok {
+	if nametags, ok := field.Tags()["qf"]; ok {
 		return nametags[0]
 	}
 	return ""
@@ -371,7 +495,7 @@ func UniqueFields(fields []Field) []Field {
 func FieldsWithTagValue(fields []Field, key, value string) []Field {
 	f := []Field{}
 	for _, field := range fields {
-		tagSlice, ok := field.Tags[key]
+		tagSlice, ok := field.Tags()[key]
 		if ok && len(tagSlice) > 0 {
 			for _, tagi := range tagSlice {
 				if tagi == value {
@@ -389,7 +513,7 @@ func FieldsWithoutTagValue(fields []Field, key, value string) []Field {
 	f := []Field{}
 
 	for _, field := range fields {
-		tagSlice, ok := field.Tags[key]
+		tagSlice, ok := field.Tags()[key]
 		if ok && len(tagSlice) > 0 {
 			for _, tagi := range tagSlice {
 				if tagi == value {
@@ -405,7 +529,7 @@ func FieldsWithoutTagValue(fields []Field, key, value string) []Field {
 // it is included in the TableStatement funcmap as fieldhastagvalue
 func FieldHasTagValue(field Field, key, value string) bool {
 
-	tag, ok := field.Tags[key]
+	tag, ok := field.Tags()[key]
 	if !ok {
 		return false
 	}
