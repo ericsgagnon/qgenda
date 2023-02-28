@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ericsgagnon/qgenda/pkg/meta"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -19,7 +20,7 @@ type Schedule struct {
 	ExtractDateTime  *Time   `json:"_extract_date_time,omitempty" db:"_extract_date_time"`
 	IDHash           *string `json:"_id_hash,omitempty" db:"_id_hash"` // hash of identifying fields: schedulekey-lastmodifieddateutc (rfc3339nano)
 	// ------------------------------------ //
-	ScheduleKey            *string      `json:"ScheduleKey,omitempty" primarykey:"true"`
+	ScheduleKey            *string      `json:"ScheduleKey,omitempty" primarykey:"true" idhash:"true"`
 	CallRole               *string      `json:"CallRole,omitempty"`
 	CompKey                *string      `json:"CompKey,omitempty"`
 	Credit                 *float64     `json:"Credit,omitempty"`
@@ -73,7 +74,7 @@ type Schedule struct {
 	LocationID             *string      `json:"LocationID,omitempty"`
 	LocationAddress        *string      `json:"LocationAddress,omitempty"`
 	TimeZone               *string      `json:"TimeZone,omitempty"`
-	LastModifiedDateUTC    *Time        `json:"LastModifiedDateUTC,omitempty" primarykey:"true" querycondition:"ge" qf:"SinceModifiedTimestamp"`
+	LastModifiedDateUTC    *Time        `json:"LastModifiedDateUTC,omitempty" primarykey:"true" querycondition:"ge" qf:"SinceModifiedTimestamp" idhash:"true"`
 	LocationTags           ScheduleTags `json:"LocationTags,omitempty"`
 	IsRotationTask         *bool        `json:"IsRotationTask"`
 }
@@ -223,22 +224,8 @@ func (s *Schedule) SetIDHash() error {
 	if s.ProcessedMessage == nil {
 		return fmt.Errorf("ProcessedMessage is empty, cannot hash")
 	}
-	id := map[string]any{
-		"ScheduleKey":         (*s.ScheduleKey),
-		"LastModifiedDateUTC": (*s.LastModifiedDateUTC).Time.Format(time.RFC3339Nano),
-	}
-
-	b, err := json.Marshal(id)
-	if err != nil {
-		return err
-	}
-	var bb bytes.Buffer
-	if err := json.Compact(&bb, b); err != nil {
-		return err
-	}
-
-	// id := fmt.Sprint(*s.ScheduleKey, "-", (*s.LastModifiedDateUTC).Time.Format(time.RFC3339Nano))
-	h := Hash(bb.String())
+	vm := meta.ToValueMap(*s, "idhash")
+	h := vm.Hash()
 	s.IDHash = &h
 	return nil
 }

@@ -1,9 +1,11 @@
 package meta
 
 import (
+	"bytes"
 	"fmt"
 	"reflect"
 	"strings"
+	"text/template"
 
 	"github.com/google/uuid"
 )
@@ -24,18 +26,13 @@ type Struct struct {
 	pointer            bool // is the original variable a pointer
 }
 
-// SetUUID recursively sets s and its fields' struct UUID's to id
-func (s *Struct) SetUUID(id string) {
-	s.UUID = id
-	if s.Fields != nil {
-		s.Fields.SetUUID(id)
-	}
-}
-
 func ToStruct(value any) (Struct, error) {
 	var s Struct
 	rv, rt, pointer := ToIndirectReflectValue(value)
+	if rt == nil {
+		return s, fmt.Errorf("invalid value: nil")
 
+	}
 	if rt.Kind() != reflect.Struct {
 		return s, fmt.Errorf("invalid type: (%s) %s", rt.Kind(), rt)
 	}
@@ -44,14 +41,29 @@ func ToStruct(value any) (Struct, error) {
 		Name:       rt.Name(),
 		Type:       rt,
 		Value:      rv,
-		UUID:       strings.ReplaceAll(uuid.NewString(), "-", ""),
 		Attributes: nil,
 		Fields:     ToFields(value),
 		pointer:    pointer,
+		// UUID:       strings.ReplaceAll(uuid.NewString(), "-", ""),
 	}
-	s.SetUUID(s.UUID)
+	s.NewUUID()
 
 	return s, nil
+}
+
+// NewUUID creates a new UUID and set it recursively
+func (s *Struct) NewUUID() string {
+	id := strings.ReplaceAll(uuid.NewString(), "-", "")
+	s.SetUUID(id)
+	return id
+}
+
+// SetUUID recursively sets s and its fields' struct UUID's to id
+func (s *Struct) SetUUID(id string) {
+	s.UUID = id
+	if s.Fields != nil {
+		s.Fields.SetUUID(id)
+	}
 }
 
 type StructConfig struct {
@@ -119,81 +131,70 @@ func (s Struct) Identifier() string {
 	return strings.Join(ids, s.NameSpaceSeparator)
 }
 
-// func ToStruct(value any) (Struct, error) {
-// 	var pointer bool
-// 	rt := reflect.TypeOf(value)
-// 	// fmt.Printf("%T\t%s\t%s\n", value, value, rt)
-// 	if rt.Kind() == reflect.Pointer {
-// 		rt = rt.Elem()
-// 	}
-// 	rv := reflect.ValueOf(value)
-// 	if t, ok := value.(reflect.Type); ok {
-// 		rt = t
-// 		if pointer = rt.Kind() == reflect.Pointer; pointer {
-// 			rt = rt.Elem()
-// 		}
-// 		rv = reflect.New(rt).Elem()
-// 	}
-// 	if v, ok := value.(reflect.Value); ok {
-// 		rv = v
-// 		if !rv.IsValid() {
-// 			return Struct{Value: rv}, fmt.Errorf("value is invalid: %T", value)
-// 		}
-// 		rt = v.Type()
-// 		if rt.Kind() == reflect.Pointer {
-// 			pointer = true
-// 			rv = reflect.Indirect(rv)
-// 			rt = rv.Type()
-// 		}
-// 	}
-// 	if rv.IsZero() {
-// 		rv = reflect.New(rt).Elem()
-// 	}
-// 	if rv.Kind() == reflect.Pointer {
-// 		rv = rv.Elem()
-// 	}
+func (s Struct) ValueMap(tagKey string) ValueMap {
+	return ToValueMap(s, tagKey)
+}
 
-// 	if rt.Kind() != reflect.Struct {
-// 		return Struct{Value: rv}, fmt.Errorf("%T is not a struct", value)
-// 	}
+// ExecuteTemplate parses a string and executes it with any additional funcs and data. All data, including the reciever
+// is passed to text/template as a map. By default, the reciever's map key is its type - eg {{ .Struct }} references a calling Struct.
+// By default, it passes missingkey=zero, you can override this by changing TemplateOptions
+// See TemplateFuncMap for additional functions included by default.
+// See TemplateDataNames if you really need to change data map key names.
+func (s Struct) ExecuteTemplate(tpl string, funcs template.FuncMap, data map[string]any) (string, error) {
+	d := map[string]any{
+		TemplateDataNames["Struct"]: s,
+	}
+	for k, v := range data {
+		d[k] = v
+	}
 
-// 	s := Struct{
-// 		Name:       rt.Name(),
-// 		Type:       rt,
-// 		UUID:       strings.ReplaceAll(uuid.NewString(), "-", ""),
-// 		Attributes: nil,
-// 		Fields:     ToFields(value),
-// 		pointer:    pointer,
-// 	}
-// 	children := []Structs{}
-// 	for i, sf := range s.Fields {
-// 		rvi := rv.Field(i)
-// 		if rvi.Kind() == reflect.Pointer {
-// 			rvi = rvi.Elem()
-// 		}
-// 		if rvi.Kind() == reflect.Invalid || rvi.IsZero() {
-// 			rvi = reflect.New(sf.Type()).Elem()
-// 		}
-// 		// fmt.Printf("%s\t%T\t%s\n", fv.Type(), fv, rvi.Kind())
-// 		if rvi.Kind() == reflect.Slice {
-// 			// reflect.New(rt.Elem()).Elem()
-// 			if rvi.Len() == 0 {
-// 				reflect.Append(rvi, reflect.New(rvi.Type().Elem()).Elem())
-// 			}
-// 			fvs := []any{}
-// 			for i := 0; i < rvi.Len(); i++ {
-// 				fvs = append(fvs, rvi.Index(i).Interface())
-// 			}
-// 			// fmt.Printf("%s\t%T\t%s\t%s\n", sf.Name, fvs, len(fvs), rvi.Len())
-// 			child, err := ToStructs(fvs)
-// 			if err != nil {
-// 				return Struct{}, err
-// 			}
-// 			children = append(children, child)
-// 		}
+	parsedTpl, err := template.
+		New("").
+		Option(TemplateOptions...).
+		Funcs(TemplateFuncMap).
+		Funcs(funcs).
+		Parse(tpl)
+	if err != nil {
+		return "", err
+	}
 
-// 	}
-// 	s.Children = children
+	var buf bytes.Buffer
+	if err := parsedTpl.Execute(&buf, d); err != nil {
+		return "", err
+	}
 
-// 	return s, nil
+	return buf.String(), nil
+}
+
+// func (s Struct) ExecuteTemplate(tpl string, funcs template.FuncMap) string {
+// 	var buf bytes.Buffer
+
+// 	if err := template.Must(template.
+// 		New(s.Name).
+// 		Option("missingkey=zero").
+// 		Funcs(FuncMap).
+// 		Funcs(funcs).
+// 		Parse(tpl)).
+// 		Execute(&buf, s); err != nil {
+// 		log.Println(err)
+// 		panic(err)
+// 	}
+// 	return buf.String()
+// }
+
+// func (s Struct) ExecuteTemplateWithData(tpl string, funcs template.FuncMap, data ...any) string {
+// 	data = append([]any{s}, data...)
+// 	var buf bytes.Buffer
+
+// 	if err := template.Must(template.
+// 		New("").
+// 		Option("missingkey=zero").
+// 		Funcs(FuncMap).
+// 		Funcs(funcs).
+// 		Parse(tpl)).
+// 		Execute(&buf, data); err != nil {
+// 		log.Println(err)
+// 		panic(err)
+// 	}
+// 	return buf.String()
 // }

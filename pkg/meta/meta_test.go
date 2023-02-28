@@ -15,28 +15,28 @@ type ExStruct struct {
 }
 
 type ExampleStruct struct {
-	BoolValue          bool
-	boolValue          bool
-	BoolPointer        *bool
-	boolPointer        *bool
-	StringValue        string
-	stringValue        string
-	StringPointer      *string
-	stringPointer      *string
-	IntValue           int
-	intValue           int
-	IntPointer         *int
-	intPointer         *int
-	Bytes              []byte
-	Map                map[string]any
-	Slice              []any
-	slice              *[]any
-	StructValue        ExStruct
-	structValue        ExStruct
-	StructPointer      *ExStruct
-	structPointer      *ExStruct
-	ExampleStructSlice []ExampleStruct
-	exampleStructSlice *[]ExampleStruct
+	BoolValue          bool             `vm:"true" json:"boolvalue"`
+	boolValue          bool             `vm:""`
+	BoolPointer        *bool            `vm:"" json:"boolpointer,omitempty"`
+	boolPointer        *bool            `vm:""`
+	StringValue        string           `vm:""`
+	stringValue        string           `vm:""`
+	StringPointer      *string          `vm:""`
+	stringPointer      *string          `vm:""`
+	IntValue           int              `vm:""`
+	intValue           int              `vm:""`
+	IntPointer         *int             `vm:""`
+	intPointer         *int             `vm:""`
+	Bytes              []byte           `vm:""`
+	Map                map[string]any   `vm:""`
+	Slice              []any            `vm:""`
+	slice              *[]any           `vm:""`
+	StructValue        ExStruct         `vm:""`
+	structValue        ExStruct         `vm:""`
+	StructPointer      *ExStruct        `vm:""`
+	structPointer      *ExStruct        `vm:""`
+	ExampleStructSlice []ExampleStruct  `vm:""`
+	exampleStructSlice *[]ExampleStruct `vm:""`
 }
 
 var boolExample = true

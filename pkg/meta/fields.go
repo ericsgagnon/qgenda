@@ -6,8 +6,8 @@ import (
 
 type Fields []Field
 
-// and returns the slice of Fields, including unexported fields
-// ToFields takes any struct type, slice of structs, or pointer to structs
+// ToFields returns the exported fields of a struct, pointer to a struct,
+// reflect.Value of a struct, or reflect.Type of a struct
 func ToFields(value any) Fields {
 	var fields Fields
 
@@ -22,6 +22,9 @@ func ToFields(value any) Fields {
 
 	sfs := reflect.VisibleFields(rt)
 	for _, sf := range sfs {
+		if !sf.IsExported() {
+			continue
+		}
 		rfv, rft, rfPointer := ToIndirectReflectValue(rv.FieldByName(sf.Name))
 		s, _ := ToStruct(rfv)
 
@@ -38,86 +41,14 @@ func ToFields(value any) Fields {
 	return fields
 }
 
-// // and returns the slice of Fields, including unexported fields
-// // ToFields takes any struct type, slice of structs, or pointer to structs
-// func ToFields(value any) Fields {
-// 	var fields Fields
-// 	// var rt reflect.Type
-// 	// var rv reflect.Value
-
-// 	// switch v := value.(type) {
-// 	// case nil:
-// 	// 	return fields
-// 	// case reflect.Type:
-// 	// 	rv = reflect.New(v).Elem()
-// 	// case reflect.Value:
-// 	// 	rv = v
-// 	// default:
-// 	// 	rv = reflect.ValueOf(v)
-// 	// }
-
-// 	// // var pointer bool
-// 	// switch {
-// 	// case rv.Kind() == reflect.Invalid:
-// 	// 	return fields
-// 	// case rv.Kind() == reflect.Pointer && rv.Elem().Kind() == reflect.Invalid:
-// 	// 	// pointer = true
-// 	// 	rt = rv.Type().Elem()
-// 	// 	rv = reflect.New(rt).Elem()
-// 	// case rv.Kind() == reflect.Pointer && rv.Elem().Kind() != reflect.Invalid:
-// 	// 	// pointer = true
-// 	// 	rt = rv.Type().Elem()
-// 	// 	rv = rv.Elem()
-// 	// default:
-// 	// 	rt = rv.Type()
-// 	// }
-
-// 	rv, rt, _ := ToIndirectReflectValue(value)
-// 	if !rv.IsValid() {
-// 		return fields
-// 	}
-
-// 	if rt.Kind() != reflect.Struct {
-// 		return fields
-// 	}
-
-// 	sfs := reflect.VisibleFields(rt)
-// 	for _, sf := range sfs {
-// 		// for i := 0; i < len(sfs); i++ {
-// 		var pointer bool
-// 		// sf := sfs[i]
-// 		rfv := rv.FieldByName(sf.Name)
-
-// 		if !rfv.IsValid() {
-// 			continue
-// 		}
-// 		if rfv.Kind() == reflect.Pointer {
-// 			pointer = true
-// 			rfv = rfv.Elem()
-// 		}
-// 		if sf.Type.Kind() == reflect.Pointer {
-// 			pointer = true
-// 			sf.Type = sf.Type.Elem()
-// 		}
-
-// 		field := Field{
-// 			Name:        sf.Name,
-// 			StructField: sf,
-// 			Value:       rfv,
-// 			pointer:     pointer,
-// 		}
-// 		fields = append(fields, field)
-// 	}
-// 	return fields
-// }
-
-// for i, field := range fields {
-// 	if cfg, ok := config[field.Name]; ok {
-// if cfg.Name != ""
-// 	}
-// }
-// 	return nil
-// }
+// Tags returns a map of Tags with keys that match field names
+func (f Fields) Tags() map[string]Tags {
+	fieldsTagMap := map[string]Tags{}
+	for _, field := range f {
+		fieldsTagMap[field.Name] = field.Tags()
+	}
+	return fieldsTagMap
+}
 
 // WithTag returns a subset of Fields with the key
 func (f Fields) WithTag(key string) Fields {
@@ -139,7 +70,30 @@ func (f Fields) WithTagValue(key, value string) Fields {
 		}
 	}
 	return fields
+}
 
+// WithTagTrue returns a subset of Fields whose Tags satisfy Tags.True
+func (f Fields) WithTagTrue(key string) Fields {
+	fields := Fields{}
+	for _, field := range f {
+		if field.HasTagTrue(key) {
+			// if field.Tags().True(key) {
+			fields = append(fields, field)
+		}
+	}
+	return fields
+}
+
+// WithTagFalse returns a subset of Fields whose Tags satisfy Tags.False
+func (f Fields) WithTagFalse(key string) Fields {
+	fields := Fields{}
+	for _, field := range f {
+		if field.HasTagFalse(key) {
+			// if field.Tags().False(key) {
+			fields = append(fields, field)
+		}
+	}
+	return fields
 }
 
 // WithoutTag returns a subset of Fields that do not have the key
@@ -173,6 +127,15 @@ func (f Fields) Names() []string {
 		names = append(names, field.Name)
 	}
 	return names
+}
+
+// Types returns a slice of field types
+func (f Fields) Types() []reflect.Type {
+	types := []reflect.Type{}
+	for _, field := range f {
+		types = append(types, field.Type())
+	}
+	return types
 }
 
 func (f Fields) SetUUID(id string) {
