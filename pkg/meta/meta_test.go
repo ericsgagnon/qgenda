@@ -44,13 +44,14 @@ var stringExample = "example"
 var intExample = 1138
 var byteExample byte = 42
 var byteSliceExample = []byte{7, 8, 42}
-var mapExmple = map[string]any{
+var mapExample = map[string]any{
 	"bool":          boolExample,
 	"boolPointer":   &boolExample,
 	"string":        stringExample,
 	"stringPointer": &stringExample,
 	"int":           intExample,
 	"intPointer":    &intExample,
+	"struct":        ExampleStruct{},
 	"nil":           nil,
 }
 
@@ -80,7 +81,7 @@ var structExample = ExampleStruct{
 	IntPointer:         &intExample,
 	intPointer:         &intExample,
 	Bytes:              byteSliceExample,
-	Map:                mapExmple,
+	Map:                mapExample,
 	Slice:              sliceExample,
 	slice:              &sliceExample,
 	StructValue:        ExStruct{},
@@ -115,6 +116,7 @@ func TestToIndirectReflectValue(t *testing.T) {
 		{Name: "reflect.Type: ExampleStruct", Input: reflect.TypeOf(structExample), Expect: Expect{Value: expectedRV, Type: expectedRT, Pointer: false}},
 		{Name: "reflect.Type: &ExampleStruct", Input: reflect.TypeOf(&structExample), Expect: Expect{Value: expectedRV, Type: expectedRT, Pointer: true}},
 		{Name: "reflect.Type: nil", Input: reflect.TypeOf(nil), Expect: Expect{Value: reflect.ValueOf(nil), Type: reflect.TypeOf(nil), Pointer: false}},
+		{Name: "map[string]any", Input: mapExample, Expect: Expect{Value: reflect.ValueOf(mapExample), Type: reflect.TypeOf(mapExample), Pointer: false}},
 	}
 	fmt.Printf("%-.200s\n", fmt.Sprintf("Test: ToIndirectReflectValue %-s", strings.Repeat("-", 200)))
 	// fmt.Println(fmt.Sprintf("%-50s", "Test: ToIndirectReflectValue"))

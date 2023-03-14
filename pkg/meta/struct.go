@@ -23,7 +23,9 @@ type Struct struct {
 	Children           []Structs // fields that are slices of structs with more than one member
 	Tags               map[string][]string
 	Parent             *Struct
-	pointer            bool // is the original variable a pointer
+	Container          reflect.Type // map, slice, or array Struct was 'wrapped' in, if applicable
+	// Data               any
+	pointer bool // is the original variable a pointer
 }
 
 func ToStruct(value any) (Struct, error) {
@@ -36,19 +38,49 @@ func ToStruct(value any) (Struct, error) {
 	if rt.Kind() != reflect.Struct {
 		return s, fmt.Errorf("invalid type: (%s) %s", rt.Kind(), rt)
 	}
+	switch {
+	case rt == nil:
+		return s, fmt.Errorf("invalid value: %v", value)
+	case rt.Kind() == reflect.Invalid:
+		return s, fmt.Errorf("invalid value: Kind() == reflect.Invalid: %v", value)
+	case rt.Kind() == reflect.Map:
 
+	case rt.Kind() == reflect.Slice:
+	case rt.Kind() == reflect.Array:
+	case rt.Kind() == reflect.Chan:
+	case rt.Kind() != reflect.Struct:
+		return s, fmt.Errorf("invalid type: (%s) %s", rt.Kind(), rt)
+	}
 	s = Struct{
 		Name:       rt.Name(),
 		Type:       rt,
 		Value:      rv,
 		Attributes: nil,
 		Fields:     ToFields(value),
-		pointer:    pointer,
+		// Data:       value,
+		pointer: pointer,
 		// UUID:       strings.ReplaceAll(uuid.NewString(), "-", ""),
 	}
 	s.NewUUID()
 
+	for i, field := range s.Fields {
+		if len(field.Struct.Fields) > 0 {
+			s.Fields[i].Struct.Parent = &s
+		}
+	}
+
 	return s, nil
+}
+
+func (s Struct) Childs() []Struct {
+	var ss []Struct
+
+	for i, field := range s.Fields {
+		if len(field.Struct.Fields) > 0 {
+			ss = append(ss, s.Fields[i].Struct)
+		}
+	}
+	return ss
 }
 
 // NewUUID creates a new UUID and set it recursively

@@ -26,6 +26,20 @@ func ToFields(value any) Fields {
 			continue
 		}
 		rfv, rft, rfPointer := ToIndirectReflectValue(rv.FieldByName(sf.Name))
+
+		switch {
+		case rfv.Kind() == reflect.Slice && rfv.Len() > 0:
+			// take rfv.Index(0)....
+		case rfv.Kind() == reflect.Slice && rfv.Len() < 1:
+			// ?rft.Elem()
+		case rfv.Kind() == reflect.Struct:
+			// use ToStruct as normal?
+		case rfv.Kind() == reflect.Map:
+			// use 
+		}
+		// if rfv.Kind() == reflect.Slice {
+		// 	rfv.Elem()
+		// }
 		s, _ := ToStruct(rfv)
 
 		sf.Type = rft

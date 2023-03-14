@@ -27,6 +27,10 @@ type Field struct {
 // 	RemoveExistingAttributes  bool
 // }
 
+func (f Field) IsStruct() bool {
+	return len(f.Struct.Fields) > 0
+}
+
 // Pointer returns true if its reflect.Kind is a reflect.Pointer
 func (f Field) Pointer() bool {
 	return f.StructField.Type.Kind() == reflect.Pointer

@@ -41,6 +41,7 @@ func TestToStruct(t *testing.T) {
 				fmt.Sprintf("%T", output),
 				err,
 			)
+			// fmt.Println(output.Childs().Names())
 			// fmt.Sprintf("%T(%d)", v.Expect, len(v.Expect)),
 		})
 	}
