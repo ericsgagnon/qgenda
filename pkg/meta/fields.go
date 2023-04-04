@@ -22,7 +22,7 @@ func ToFields(value any) Fields {
 
 	sfs := reflect.VisibleFields(rt)
 	for _, sf := range sfs {
-		if !sf.IsExported() {
+		if !sf.IsExported() || sf.Anonymous {
 			continue
 		}
 		rfv, rft, rfPointer := ToIndirectReflectValue(rv.FieldByName(sf.Name))
@@ -35,7 +35,7 @@ func ToFields(value any) Fields {
 		case rfv.Kind() == reflect.Struct:
 			// use ToStruct as normal?
 		case rfv.Kind() == reflect.Map:
-			// use 
+			// use
 		}
 		// if rfv.Kind() == reflect.Slice {
 		// 	rfv.Elem()

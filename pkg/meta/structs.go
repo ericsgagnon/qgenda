@@ -4,16 +4,97 @@ import (
 	"reflect"
 )
 
+// types of fields:
+// single values
+// collections of single values
+// single struct
+// collections of structs
+
 // type Structs []Struct
 
 // Structs represents a slice, array, map, or channel of Structs
 type Structs struct {
-	Value       reflect.Value
+	Name        string
 	Type        reflect.Type
+	Value       reflect.Value
+	Pointer     bool
 	IndexType   reflect.Type
 	ElementType reflect.Type
+	Index       any
 	Structs     []Struct
 }
+
+
+
+// func ToStructs(value any) (Structs, error) {
+// 	var s Structs
+// 	structs := []Struct{}
+// 	rv, rt, pointer := ToIndirectReflectValue(value)
+// 	var iType, eType reflect.Type
+// 	var index any
+
+// 	switch kind := rt.Kind(); {
+// 	case kind == reflect.Invalid:
+// 		return s, fmt.Errorf("invalid value: Kind() == reflect.Invalid: %v", value)
+// 	case kind == reflect.Chan:
+// 		// treat channel's a 0 length
+// 		fallthrough
+// 	case slices.Contains([]reflect.Kind{reflect.Slice, reflect.Array, reflect.Map, reflect.Chan}, kind) &&
+// 		rv.Len() == 0:
+// 	case kind == reflect.Map:
+// 		iter := rv.MapRange()
+// 		ind := []string{}
+// 		for iter.Next() {
+// iter.Key().Type()
+// 			str, err := ToStruct(iter.Value().Interface())
+// 			if str.Value.Kind() != reflect.Invalid && err != nil {
+// 				return s, err
+// 			}
+// 			// str.Name = iter.Key().String()
+// 			ind = append(ind, iter.Key().String())
+// 			structs = append(structs, str)
+// 		}
+// 		index = ind
+// 	case kind == reflect.Slice || kind == reflect.Array:
+// 		ind := []int{}
+// 		for i := 0; i < rv.Len(); i++ {
+// 			str, err := ToStruct(rv.Index(i).Interface())
+
+// 			if str.Value.Kind() != reflect.Invalid && err != nil {
+// 				return s, err
+// 			}
+// 			str.Name = i
+// 			children = append(children, child)
+// 		}
+// 	case kind == reflect.Struct:
+// 		for _, field := range reflect.VisibleFields(rt) {
+// 			if field.Anonymous || !field.IsExported() {
+// 				continue
+// 			}
+// 			fieldValue := rv.FieldByName(field.Name)
+// 			if fieldValue.Kind() == reflect.Invalid {
+// 				fieldValue = reflect.New(field.Type).Elem()
+// 			}
+// 			fmt.Println(field.Name, ":\t", fieldValue.Type())
+// 			child, err := ToValue(fieldValue.Interface())
+// 			if err != nil {
+// 				return v, err
+// 			}
+// 			// children[field.Name] = child
+// 			child.Name = field.Name
+// 			children = append(children, child)
+// 		}
+// 	default:
+// 	}
+// 	v = Value{
+// 		Type:     rt,
+// 		Value:    rv,
+// 		Pointer:  pointer,
+// 		Children: children,
+// 	}
+
+// 	return s, nil
+// }
 
 // func toStructs(value any) (Structs, error) {
 // 	var s Structs
@@ -89,13 +170,13 @@ type Structs struct {
 // 	return s, nil
 // }
 
-func (s Structs) Names() []string {
-	var names []string
-	for _, v := range s.Structs {
-		names = append(names, v.Name)
-	}
-	return names
-}
+// func (s Structs) Names() []string {
+// 	var names []string
+// 	for _, v := range s.Structs {
+// 		names = append(names, v.Name)
+// 	}
+// 	return names
+// }
 
 // set children:
 // name
