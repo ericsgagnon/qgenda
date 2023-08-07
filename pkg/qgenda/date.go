@@ -12,7 +12,7 @@ import (
 
 // Date wraps jackc/pgtype's Date, adds JSON un/marshaling support,
 // and allows string customization using Set/Layout(). By default, it
-// supports parsing a variety of time of day style strings and will encode to
+// supports parsing a variety of date style strings and will encode to
 // `2006-01-02` layout.
 type Date struct {
 	pgtype.Date
@@ -138,7 +138,7 @@ func ParseDate(s string) (Date, error) {
 
 func (d Date) String() string {
 	if d.Status != pgtype.Present {
-		return fmt.Sprintf("%s", time.Time{}.Format("2006-01-02"))
+		return time.Time{}.Format("2006-01-02")
 	}
 
 	layout := d.layout

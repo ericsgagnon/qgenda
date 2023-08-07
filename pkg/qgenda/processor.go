@@ -23,7 +23,6 @@ func AsProcessor[T any](a T) (Processor, error) {
 }
 
 func Process(a any) error {
-	// fmt.Printf("Process(%T): %s - initial\n", a, reflect.TypeOf(a).Kind())
 	switch {
 	case IsProcessor(a):
 		err := a.(Processor).Process()
@@ -182,57 +181,57 @@ func ProcessStruct(a any) error {
 	return nil
 }
 
-func ProcessStructFields(a any) {
-	fmt.Println("--------------------------------------------------------------------------")
-	v := reflect.ValueOf(a)
-	fmt.Printf("%T\n", v)
-	vi := reflect.Indirect(v)
-	fmt.Printf("%T\n", vi)
-	// reflect.ValueOf(&t).MethodByName("GFG").Call([]reflect.Value{})
-	fields := StructFields(a)
-	// for _, f := range fields {
-	for i := 0; i < v.NumField(); i++ {
-		// fmt.Println("--------------------------------------")
-		// sf := v.Type().Field(i)
-		f := v.Field(i) //.Addr()
-		f = reflect.Indirect(f)
-		if f.Kind() == reflect.Invalid || !f.CanSet() {
-			fmt.Printf("%#v\n", fields[i])
-		}
-		if f.Kind() == reflect.Slice {
-			// f = f.Elem()
-			// fmt.Printf("%#v\n", f)
-			ProcessSlice(f)
-		}
-		fmt.Printf("%T:  %s is settable: %t\n", a, f.Kind(), f.CanSet())
-		fmt.Println("--------------------------------------")
-		// fmt.Printf("%#v\n", f)
-		// if f.Kind() == reflect.Pointer {
-		// 	fv := f.Elem()
-		// 	fv = reflect.Indirect(fv)
-		// 	// fmt.Printf("%s: %#v\n", sf.Name, fv)
+// func ProcessStructFields(a any) {
+// 	fmt.Println("--------------------------------------------------------------------------")
+// 	v := reflect.ValueOf(a)
+// 	fmt.Printf("%T\n", v)
+// 	vi := reflect.Indirect(v)
+// 	fmt.Printf("%T\n", vi)
+// 	// reflect.ValueOf(&t).MethodByName("GFG").Call([]reflect.Value{})
+// 	fields := StructFields(a)
+// 	// for _, f := range fields {
+// 	for i := 0; i < v.NumField(); i++ {
+// 		// fmt.Println("--------------------------------------")
+// 		// sf := v.Type().Field(i)
+// 		f := v.Field(i) //.Addr()
+// 		f = reflect.Indirect(f)
+// 		if f.Kind() == reflect.Invalid || !f.CanSet() {
+// 			fmt.Printf("%#v\n", fields[i])
+// 		}
+// 		if f.Kind() == reflect.Slice {
+// 			// f = f.Elem()
+// 			// fmt.Printf("%#v\n", f)
+// 			ProcessSlice(f)
+// 		}
+// 		fmt.Printf("%T:  %s is settable: %t\n", a, f.Kind(), f.CanSet())
+// 		fmt.Println("--------------------------------------")
+// 		// fmt.Printf("%#v\n", f)
+// 		// if f.Kind() == reflect.Pointer {
+// 		// 	fv := f.Elem()
+// 		// 	fv = reflect.Indirect(fv)
+// 		// 	// fmt.Printf("%s: %#v\n", sf.Name, fv)
 
-		// 	// if f.IsNil() {
-		// 	// 	fmt.Printf("%T.%s is nil but settable: %t\n", a, f.Type(), fv.CanSet())
-		// 	// 	// fmt.Println(f.Addr())
-		// 	// 	fmt.Println("--------------------------------------")
-		// 	// 	continue
-		// 	// }
-		// 	fmt.Printf("%T.%s is settable: %t\n", a, fv.Type(), fv.CanSet())
-		// }
-		// fmt.Printf("%T.%s is settable: %t\n", a, f.Type(), (reflect.Indirect(f)).CanSet())
-		// fmt.Println("--------------------------------------")
+// 		// 	// if f.IsNil() {
+// 		// 	// 	fmt.Printf("%T.%s is nil but settable: %t\n", a, f.Type(), fv.CanSet())
+// 		// 	// 	// fmt.Println(f.Addr())
+// 		// 	// 	fmt.Println("--------------------------------------")
+// 		// 	// 	continue
+// 		// 	// }
+// 		// 	fmt.Printf("%T.%s is settable: %t\n", a, fv.Type(), fv.CanSet())
+// 		// }
+// 		// fmt.Printf("%T.%s is settable: %t\n", a, f.Type(), (reflect.Indirect(f)).CanSet())
+// 		// fmt.Println("--------------------------------------")
 
-		// fmt.Printf("%T is pointer: %t\n", a, f.Kind() == reflect.Pointer)
+// 		// fmt.Printf("%T is pointer: %t\n", a, f.Kind() == reflect.Pointer)
 
-		// f.MethodByName("Process").Call([]reflect.Value{})
-		// fv := v.FieldByName(f.Name)
+// 		// f.MethodByName("Process").Call([]reflect.Value{})
+// 		// fv := v.FieldByName(f.Name)
 
-		// fmt.Printf("%#v\n", fv)
-		// res := fv.MethodByName("Process").Call([]reflect.Value{})
-		// fmt.Println(res)
-		// fmt.Printf("%#v\n", f)
+// 		// fmt.Printf("%#v\n", fv)
+// 		// res := fv.MethodByName("Process").Call([]reflect.Value{})
+// 		// fmt.Println(res)
+// 		// fmt.Printf("%#v\n", f)
 
-	}
-	fmt.Printf("%s\n", vi.Type())
-}
+// 	}
+// 	fmt.Printf("%s\n", vi.Type())
+// }

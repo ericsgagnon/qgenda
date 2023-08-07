@@ -23,8 +23,8 @@ type DBClient interface {
 	CreateSchema(ctx context.Context, schema string) (sql.Result, error)
 	CreateTable(ctx context.Context, table Table) (sql.Result, error)
 	DropTable(ctx context.Context, table Table) (sql.Result, error)
-	InsertRows(ctx context.Context, data Dataset) (sql.Result, error)
-	QueryConstraints(ctx context.Context, data Dataset) error
+	// InsertRows(ctx context.Context, data Dataset) (sql.Result, error)
+	// QueryConstraints(ctx context.Context, data Dataset) error
 }
 
 // type DClient struct {
@@ -401,6 +401,16 @@ func FieldNames(fields []Field) []string {
 func JoinStringSlice(sep string, s []string) string {
 	return strings.Join(s, sep)
 }
+
+// func JoinStringSlices(sep string, s ...[]string) string {
+// 	ss := [][]string{}
+
+// 	for _, sj := range s {
+// 		for _, sji := range sj {
+
+// 		}
+// 	}
+// }
 
 // SQLResult combines any number of sql.Result's
 // note that this effectively collapses multiple results

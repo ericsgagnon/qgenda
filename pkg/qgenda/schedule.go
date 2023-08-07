@@ -6,77 +6,80 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"text/template"
 	"time"
 
-	"github.com/ericsgagnon/qgenda/pkg/meta"
+	// "github.com/ericsgagnon/qgenda/pkg/meta"
+	"github.com/exiledavatar/gotoolkit/meta"
+	"github.com/exiledavatar/gotoolkit/typemap"
 	"github.com/jmoiron/sqlx"
 )
 
 type Schedule struct {
 	// ------- metadata ------------------- //
-	RawMessage       *string `json:"-" db:"_raw_message"`
-	ProcessedMessage *string `json:"-" db:"_processed_message"` // RawMessage processed, omits 'message' metadata and 'noisy' fields (eg lastlogin)
-	SourceQuery      *string `json:"_source_query,omitempty" db:"_source_query"`
-	ExtractDateTime  *Time   `json:"_extract_date_time,omitempty" db:"_extract_date_time"`
-	IDHash           *string `json:"_id_hash,omitempty" db:"_id_hash"` // hash of identifying fields: schedulekey-lastmodifieddateutc (rfc3339nano)
+	RawMessage       *string `json:"-" db:"_raw_message" pgtype:"text"`
+	ProcessedMessage *string `json:"-" db:"_processed_message" pgtype:"text"` // RawMessage processed, omits 'message' metadata and 'noisy' fields (eg lastlogin)
+	SourceQuery      *string `json:"_source_query,omitempty" db:"_source_query" pgtype:"text"`
+	ExtractDateTime  *Time   `json:"_extract_date_time,omitempty" db:"_extract_date_time" pgtype:"text"`
+	IDHash           *string `json:"_id_hash,omitempty" db:"_id_hash" pgtype:"text" primarykey:"true"` // hash of identifying fields: schedulekey-lastmodifieddateutc (rfc3339nano)
 	// ------------------------------------ //
-	ScheduleKey            *string      `json:"ScheduleKey,omitempty" primarykey:"true" idhash:"true"`
-	CallRole               *string      `json:"CallRole,omitempty"`
-	CompKey                *string      `json:"CompKey,omitempty"`
-	Credit                 *float64     `json:"Credit,omitempty"`
-	Date                   *Date        `json:"Date,omitempty"`
-	StartDateUTC           *Time        `json:"StartDateUTC,omitempty"`
-	EndDateUTC             *Time        `json:"EndDateUTC,omitempty"`
-	EndDate                *Date        `json:"EndDate,omitempty"`
-	EndTime                *TimeOfDay   `json:"EndTime,omitempty"`
-	IsCred                 *bool        `json:"IsCred,omitempty"`
-	IsPublished            *bool        `json:"IsPublished,omitempty"`
-	IsLocked               *bool        `json:"IsLocked,omitempty"`
-	IsStruck               *bool        `json:"IsStruck,omitempty"`
-	Notes                  *string      `json:"Notes,omitempty"`
-	IsNotePrivate          *bool        `json:"IsNotePrivate,omitempty"`
-	StaffAbbrev            *string      `json:"StaffAbbrev,omitempty"`
-	StaffBillSysId         *string      `json:"StaffBillSysId,omitempty"`
-	StaffEmail             *string      `json:"StaffEmail,omitempty"`
-	StaffEmrId             *string      `json:"StaffEmrId,omitempty"`
-	StaffErpId             *string      `json:"StaffErpId,omitempty"`
-	StaffInternalId        *string      `json:"StaffInternalId,omitempty"`
-	StaffExtCallSysId      *string      `json:"StaffExtCallSysId,omitempty"`
-	StaffFName             *string      `json:"StaffFName,omitempty"`
-	StaffId                *string      `json:"StaffId,omitempty"`
-	StaffKey               *string      `json:"StaffKey,omitempty"`
-	StaffLName             *string      `json:"StaffLName,omitempty"`
-	StaffMobilePhone       *string      `json:"StaffMobilePhone,omitempty"`
-	StaffNpi               *string      `json:"StaffNpi,omitempty"`
-	StaffPager             *string      `json:"StaffPager,omitempty"`
-	StaffPayrollId         *string      `json:"StaffPayrollId,omitempty"`
-	StaffTags              ScheduleTags `json:"StaffTags,omitempty"`
-	StartDate              *Date        `json:"StartDate,omitempty"`
-	StartTime              *TimeOfDay   `json:"StartTime,omitempty"`
-	TaskAbbrev             *string      `json:"TaskAbbrev,omitempty"`
-	TaskBillSysId          *string      `json:"TaskBillSysId,omitempty"`
-	TaskContactInformation *string      `json:"TaskContactInformation,omitempty"`
-	TaskExtCallSysId       *string      `json:"TaskExtCallSysId,omitempty"`
-	TaskId                 *string      `json:"TaskId,omitempty"`
-	TaskKey                *string      `json:"TaskKey,omitempty"`
-	TaskName               *string      `json:"TaskName,omitempty"`
-	TaskPayrollId          *string      `json:"TaskPayrollId,omitempty"`
-	TaskEmrId              *string      `json:"TaskEmrId,omitempty"`
-	TaskCallPriority       *string      `json:"TaskCallPriority,omitempty"`
-	TaskDepartmentId       *string      `json:"TaskDepartmentId,omitempty"`
-	TaskIsPrintEnd         *bool        `json:"TaskIsPrintEnd,omitempty"`
-	TaskIsPrintStart       *bool        `json:"TaskIsPrintStart,omitempty"`
-	TaskShiftKey           *string      `json:"TaskShiftKey,omitempty"`
-	TaskType               *string      `json:"TaskType,omitempty"`
-	TaskTags               ScheduleTags `json:"TaskTags,omitempty"`
-	LocationName           *string      `json:"LocationName,omitempty"`
-	LocationAbbrev         *string      `json:"LocationAbbrev,omitempty"`
-	LocationID             *string      `json:"LocationID,omitempty"`
-	LocationAddress        *string      `json:"LocationAddress,omitempty"`
-	TimeZone               *string      `json:"TimeZone,omitempty"`
-	LastModifiedDateUTC    *Time        `json:"LastModifiedDateUTC,omitempty" primarykey:"true" querycondition:"ge" qf:"SinceModifiedTimestamp" idhash:"true"`
-	LocationTags           ScheduleTags `json:"LocationTags,omitempty"`
-	IsRotationTask         *bool        `json:"IsRotationTask"`
+	ScheduleKey            *string      `json:"ScheduleKey,omitempty" db:"schedulekey" pgtype:"text" idhash:"true"`
+	CallRole               *string      `json:"CallRole,omitempty" db:"callrole" pgtype:"text"`
+	CompKey                *string      `json:"CompKey,omitempty" db:"compkey" pgtype:"text"`
+	Credit                 *float64     `json:"Credit,omitempty" db:"credit" pgtype:"numeric"`
+	Date                   *Date        `json:"Date,omitempty" db:"date" pgtype:"date"`
+	StartDateUTC           *Time        `json:"StartDateUTC,omitempty" db:"startdateutc" pgtype:"timestamp with time zone"`
+	EndDateUTC             *Time        `json:"EndDateUTC,omitempty" db:"enddateutc" pgtype:"timestamp with time zone"`
+	EndDate                *Date        `json:"EndDate,omitempty" db:"enddate" pgtype:"date"`
+	EndTime                *TimeOfDay   `json:"EndTime,omitempty" db:"endtime" pgtype:"time without time zone"`
+	IsCred                 *bool        `json:"IsCred,omitempty" db:"iscred" pgtype:"boolean"`
+	IsPublished            *bool        `json:"IsPublished,omitempty" db:"ispublished" pgtype:"boolean"`
+	IsLocked               *bool        `json:"IsLocked,omitempty" db:"islocked" pgtype:"boolean"`
+	IsStruck               *bool        `json:"IsStruck,omitempty" db:"isstruck" pgtype:"boolean"`
+	Notes                  *string      `json:"Notes,omitempty" db:"notes" pgtype:"text"`
+	IsNotePrivate          *bool        `json:"IsNotePrivate,omitempty" db:"isnoteprivate" pgtype:"boolean"`
+	StaffAbbrev            *string      `json:"StaffAbbrev,omitempty" db:"staffabbrev" pgtype:"text"`
+	StaffBillSysId         *string      `json:"StaffBillSysId,omitempty" db:"staffbillsysid" pgtype:"text"`
+	StaffEmail             *string      `json:"StaffEmail,omitempty" db:"staffemail" pgtype:"text"`
+	StaffEmrId             *string      `json:"StaffEmrId,omitempty" db:"staffemrid" pgtype:"text"`
+	StaffErpId             *string      `json:"StaffErpId,omitempty" db:"stafferpid" pgtype:"text"`
+	StaffInternalId        *string      `json:"StaffInternalId,omitempty" db:"staffinternalid" pgtype:"text"`
+	StaffExtCallSysId      *string      `json:"StaffExtCallSysId,omitempty" db:"staffextcallsysid" pgtype:"text"`
+	StaffFName             *string      `json:"StaffFName,omitempty" db:"stafffname" pgtype:"text"`
+	StaffId                *string      `json:"StaffId,omitempty" db:"staffid" pgtype:"text"`
+	StaffKey               *string      `json:"StaffKey,omitempty" db:"staffkey" pgtype:"text"`
+	StaffLName             *string      `json:"StaffLName,omitempty" db:"stafflname" pgtype:"text"`
+	StaffMobilePhone       *string      `json:"StaffMobilePhone,omitempty" db:"staffmobilephone" pgtype:"text"`
+	StaffNpi               *string      `json:"StaffNpi,omitempty" db:"staffnpi" pgtype:"text"`
+	StaffPager             *string      `json:"StaffPager,omitempty" db:"staffpager" pgtype:"text"`
+	StaffPayrollId         *string      `json:"StaffPayrollId,omitempty" db:"staffpayrollid" pgtype:"text"`
+	StaffTags              ScheduleTags `json:"StaffTags,omitempty" db:"stafftags" pgtype:"jsonb"`
+	StartDate              *Date        `json:"StartDate,omitempty" db:"startdate" pgtype:"date"`
+	StartTime              *TimeOfDay   `json:"StartTime,omitempty" db:"starttime" pgtype:"time without time zone"`
+	TaskAbbrev             *string      `json:"TaskAbbrev,omitempty" db:"taskabbrev" pgtype:"text"`
+	TaskBillSysId          *string      `json:"TaskBillSysId,omitempty" db:"taskbillsysid" pgtype:"text"`
+	TaskContactInformation *string      `json:"TaskContactInformation,omitempty" db:"taskcontactinformation" pgtype:"text"`
+	TaskExtCallSysId       *string      `json:"TaskExtCallSysId,omitempty" db:"taskextcallsysid" pgtype:"text"`
+	TaskId                 *string      `json:"TaskId,omitempty" db:"taskid" pgtype:"text"`
+	TaskKey                *string      `json:"TaskKey,omitempty" db:"taskkey" pgtype:"text"`
+	TaskName               *string      `json:"TaskName,omitempty" db:"taskname" pgtype:"text"`
+	TaskPayrollId          *string      `json:"TaskPayrollId,omitempty" db:"taskpayrollid" pgtype:"text"`
+	TaskEmrId              *string      `json:"TaskEmrId,omitempty" db:"taskemrid" pgtype:"text"`
+	TaskCallPriority       *string      `json:"TaskCallPriority,omitempty" db:"taskcallpriority" pgtype:"text"`
+	TaskDepartmentId       *string      `json:"TaskDepartmentId,omitempty" db:"taskdepartmentid" pgtype:"text"`
+	TaskIsPrintEnd         *bool        `json:"TaskIsPrintEnd,omitempty" db:"taskisprintend" pgtype:"boolean"`
+	TaskIsPrintStart       *bool        `json:"TaskIsPrintStart,omitempty" db:"taskisprintstart" pgtype:"boolean"`
+	TaskShiftKey           *string      `json:"TaskShiftKey,omitempty" db:"taskshiftkey" pgtype:"text"`
+	TaskType               *string      `json:"TaskType,omitempty" db:"tasktype" pgtype:"text"`
+	TaskTags               ScheduleTags `json:"TaskTags,omitempty" db:"tasktags" pgtype:"jsonb"`
+	LocationName           *string      `json:"LocationName,omitempty" db:"locationname" pgtype:"text"`
+	LocationAbbrev         *string      `json:"LocationAbbrev,omitempty" db:"locationabbrev" pgtype:"text"`
+	LocationID             *string      `json:"LocationID,omitempty" db:"locationid" pgtype:"text"`
+	LocationAddress        *string      `json:"LocationAddress,omitempty" db:"locationaddress" pgtype:"text"`
+	TimeZone               *string      `json:"TimeZone,omitempty" db:"timezone" pgtype:"text"`
+	LastModifiedDateUTC    *Time        `json:"LastModifiedDateUTC,omitempty" querycondition:"ge" qf:"SinceModifiedTimestamp" idhash:"true" db:"lastmodifieddateutc" pgtype:"timestamp with time zone"`
+	LocationTags           ScheduleTags `json:"LocationTags,omitempty" db:"locationtags" pgtype:"jsonb"`
+	IsRotationTask         *bool        `json:"IsRotationTask" db:"isrotationtask" pgtype:"boolean"`
 }
 
 // UnmarshalJSON fulfils the json.Unmarshaler interface and
@@ -127,24 +130,20 @@ func (s *Schedule) Process() error {
 	if err := ProcessStruct(s); err != nil {
 		return fmt.Errorf("error processing %T:\t%q", s, err)
 	}
+	if err := s.SetIDHash(); err != nil {
+		return err
+	}
 
 	if len(s.StaffTags) > 0 {
 		for i, _ := range s.StaffTags {
 			s.StaffTags[i].ExtractDateTime = s.ExtractDateTime
 			s.StaffTags[i].ScheduleKey = s.ScheduleKey
 			s.StaffTags[i].LastModifiedDateUTC = s.LastModifiedDateUTC
-			// if err := s.StaffTags[i].Process(); err != nil {
-			// 	return err
-			// }
+			s.StaffTags[i].ScheduleIDHash = s.IDHash
 		}
 		if err := s.StaffTags.Process(); err != nil {
 			return err
 		}
-		// sortScheduleTagsSlice(s.StaffTags)
-		// sort.SliceStable(s.StaffTags, func(i, j int) bool {
-		// 	return *(s.StaffTags[i].CategoryKey) < *(s.StaffTags[j].CategoryKey)
-		// })
-
 	}
 
 	// process TaskTags
@@ -153,19 +152,11 @@ func (s *Schedule) Process() error {
 			s.TaskTags[i].ExtractDateTime = s.ExtractDateTime
 			s.TaskTags[i].ScheduleKey = s.ScheduleKey
 			s.TaskTags[i].LastModifiedDateUTC = s.LastModifiedDateUTC
-			// if err := s.TaskTags[i].Process(); err != nil {
-			// 	return err
-			// }
+			s.TaskTags[i].ScheduleIDHash = s.IDHash
 		}
 		if err := s.TaskTags.Process(); err != nil {
 			return err
 		}
-
-		// sortScheduleTagsSlice(s.TaskTags)
-		// sort.SliceStable(s.TaskTags, func(i, j int) bool {
-		// 	return *(s.TaskTags[i].CategoryKey) < *(s.TaskTags[j].CategoryKey)
-		// })
-
 	}
 
 	// process LocationTags
@@ -174,23 +165,13 @@ func (s *Schedule) Process() error {
 			s.LocationTags[i].ExtractDateTime = s.ExtractDateTime
 			s.LocationTags[i].ScheduleKey = s.ScheduleKey
 			s.LocationTags[i].LastModifiedDateUTC = s.LastModifiedDateUTC
-			// if err := s.LocationTags[i].Process(); err != nil {
-			// 	return err
-			// }
+			s.LocationTags[i].ScheduleIDHash = s.IDHash
 		}
 		if err := s.LocationTags.Process(); err != nil {
 			return err
 		}
-		// sortScheduleTagsSlice(s.LocationTags)
-		// sort.SliceStable(s.LocationTags, func(i, j int) bool {
-		// 	return *(s.LocationTags[i].CategoryKey) < *(s.LocationTags[j].CategoryKey)
-		// })
-
 	}
 	if err := s.SetMessage(); err != nil {
-		return err
-	}
-	if err := s.SetIDHash(); err != nil {
 		return err
 	}
 	return nil
@@ -221,12 +202,8 @@ func (s *Schedule) SetMessage() error {
 // SetIDHash takes the hash of the json encoded fields that (should) uniquely identify this instance
 // for schedule, this is schedulekey, lastmodifieddateutc (in rfc3339 with nano precision)
 func (s *Schedule) SetIDHash() error {
-	if s.ProcessedMessage == nil {
-		return fmt.Errorf("ProcessedMessage is empty, cannot hash")
-	}
-	vm := meta.ToValueMap(*s, "idhash")
-	h := vm.Hash()
-	s.IDHash = &h
+	idh := meta.ToValueMap(*s, "idhash").Hash()
+	s.IDHash = &idh
 	return nil
 }
 
@@ -261,6 +238,94 @@ func NewScheduleRequestConfig(rc *RequestConfig) *RequestConfig {
 func NewScheduleRequest(rc *RequestConfig) *Request {
 	rc = NewScheduleRequestConfig(rc)
 	return NewRequest(rc)
+}
+
+func (s Schedule) CreateTable(ctx context.Context, db *sqlx.DB, schema, table string) (sql.Result, error) {
+
+	str, err := meta.ToStruct(s)
+	if err != nil {
+		return nil, err
+	}
+
+	tx, err := db.BeginTxx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	tpl := `{{- "\n" -}}
+	CREATE TABLE IF NOT EXISTS {{ .Schema -}}{{- if ne .Schema "" -}}.{{- end -}}{{- .Table }} (
+		{{- $names := .Struct.Fields.TagNames "db" -}}
+		{{- $types := .Struct.Fields.FirstTagValues "pgtype" -}}
+		{{- $columnDefs := joinslices "\t" ",\n\t" $names $types -}}
+		{{- print "\n\t" $columnDefs -}}
+		{{- $primarykeyfields := .Struct.Fields.WithTagTrue "primarykey" -}}
+		{{- $primarykey := $primarykeyfields.TagNames "db" | join ", " -}}
+		{{- if ne $primarykey "" -}}{{- printf ",\n\tPRIMARY KEY ( %s )" $primarykey -}}{{- end -}}
+		{{- "\n)" -}}
+	`
+	funcs := template.FuncMap{
+		// "gotopgtype": qgenda.GoToPGType,
+		// "joinslices": meta.JoinSlices,
+	}
+
+	data := map[string]any{
+		"postgres": typemap.TypeMaps["postgres"].ToType,
+		"Schema":   schema,
+		"Table":    table,
+	}
+
+	query, err := str.ExecuteTemplate(tpl, funcs, data)
+	if err != nil {
+		return nil, err
+	}
+
+	if result, err := tx.ExecContext(ctx, query); err != nil {
+		return result, err
+	}
+
+	// child tables
+	// child types are all ScheduleTag
+	str, err = meta.ToStruct(ScheduleTag{})
+	if err != nil {
+		return nil, err
+	}
+
+	// StaffTags
+	data["Table"] = table + "stafftag"
+	query, err = str.ExecuteTemplate(tpl, funcs, data)
+	if err != nil {
+		return nil, err
+	}
+	if result, err := tx.ExecContext(ctx, query); err != nil {
+		return result, err
+	}
+
+	// TaskTags
+	data["Table"] = table + "tasktag"
+	query, err = str.ExecuteTemplate(tpl, funcs, data)
+	if err != nil {
+		return nil, err
+	}
+	if result, err := tx.ExecContext(ctx, query); err != nil {
+		return result, err
+	}
+
+	// LocationTags
+	data["Table"] = table + "locationtag"
+	query, err = str.ExecuteTemplate(tpl, funcs, data)
+	if err != nil {
+		return nil, err
+	}
+	result, err := tx.ExecContext(ctx, query)
+	if err != nil {
+		return result, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }
 
 func (s Schedule) PGCreateTable(ctx context.Context, tx *sqlx.Tx, schema, tablename string, temporary bool, id string) (sql.Result, error) {

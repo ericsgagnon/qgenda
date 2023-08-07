@@ -2,21 +2,42 @@ package qgenda
 
 import (
 	"encoding/json"
+	"fmt"
 	"sort"
+
+	"github.com/exiledavatar/gotoolkit/meta"
 )
 
 type ScheduleTag struct {
-	ExtractDateTime     *Time   `json:"-" db:"_extract_date_time"`
-	LastModifiedDateUTC *Time   `json:"-" db:"lastmodifieddateutc"`
-	ScheduleKey         *string `json:"-" db:"schedulekey"`
-	CategoryKey         *int64  `json:"-" db:"categorykey"`
-	CategoryName        *string `json:"-" db:"categoryname"`
-	TagKey              *int64  `json:"Key" db:"tagkey"`
-	TagName             *string `json:"Name" db:"tagname"`
+	ExtractDateTime *Time   `json:"-" db:"_extract_date_time" pgtype:"timestamp with time zone"`
+	ScheduleIDHash  *string `json:"-" db:"_schedule_id_hash" pgtype:"text"`
+	IDHash          *string `json:"-" db:"_id_hash" pgtype:"text" primarykey:"true"` // hash of identifying fields: schedulekey-lastmodifieddateutc (rfc3339nano)
+	// --
+	LastModifiedDateUTC *Time   `json:"-" db:"lastmodifieddateutc" idhash:"true" pgtype:"timestamp with time zone"`
+	ScheduleKey         *string `json:"-" db:"schedulekey" idhash:"true" pgtype:"text"`
+	CategoryKey         *int64  `json:"-" db:"categorykey" idhash:"true" pgtype:"bigint"`
+	CategoryName        *string `json:"-" db:"categoryname" pgtype:"text"`
+	TagKey              *int64  `json:"Key" db:"tagkey" idhash:"true" pgtype:"bigint"`
+	TagName             *string `json:"Name" db:"tagname" pgtype:"text"`
 }
 
+// Process should be run as part of Schedule.Process and after
+// necessary fields from Schedule have been copied to ScheduleTag
 func (st *ScheduleTag) Process() error {
-	return ProcessStruct(st)
+	if //st.ExtractDateTime == nil ||
+	st.ScheduleKey == nil ||
+		st.LastModifiedDateUTC == nil ||
+		st.ScheduleIDHash == nil {
+		return fmt.Errorf("cannot process ScheduleTag until ExtractDateTime, ScheduleKey, LastModifiedDateUTC, ScheduleIDHash are set")
+	}
+
+	if err := ProcessStruct(st); err != nil {
+		return err
+	}
+
+	idh := meta.ToValueMap(*st, "idhash").Hash()
+	st.IDHash = &idh
+	return nil
 }
 
 type ScheduleTags []ScheduleTag

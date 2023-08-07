@@ -1,6 +1,7 @@
 package qgenda
 
 import (
+	"crypto/sha1"
 	"fmt"
 	"log"
 	"os"
@@ -10,15 +11,19 @@ import (
 	"time"
 )
 
-func Value[T any](a *T) T {
-	return *a
+func Hash[V []byte | string](b V) string {
+	return fmt.Sprintf("%x", sha1.Sum([]byte(b)))
 }
 
-// Pointer simply returns a pointer to a value. It is useful
-// when using literals for pointer assignments.
-func Pointer[T any](t T) *T {
-	return &t
-}
+// func Value[T any](a *T) T {
+// 	return *a
+// }
+
+// // Pointer simply returns a pointer to a value. It is useful
+// // when using literals for pointer assignments.
+// func Pointer[T any](t T) *T {
+// 	return &t
+// }
 
 func ToSlice[T any](a T) []any {
 	v := reflect.ValueOf(a)
@@ -104,25 +109,23 @@ func MapToAny[M map[K]V, T any, K comparable, V any](m M, a T) T {
 }
 
 // IndirectReflectionValue attempts to convert a to
-// an indirect reflection value and return it
+// an indirect reflection value, dereference it, and return it
 func IndirectReflectionValue(a any) reflect.Value {
-	var v reflect.Value
-	if reflect.ValueOf(a).Type().String() != "reflect.Value" {
-		v = reflect.ValueOf(a)
-	} else { // reflect.Value.Type == "reflect.Value"
-		v = a.(reflect.Value)
+	rv, ok := a.(reflect.Value)
+	if !ok {
+		rv = reflect.ValueOf(a)
 	}
-	if v.Kind() == reflect.Pointer {
-		v = reflect.Indirect(v)
+	if rv.Kind() == reflect.Pointer {
+		return reflect.Indirect(rv)
 	}
-	return v
+	return rv
 }
 
-// IndirectReflectionKind attempts to convert a to
-// an indirect reflection kind and return it
-func IndirectReflectionKind(a any) reflect.Kind {
-	return IndirectReflectionValue(a).Kind()
-}
+// // IndirectReflectionKind attempts to convert a to
+// // an indirect reflection kind and return it
+// func IndirectReflectionKind(a any) reflect.Kind {
+// 	return IndirectReflectionValue(a).Kind()
+// }
 
 // IsKind returns true if a's reflect.Kind == t
 func IsKind(a any, t string) bool {

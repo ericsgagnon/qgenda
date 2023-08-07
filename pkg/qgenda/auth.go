@@ -85,7 +85,7 @@ func AuthTokenFromCacheFile(cf *CacheFile) (*AuthToken, error) {
 		return nil, err
 	}
 	if !tkn.Valid() {
-		return nil, ErrNope
+		return nil, fmt.Errorf("authtoken invalid")
 	}
 	return tkn, nil
 }
