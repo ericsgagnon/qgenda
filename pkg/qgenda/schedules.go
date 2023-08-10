@@ -1,10 +1,12 @@
 package qgenda
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"io"
 	"log"
 	"os"
@@ -406,6 +408,50 @@ func (s Schedules) PGInsertRows(ctx context.Context, tx *sqlx.Tx, schema, tablen
 
 	// fmt.Println("finished inserting to permanent table?")
 	return res, nil
+}
+
+func (s Schedules) InsertPG(ctx context.Context, db *sqlx.DB, schema, table string) (sql.Result, error) {
+	if len(s) < 1 {
+		return nil, fmt.Errorf("%T.PGInsertRows: length of %T < 1, nothing to do", s, s)
+	}
+
+	if schema == "" {
+		schema = "qgenda"
+	}
+	if table == "" {
+		table = "schedule"
+	}
+
+	// create target tables: schedule, schedulestafftag, scheduletasktag, schedulelocationtag
+	result, err := Schedule{}.CreateTable(ctx, db, schema, table)
+	if err != nil {
+		return result, err
+	}
+	// tx, err := db.BeginTx(ctx, nil)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// create temp tables
+	tpl := `create temporary table _tmp_{{- .Struct.Name | tolower -}} like {{ .Schema -}}{{- if ne .Schema "" -}}.{{- end -}}{{- .Table }}`
+	data := map[string]any{
+		"Schema": schema,
+		"Table":  table,
+	}
+
+	parsedTpl, err := template.
+		New("").
+		Parse(tpl)
+	if err != nil {
+		return nil, err
+	}
+
+	var buf bytes.Buffer
+	if err := parsedTpl.Execute(&buf, data); err != nil {
+		return nil, err
+	}
+
+	return nil, err
 }
 
 func (s *Schedules) EPL(ctx context.Context, c *Client, rc *RequestConfig,

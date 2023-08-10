@@ -12,14 +12,14 @@ require (
 	github.com/spf13/viper v1.10.1
 	github.com/urfave/cli/v2 v2.3.0
 	go.uber.org/zap v1.21.0
-	golang.org/x/exp v0.0.0-20230801115018-d63ba01acd4b
+	golang.org/x/exp v0.0.0-20230810033253-352e893a4cad
 	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
 	github.com/cpuguy83/go-md2man/v2 v2.0.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/exiledavatar/gotoolkit v0.0.0-20230802164310-51000ce8d506 // indirect
+	github.com/exiledavatar/gotoolkit v0.0.0-20230810164141-ee610718c516 // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/jackc/chunkreader/v2 v2.0.1 // indirect

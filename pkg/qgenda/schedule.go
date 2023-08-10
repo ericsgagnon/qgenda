@@ -53,7 +53,7 @@ type Schedule struct {
 	StaffNpi               *string      `json:"StaffNpi,omitempty" db:"staffnpi" pgtype:"text"`
 	StaffPager             *string      `json:"StaffPager,omitempty" db:"staffpager" pgtype:"text"`
 	StaffPayrollId         *string      `json:"StaffPayrollId,omitempty" db:"staffpayrollid" pgtype:"text"`
-	StaffTags              ScheduleTags `json:"StaffTags,omitempty" db:"stafftags" pgtype:"jsonb"`
+	StaffTags              ScheduleTags `json:"StaffTags,omitempty" db:"stafftags" pgtype:"jsonb" table:"schedulestafftag"`
 	StartDate              *Date        `json:"StartDate,omitempty" db:"startdate" pgtype:"date"`
 	StartTime              *TimeOfDay   `json:"StartTime,omitempty" db:"starttime" pgtype:"time without time zone"`
 	TaskAbbrev             *string      `json:"TaskAbbrev,omitempty" db:"taskabbrev" pgtype:"text"`
@@ -71,14 +71,14 @@ type Schedule struct {
 	TaskIsPrintStart       *bool        `json:"TaskIsPrintStart,omitempty" db:"taskisprintstart" pgtype:"boolean"`
 	TaskShiftKey           *string      `json:"TaskShiftKey,omitempty" db:"taskshiftkey" pgtype:"text"`
 	TaskType               *string      `json:"TaskType,omitempty" db:"tasktype" pgtype:"text"`
-	TaskTags               ScheduleTags `json:"TaskTags,omitempty" db:"tasktags" pgtype:"jsonb"`
+	TaskTags               ScheduleTags `json:"TaskTags,omitempty" db:"tasktags" pgtype:"jsonb" table:"scheduletasktag"`
 	LocationName           *string      `json:"LocationName,omitempty" db:"locationname" pgtype:"text"`
 	LocationAbbrev         *string      `json:"LocationAbbrev,omitempty" db:"locationabbrev" pgtype:"text"`
 	LocationID             *string      `json:"LocationID,omitempty" db:"locationid" pgtype:"text"`
 	LocationAddress        *string      `json:"LocationAddress,omitempty" db:"locationaddress" pgtype:"text"`
 	TimeZone               *string      `json:"TimeZone,omitempty" db:"timezone" pgtype:"text"`
 	LastModifiedDateUTC    *Time        `json:"LastModifiedDateUTC,omitempty" querycondition:"ge" qf:"SinceModifiedTimestamp" idhash:"true" db:"lastmodifieddateutc" pgtype:"timestamp with time zone"`
-	LocationTags           ScheduleTags `json:"LocationTags,omitempty" db:"locationtags" pgtype:"jsonb"`
+	LocationTags           ScheduleTags `json:"LocationTags,omitempty" db:"locationtags" pgtype:"jsonb" table:"schedulestafftag"`
 	IsRotationTask         *bool        `json:"IsRotationTask" db:"isrotationtask" pgtype:"boolean"`
 }
 
@@ -242,18 +242,37 @@ func NewScheduleRequest(rc *RequestConfig) *Request {
 
 func (s Schedule) CreateTable(ctx context.Context, db *sqlx.DB, schema, table string) (sql.Result, error) {
 
-	str, err := meta.ToStruct(s)
+	// str, err := meta.ToStruct(s)
+	structConfig := meta.Structconfig{
+		NameSpace: []string{schema},
+		Name:      table,
+	}
+	fmt.Printf("\n\nmeta.StructConfig:\n%#v\n\n\n\n", structConfig)
+
+	str, err := meta.NewStruct(s, meta.Structconfig{
+		NameSpace: []string{schema},
+		Name:      table,
+	})
 	if err != nil {
 		return nil, err
 	}
+
+	fmt.Printf("\n\nmeta.Struct(Schedule):\n%#v\n\n\n", str)
 
 	tx, err := db.BeginTxx(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
 
+	result, err := tx.ExecContext(ctx, fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s", str.NameSpace[0]))
+	if err != nil {
+		return result, err
+	}
+
+	// {{- $schema := ( index .Struct.NameSpace 0 ) | tolower -}}
+	// {{- if ne $schema "" -}}.{{- end -}}{{- .Table }}
 	tpl := `{{- "\n" -}}
-	CREATE TABLE IF NOT EXISTS {{ .Schema -}}{{- if ne .Schema "" -}}.{{- end -}}{{- .Table }} (
+	CREATE TABLE IF NOT EXISTS {{ .Struct.Identifier }} (
 		{{- $names := .Struct.Fields.TagNames "db" -}}
 		{{- $types := .Struct.Fields.FirstTagValues "pgtype" -}}
 		{{- $columnDefs := joinslices "\t" ",\n\t" $names $types -}}
@@ -270,56 +289,112 @@ func (s Schedule) CreateTable(ctx context.Context, db *sqlx.DB, schema, table st
 
 	data := map[string]any{
 		"postgres": typemap.TypeMaps["postgres"].ToType,
-		"Schema":   schema,
-		"Table":    table,
+		// "Schema":   schema,
+		// "Table":    table,
 	}
 
 	query, err := str.ExecuteTemplate(tpl, funcs, data)
 	if err != nil {
 		return nil, err
 	}
-
+	fmt.Println(query)
 	if result, err := tx.ExecContext(ctx, query); err != nil {
 		return result, err
 	}
 
 	// child tables
-	// child types are all ScheduleTag
-	str, err = meta.ToStruct(ScheduleTag{})
-	if err != nil {
-		return nil, err
-	}
+	// fields := str.Fields().ByKinds(reflect.Slice)
 
-	// StaffTags
-	data["Table"] = table + "stafftag"
-	query, err = str.ExecuteTemplate(tpl, funcs, data)
-	if err != nil {
-		return nil, err
-	}
-	if result, err := tx.ExecContext(ctx, query); err != nil {
-		return result, err
-	}
+	// // StaffTags
+	// str, err = fields.ByNames("StaffTags")[0].ElementToStruct()
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// // change name to single value
+	// str.Name = table + "stafftag"
+	// query, err = str.ExecuteTemplate(tpl, funcs, data)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// if result, err := tx.ExecContext(ctx, query); err != nil {
+	// 	return result, err
+	// }
+	// fmt.Printf("--------------------------------------------------\n%s\n\n", query)
+	// ---------------------------------------------------------------------------
+	// children := fields.ByNames("StaffTags", "TaskTags", "LocationTags")
+	// re := regexp.MustCompile(`(?i)s$`)
+	// for _, child := range children {
+	// 	childStruct, err := child.ElementToStruct()
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	// we want to use singular forms instead of plural for our table names,
+	// 	// luckily we can just remove the s for these children
+	// 	name := re.ReplaceAllString(childStruct.Name, "")
+	// 	childStruct.Name = table + name
+	// 	query, err := childStruct.ExecuteTemplate(tpl, funcs, data)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	if result, err := tx.ExecContext(ctx, query); err != nil {
+	// 		return result, err
+	// 	}
+	// 	fmt.Printf("--------------------------------------------------\n%s\n\n", query)
+	// }
 
-	// TaskTags
-	data["Table"] = table + "tasktag"
-	query, err = str.ExecuteTemplate(tpl, funcs, data)
-	if err != nil {
-		return nil, err
-	}
-	if result, err := tx.ExecContext(ctx, query); err != nil {
-		return result, err
-	}
+	// fmt.Println(fields.TagNames("table"))
+	// fmt.Println(str.Fields().WithTagTrue("table"))
+	// fmt.Println(str.Fields().WithTagTrue("table"))
 
-	// LocationTags
-	data["Table"] = table + "locationtag"
-	query, err = str.ExecuteTemplate(tpl, funcs, data)
-	if err != nil {
-		return nil, err
+	children := str.Fields().WithTagTrue("table")
+	for _, child := range children {
+		childStruct, err := child.ElementToStruct()
+		if err != nil {
+			return nil, err
+		}
+		childStruct.Name = child.TagName("table")
+		query, err := childStruct.ExecuteTemplate(tpl, funcs, data)
+		if err != nil {
+			return nil, err
+		}
+		if result, err := tx.ExecContext(ctx, query); err != nil {
+			return result, err
+		}
+		fmt.Printf("--------------------------------------------------\n%s\n\n", query)
+
 	}
-	result, err := tx.ExecContext(ctx, query)
-	if err != nil {
-		return result, err
-	}
+	//---------------------------------------------------------------------------
+	// // TaskTags
+	// str, err = fields.ByNames("TaskTags")[0].ElementToStruct()
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// // change name to single value
+	// str.Name = table + "tasktag"
+	// query, err = str.ExecuteTemplate(tpl, funcs, data)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// if result, err := tx.ExecContext(ctx, query); err != nil {
+	// 	return result, err
+	// }
+	// fmt.Printf("--------------------------------------------------\n%s\n\n", query)
+
+	// // LocationTags
+	// str, err = fields.ByNames("LocationTags")[0].ElementToStruct()
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// // change name to single value
+	// str.Name = table + "locationtag"
+	// query, err = str.ExecuteTemplate(tpl, funcs, data)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// if result, err := tx.ExecContext(ctx, query); err != nil {
+	// 	return result, err
+	// }
+	// fmt.Printf("--------------------------------------------------\n%s\n\n", query)
 
 	if err := tx.Commit(); err != nil {
 		return nil, err

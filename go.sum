@@ -38,6 +38,16 @@ github.com/exiledavatar/gotoolkit v0.0.0-20230801144425-a43100530d7e h1:b0zgznAd
 github.com/exiledavatar/gotoolkit v0.0.0-20230801144425-a43100530d7e/go.mod h1:UIgJ3JHS6FLEPyezVE1qJWGHaQjZHsz6MXRHgwuGvUQ=
 github.com/exiledavatar/gotoolkit v0.0.0-20230802164310-51000ce8d506 h1:PeLE+3yJrSEAHCreaBFEoza7QQ5GMU+gLAY9Kss5TI4=
 github.com/exiledavatar/gotoolkit v0.0.0-20230802164310-51000ce8d506/go.mod h1:UIgJ3JHS6FLEPyezVE1qJWGHaQjZHsz6MXRHgwuGvUQ=
+github.com/exiledavatar/gotoolkit v0.0.0-20230809002605-9fa21bf5da5e h1:Z4+ejuHmSzRtXz5hMksZgy1yqW8bHUfIwl/oOxStw+c=
+github.com/exiledavatar/gotoolkit v0.0.0-20230809002605-9fa21bf5da5e/go.mod h1:UIgJ3JHS6FLEPyezVE1qJWGHaQjZHsz6MXRHgwuGvUQ=
+github.com/exiledavatar/gotoolkit v0.0.0-20230809060944-ef280f93aab7 h1:nffG3vIvW2F0JPI/AXwoDQlJDtQlXulYSWdkpuoQxTs=
+github.com/exiledavatar/gotoolkit v0.0.0-20230809060944-ef280f93aab7/go.mod h1:UIgJ3JHS6FLEPyezVE1qJWGHaQjZHsz6MXRHgwuGvUQ=
+github.com/exiledavatar/gotoolkit v0.0.0-20230809062139-6c3e55ece2a6 h1:aePK45Jn9tEpJtlS6gB6cjknkFXlwj6nLbD7/+BSpnY=
+github.com/exiledavatar/gotoolkit v0.0.0-20230809062139-6c3e55ece2a6/go.mod h1:UIgJ3JHS6FLEPyezVE1qJWGHaQjZHsz6MXRHgwuGvUQ=
+github.com/exiledavatar/gotoolkit v0.0.0-20230809064026-5a4f8d2c7c4d h1:Gcv61GedU+fwwVExIxzO2jUBgmMcJ60U/Dw3IwhyY8I=
+github.com/exiledavatar/gotoolkit v0.0.0-20230809064026-5a4f8d2c7c4d/go.mod h1:UIgJ3JHS6FLEPyezVE1qJWGHaQjZHsz6MXRHgwuGvUQ=
+github.com/exiledavatar/gotoolkit v0.0.0-20230810164141-ee610718c516 h1:mwuB4SbYccxks7sJuzbKdYw5yW1aFuPRqHv5wDVSa7k=
+github.com/exiledavatar/gotoolkit v0.0.0-20230810164141-ee610718c516/go.mod h1:UIgJ3JHS6FLEPyezVE1qJWGHaQjZHsz6MXRHgwuGvUQ=
 github.com/fsnotify/fsnotify v1.5.1 h1:mZcQUHVQUQWoPXXtuf9yuEXKudkV2sx1E06UadKWpgI=
 github.com/fsnotify/fsnotify v1.5.1/go.mod h1:T3375wBYaZdLLcVNkcVbzGHY7f1l/uK5T5Ai1i3InKU=
 github.com/go-kit/log v0.1.0/go.mod h1:zbhenjAZHb184qTLMA9ZjW7ThYL0H2mk7Q6pNt4vbaY=
@@ -219,6 +229,10 @@ golang.org/x/exp v0.0.0-20230713183714-613f0c0eb8a1 h1:MGwJjxBy0HJshjDNfLsYO8xpp
 golang.org/x/exp v0.0.0-20230713183714-613f0c0eb8a1/go.mod h1:FXUEEKJgO7OQYeo8N01OfiKP8RXMtf6e8aTskBGqWdc=
 golang.org/x/exp v0.0.0-20230801115018-d63ba01acd4b h1:r+vk0EmXNmekl0S0BascoeeoHk/L7wmaW2QF90K+kYI=
 golang.org/x/exp v0.0.0-20230801115018-d63ba01acd4b/go.mod h1:FXUEEKJgO7OQYeo8N01OfiKP8RXMtf6e8aTskBGqWdc=
+golang.org/x/exp v0.0.0-20230807204917-050eac23e9de h1:l5Za6utMv/HsBWWqzt4S8X17j+kt1uVETUX5UFhn2rE=
+golang.org/x/exp v0.0.0-20230807204917-050eac23e9de/go.mod h1:FXUEEKJgO7OQYeo8N01OfiKP8RXMtf6e8aTskBGqWdc=
+golang.org/x/exp v0.0.0-20230810033253-352e893a4cad h1:g0bG7Z4uG+OgH2QDODnjp6ggkk1bJDsINcuWmJN1iJU=
+golang.org/x/exp v0.0.0-20230810033253-352e893a4cad/go.mod h1:FXUEEKJgO7OQYeo8N01OfiKP8RXMtf6e8aTskBGqWdc=
 golang.org/x/lint v0.0.0-20190930215403-16217165b5de/go.mod h1:6SW0HCj/g11FgYtHlgUYUwCkIfeOF89ocIRzGO/8vkc=
 golang.org/x/mod v0.0.0-20190513183733-4bf6d317e70e/go.mod h1:mXi4GBBbnImb6dmsKGUJ2LatrhH/nqhxcFungHvyanc=
 golang.org/x/mod v0.1.1-0.20191105210325-c90efee705ee/go.mod h1:QqPTAvyqsEbceGzBzNggFXnrqF1CaUcvgkdR5Ot7KZg=
