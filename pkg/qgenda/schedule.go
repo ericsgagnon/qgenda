@@ -53,7 +53,7 @@ type Schedule struct {
 	StaffNpi               *string      `json:"StaffNpi,omitempty" db:"staffnpi" pgtype:"text"`
 	StaffPager             *string      `json:"StaffPager,omitempty" db:"staffpager" pgtype:"text"`
 	StaffPayrollId         *string      `json:"StaffPayrollId,omitempty" db:"staffpayrollid" pgtype:"text"`
-	StaffTags              ScheduleTags `json:"StaffTags,omitempty" db:"stafftags" pgtype:"jsonb" table:"schedulestafftag"`
+	StaffTags              ScheduleTags `json:"StaffTags,omitempty" db:"-,stafftags" pgtype:"jsonb" table:"schedulestafftag"`
 	StartDate              *Date        `json:"StartDate,omitempty" db:"startdate" pgtype:"date"`
 	StartTime              *TimeOfDay   `json:"StartTime,omitempty" db:"starttime" pgtype:"time without time zone"`
 	TaskAbbrev             *string      `json:"TaskAbbrev,omitempty" db:"taskabbrev" pgtype:"text"`
@@ -71,14 +71,14 @@ type Schedule struct {
 	TaskIsPrintStart       *bool        `json:"TaskIsPrintStart,omitempty" db:"taskisprintstart" pgtype:"boolean"`
 	TaskShiftKey           *string      `json:"TaskShiftKey,omitempty" db:"taskshiftkey" pgtype:"text"`
 	TaskType               *string      `json:"TaskType,omitempty" db:"tasktype" pgtype:"text"`
-	TaskTags               ScheduleTags `json:"TaskTags,omitempty" db:"tasktags" pgtype:"jsonb" table:"scheduletasktag"`
+	TaskTags               ScheduleTags `json:"TaskTags,omitempty" db:"-,tasktags" pgtype:"jsonb" table:"scheduletasktag"`
 	LocationName           *string      `json:"LocationName,omitempty" db:"locationname" pgtype:"text"`
 	LocationAbbrev         *string      `json:"LocationAbbrev,omitempty" db:"locationabbrev" pgtype:"text"`
 	LocationID             *string      `json:"LocationID,omitempty" db:"locationid" pgtype:"text"`
 	LocationAddress        *string      `json:"LocationAddress,omitempty" db:"locationaddress" pgtype:"text"`
 	TimeZone               *string      `json:"TimeZone,omitempty" db:"timezone" pgtype:"text"`
 	LastModifiedDateUTC    *Time        `json:"LastModifiedDateUTC,omitempty" querycondition:"ge" qf:"SinceModifiedTimestamp" idhash:"true" db:"lastmodifieddateutc" pgtype:"timestamp with time zone"`
-	LocationTags           ScheduleTags `json:"LocationTags,omitempty" db:"locationtags" pgtype:"jsonb" table:"schedulestafftag"`
+	LocationTags           ScheduleTags `json:"LocationTags,omitempty" db:"-,locationtags" pgtype:"jsonb" table:"schedulelocationtag"`
 	IsRotationTask         *bool        `json:"IsRotationTask" db:"isrotationtask" pgtype:"boolean"`
 }
 
@@ -127,26 +127,28 @@ func (s Schedule) MarshalJSON() ([]byte, error) {
 // from the raw version of any values. It is idempotent.
 func (s *Schedule) Process() error {
 
-	if err := ProcessStruct(s); err != nil {
-		return fmt.Errorf("error processing %T:\t%q", s, err)
-	}
 	if err := s.SetIDHash(); err != nil {
 		return err
 	}
 
+	// fmt.Println("Length of StaffTags: ", len(s.StaffTags))
 	if len(s.StaffTags) > 0 {
 		for i, _ := range s.StaffTags {
 			s.StaffTags[i].ExtractDateTime = s.ExtractDateTime
 			s.StaffTags[i].ScheduleKey = s.ScheduleKey
 			s.StaffTags[i].LastModifiedDateUTC = s.LastModifiedDateUTC
 			s.StaffTags[i].ScheduleIDHash = s.IDHash
+			// if err := s.StaffTags[i].Process(); err != nil {
+			// 	return err
+			// }
 		}
-		if err := s.StaffTags.Process(); err != nil {
-			return err
-		}
+		// if err := s.StaffTags.Process(); err != nil {
+		// 	return err
+		// }
 	}
 
 	// process TaskTags
+	// fmt.Println("Length of TaskTags: ", len(s.TaskTags))
 	if len(s.TaskTags) > 0 {
 		for i, _ := range s.TaskTags {
 			s.TaskTags[i].ExtractDateTime = s.ExtractDateTime
@@ -154,12 +156,13 @@ func (s *Schedule) Process() error {
 			s.TaskTags[i].LastModifiedDateUTC = s.LastModifiedDateUTC
 			s.TaskTags[i].ScheduleIDHash = s.IDHash
 		}
-		if err := s.TaskTags.Process(); err != nil {
-			return err
-		}
+		// if err := s.TaskTags.Process(); err != nil {
+		// 	return err
+		// }
 	}
 
 	// process LocationTags
+	// fmt.Println("Length of LocationTags: ", len(s.LocationTags))
 	if len(s.LocationTags) > 0 {
 		for i, _ := range s.LocationTags {
 			s.LocationTags[i].ExtractDateTime = s.ExtractDateTime
@@ -167,13 +170,18 @@ func (s *Schedule) Process() error {
 			s.LocationTags[i].LastModifiedDateUTC = s.LastModifiedDateUTC
 			s.LocationTags[i].ScheduleIDHash = s.IDHash
 		}
-		if err := s.LocationTags.Process(); err != nil {
-			return err
-		}
+		// if err := s.LocationTags.Process(); err != nil {
+		// 	return err
+		// }
 	}
+	if err := ProcessStruct(s); err != nil {
+		return fmt.Errorf("error processing %T:\t%q", s, err)
+	}
+
 	if err := s.SetMessage(); err != nil {
 		return err
 	}
+	fmt.Println("--------------------------------------")
 	return nil
 }
 
@@ -243,11 +251,11 @@ func NewScheduleRequest(rc *RequestConfig) *Request {
 func (s Schedule) CreateTable(ctx context.Context, db *sqlx.DB, schema, table string) (sql.Result, error) {
 
 	// str, err := meta.ToStruct(s)
-	structConfig := meta.Structconfig{
-		NameSpace: []string{schema},
-		Name:      table,
-	}
-	fmt.Printf("\n\nmeta.StructConfig:\n%#v\n\n\n\n", structConfig)
+	// structConfig := meta.Structconfig{
+	// 	NameSpace: []string{schema},
+	// 	Name:      table,
+	// }
+	// fmt.Printf("\n\nmeta.StructConfig:\n%#v\n\n\n\n", structConfig)
 
 	str, err := meta.NewStruct(s, meta.Structconfig{
 		NameSpace: []string{schema},
@@ -257,7 +265,7 @@ func (s Schedule) CreateTable(ctx context.Context, db *sqlx.DB, schema, table st
 		return nil, err
 	}
 
-	fmt.Printf("\n\nmeta.Struct(Schedule):\n%#v\n\n\n", str)
+	// fmt.Printf("\n\nmeta.Struct(Schedule):\n%#v\n\n\n", str)
 
 	tx, err := db.BeginTxx(ctx, nil)
 	if err != nil {
@@ -272,9 +280,9 @@ func (s Schedule) CreateTable(ctx context.Context, db *sqlx.DB, schema, table st
 	// {{- $schema := ( index .Struct.NameSpace 0 ) | tolower -}}
 	// {{- if ne $schema "" -}}.{{- end -}}{{- .Table }}
 	tpl := `{{- "\n" -}}
-	CREATE TABLE IF NOT EXISTS {{ .Struct.Identifier }} (
+	CREATE TABLE IF NOT EXISTS {{ .Struct.Identifier | tolower }} (
 		{{- $names := .Struct.Fields.TagNames "db" -}}
-		{{- $types := .Struct.Fields.FirstTagValues "pgtype" -}}
+		{{- $types := .Struct.Fields.NonEmptyTagValues "pgtype" -}}
 		{{- $columnDefs := joinslices "\t" ",\n\t" $names $types -}}
 		{{- print "\n\t" $columnDefs -}}
 		{{- $primarykeyfields := .Struct.Fields.WithTagTrue "primarykey" -}}
@@ -297,61 +305,14 @@ func (s Schedule) CreateTable(ctx context.Context, db *sqlx.DB, schema, table st
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println(query)
+	// fmt.Println(query)
 	if result, err := tx.ExecContext(ctx, query); err != nil {
 		return result, err
 	}
 
-	// child tables
-	// fields := str.Fields().ByKinds(reflect.Slice)
-
-	// // StaffTags
-	// str, err = fields.ByNames("StaffTags")[0].ElementToStruct()
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// // change name to single value
-	// str.Name = table + "stafftag"
-	// query, err = str.ExecuteTemplate(tpl, funcs, data)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// if result, err := tx.ExecContext(ctx, query); err != nil {
-	// 	return result, err
-	// }
-	// fmt.Printf("--------------------------------------------------\n%s\n\n", query)
-	// ---------------------------------------------------------------------------
-	// children := fields.ByNames("StaffTags", "TaskTags", "LocationTags")
-	// re := regexp.MustCompile(`(?i)s$`)
-	// for _, child := range children {
-	// 	childStruct, err := child.ElementToStruct()
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	// we want to use singular forms instead of plural for our table names,
-	// 	// luckily we can just remove the s for these children
-	// 	name := re.ReplaceAllString(childStruct.Name, "")
-	// 	childStruct.Name = table + name
-	// 	query, err := childStruct.ExecuteTemplate(tpl, funcs, data)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	if result, err := tx.ExecContext(ctx, query); err != nil {
-	// 		return result, err
-	// 	}
-	// 	fmt.Printf("--------------------------------------------------\n%s\n\n", query)
-	// }
-
-	// fmt.Println(fields.TagNames("table"))
-	// fmt.Println(str.Fields().WithTagTrue("table"))
-	// fmt.Println(str.Fields().WithTagTrue("table"))
-
 	children := str.Fields().WithTagTrue("table")
 	for _, child := range children {
-		childStruct, err := child.ElementToStruct()
-		if err != nil {
-			return nil, err
-		}
+		childStruct := child.ToStruct()
 		childStruct.Name = child.TagName("table")
 		query, err := childStruct.ExecuteTemplate(tpl, funcs, data)
 		if err != nil {
@@ -360,41 +321,9 @@ func (s Schedule) CreateTable(ctx context.Context, db *sqlx.DB, schema, table st
 		if result, err := tx.ExecContext(ctx, query); err != nil {
 			return result, err
 		}
-		fmt.Printf("--------------------------------------------------\n%s\n\n", query)
+		// fmt.Printf("--------------------------------------------------\n%s\n\n", query)
 
 	}
-	//---------------------------------------------------------------------------
-	// // TaskTags
-	// str, err = fields.ByNames("TaskTags")[0].ElementToStruct()
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// // change name to single value
-	// str.Name = table + "tasktag"
-	// query, err = str.ExecuteTemplate(tpl, funcs, data)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// if result, err := tx.ExecContext(ctx, query); err != nil {
-	// 	return result, err
-	// }
-	// fmt.Printf("--------------------------------------------------\n%s\n\n", query)
-
-	// // LocationTags
-	// str, err = fields.ByNames("LocationTags")[0].ElementToStruct()
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// // change name to single value
-	// str.Name = table + "locationtag"
-	// query, err = str.ExecuteTemplate(tpl, funcs, data)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// if result, err := tx.ExecContext(ctx, query); err != nil {
-	// 	return result, err
-	// }
-	// fmt.Printf("--------------------------------------------------\n%s\n\n", query)
 
 	if err := tx.Commit(); err != nil {
 		return nil, err

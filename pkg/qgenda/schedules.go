@@ -1,12 +1,10 @@
 package qgenda
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"html/template"
 	"io"
 	"log"
 	"os"
@@ -14,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/exiledavatar/gotoolkit/meta"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
@@ -76,18 +75,25 @@ func (s *Schedules) Get(ctx context.Context, c *Client, rc *RequestConfig) error
 
 func (ss *Schedules) Process() error {
 	sss := *ss
-	// ts := map[string]bool{}
 	for i, _ := range sss {
 		if err := sss[i].Process(); err != nil {
 			return err
 		}
-		// ts[fmt.Sprint(*(sss[i].ExtractDateTime))] = true
 	}
 	sort.SliceStable(sss, func(i, j int) bool {
-		return *(sss[i].ScheduleKey) < *(sss[j].ScheduleKey)
+		ikey := *(sss[i].ScheduleKey)
+		jkey := *(sss[j].ScheduleKey)
+		itime := *(sss[i].LastModifiedDateUTC)
+		jtime := *(sss[j].LastModifiedDateUTC)
+		switch {
+		case ikey < jkey:
+			return true
+		case ikey == jkey && itime.Time.Before(jtime.Time):
+			return true
+		default:
+			return false
+		}
 	})
-	// fmt.Println(ts)
-	// fmt.Println(*(sss[0].ExtractDateTime))
 	*ss = sss
 	return nil
 }
@@ -117,6 +123,10 @@ func (s *Schedules) LoadFile(filename string) error {
 	}
 	*s = ss
 	return nil
+}
+
+func (s Schedules) CreateTable(ctx context.Context, db *sqlx.DB, schema, table string) (sql.Result, error) {
+	return Schedule{}.CreateTable(ctx, db, schema, table)
 }
 
 func (s Schedules) PGInsertRows(ctx context.Context, tx *sqlx.Tx, schema, tablename, id string) (sql.Result, error) {
@@ -411,9 +421,9 @@ func (s Schedules) PGInsertRows(ctx context.Context, tx *sqlx.Tx, schema, tablen
 }
 
 func (s Schedules) InsertPG(ctx context.Context, db *sqlx.DB, schema, table string) (sql.Result, error) {
-	if len(s) < 1 {
-		return nil, fmt.Errorf("%T.PGInsertRows: length of %T < 1, nothing to do", s, s)
-	}
+	// if len(s) < 1 {
+	// 	return nil, fmt.Errorf("%T.PGInsertRows: length of %T < 1, nothing to do", s, s)
+	// }
 
 	if schema == "" {
 		schema = "qgenda"
@@ -422,36 +432,119 @@ func (s Schedules) InsertPG(ctx context.Context, db *sqlx.DB, schema, table stri
 		table = "schedule"
 	}
 
+	var locationtags, stafftags, tasktags ScheduleTags
+	for _, schedule := range s {
+		locationtags = append(locationtags, schedule.LocationTags...)
+		stafftags = append(stafftags, schedule.StaffTags...)
+		tasktags = append(tasktags, schedule.TaskTags...)
+	}
+
+	// use meta.Struct to help with query templating
+	str, err := meta.NewStruct(Schedule{}, meta.Structconfig{
+		NameSpace: []string{schema},
+		Name:      table,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	data := map[string]meta.StructWithData{
+		"schedule":    {Struct: str, Data: meta.ToData(s)},
+		"locationtag": {Struct: str.Fields().ByName("LocationTags").ToStruct(), Data: meta.ToData(locationtags)},
+		"stafftag":    {Struct: str.Fields().ByName("StaffTags").ToStruct(), Data: meta.ToData(stafftags)},
+		"tasktag":     {Struct: str.Fields().ByName("TaskTags").ToStruct(), Data: meta.ToData(tasktags)},
+	}
 	// create target tables: schedule, schedulestafftag, scheduletasktag, schedulelocationtag
 	result, err := Schedule{}.CreateTable(ctx, db, schema, table)
 	if err != nil {
 		return result, err
 	}
-	// tx, err := db.BeginTx(ctx, nil)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// create temp tables
-	tpl := `create temporary table _tmp_{{- .Struct.Name | tolower -}} like {{ .Schema -}}{{- if ne .Schema "" -}}.{{- end -}}{{- .Table }}`
-	data := map[string]any{
-		"Schema": schema,
-		"Table":  table,
-	}
-
-	parsedTpl, err := template.
-		New("").
-		Parse(tpl)
+	str.Value.Value.Interface()
+	tx, err := db.BeginTxx(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	var buf bytes.Buffer
-	if err := parsedTpl.Execute(&buf, data); err != nil {
-		return nil, err
+	// temporary tables
+	tpl := `create temporary table _tmp_{{- .Struct.TagName "table" }} (like {{ .Struct.TagIdentifier "table" }})`
+	for _, stri := range data {
+		query, err := stri.Struct.ExecuteTemplate(tpl, nil, nil)
+		if err != nil {
+			return nil, err
+		}
+		if result, err := tx.ExecContext(ctx, query); err != nil {
+			return result, err
+		}
 	}
 
-	return nil, err
+	// batch insert
+	// postgres has a 65535 'parameter' limit, there is an 'unnest' work around, but for now we're just going to chunk it
+	tpl = `{{- "\n" -}}
+	insert into _tmp_{{- .Struct.TagName "table" }} ( 
+		{{- $fields := .Struct.Fields.WithTagTrue "db" -}}
+		{{ $fields.TagNames "db" | join ", " }} )
+	values (
+		{{- $fields := .Struct.Fields.WithTagTrue "db" -}}
+		:
+		{{- $fields.TagNames "db" | join ", :" -}}
+		{{- "\n)" }}
+	`
+
+	chunkSize := 65535 / len(str.Fields())
+	for k, v := range data {
+		query, err := v.Struct.ExecuteTemplate(tpl, nil, nil)
+		if err != nil {
+			return nil, err
+		}
+		for i := 0; i < len(v.Data); i += chunkSize {
+			j := i + chunkSize
+			if j > len(v.Data) {
+				j = len(v.Data)
+			}
+			values := v.Data[i:j]
+			result, err := tx.NamedExecContext(ctx, query, values)
+			if err != nil {
+				return result, err
+			}
+			log.Printf("%-25s[%10d:%10d] Rows: %10d Fields: %10d Total Parameters: %10d\n", k, i, j, len(values), len(v.Struct.Fields()), (len(values) * len(v.Fields())))
+		}
+
+	}
+	// update from temp to permanent tables
+	updateTpl := `
+		insert into {{ .Struct.TagIdentifier "table" }} (
+			select distinct tmp.*
+			from _tmp_{{- .Struct.TagName "table" }} tmp 
+			{{- if ne .Struct.Parent nil }}
+			inner join _tmp_{{ .Struct.Parent.TagName "table" }} ptmp
+			{{- $parentprimarykey := (index ( .Struct.Parent.Fields.WithTagTrue "primarykey" ) 0 ).TagName "db" -}}
+			{{- $parentpkey := ( index ( .Struct.Fields.WithTagTrue "parentprimarykey" ) 0  ).TagName "db" }} 
+			on tmp.{{ $parentpkey }} = ptmp.{{ $parentprimarykey -}}
+			{{ end }}
+			where not exists (
+				select 1
+				from {{ .Struct.TagIdentifier "table" }} dst
+				{{- $pkey := index ( ( .Struct.Fields.WithTagTrue "primarykey" ).TagNames "db" ) 0 }}
+				where dst.{{ $pkey }} = tmp.{{ $pkey }}
+ 			) 
+		)
+		`
+
+	// update permanent tables from temp tables
+	for k, v := range data {
+		fmt.Println("updating ", k)
+		query, err := v.Struct.ExecuteTemplate(updateTpl, nil, nil)
+		if err != nil {
+			return nil, err
+		}
+		fmt.Println(query)
+		result, err := tx.ExecContext(ctx, query)
+		if err != nil {
+			return nil, err
+		}
+		log.Println(result)
+	}
+	return nil, tx.Commit()
 }
 
 func (s *Schedules) EPL(ctx context.Context, c *Client, rc *RequestConfig,

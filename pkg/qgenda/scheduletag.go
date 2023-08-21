@@ -10,7 +10,7 @@ import (
 
 type ScheduleTag struct {
 	ExtractDateTime *Time   `json:"-" db:"_extract_date_time" pgtype:"timestamp with time zone"`
-	ScheduleIDHash  *string `json:"-" db:"_schedule_id_hash" pgtype:"text"`
+	ScheduleIDHash  *string `json:"-" db:"_schedule_id_hash" pgtype:"text" parentprimarykey:"true"`
 	IDHash          *string `json:"-" db:"_id_hash" pgtype:"text" primarykey:"true"` // hash of identifying fields: schedulekey-lastmodifieddateutc (rfc3339nano)
 	// --
 	LastModifiedDateUTC *Time   `json:"-" db:"lastmodifieddateutc" idhash:"true" pgtype:"timestamp with time zone"`
@@ -24,11 +24,14 @@ type ScheduleTag struct {
 // Process should be run as part of Schedule.Process and after
 // necessary fields from Schedule have been copied to ScheduleTag
 func (st *ScheduleTag) Process() error {
+
+	// fmt.Println(st.ScheduleKey == nil)
 	if //st.ExtractDateTime == nil ||
 	st.ScheduleKey == nil ||
 		st.LastModifiedDateUTC == nil ||
 		st.ScheduleIDHash == nil {
-		return fmt.Errorf("cannot process ScheduleTag until ExtractDateTime, ScheduleKey, LastModifiedDateUTC, ScheduleIDHash are set")
+		// return fmt.Errorf("cannot process ScheduleTag until ScheduleKey (%s), LastModifiedDateUTC (%s), ScheduleIDHash (%s) are set", *(st.ScheduleKey), *(st.LastModifiedDateUTC), *(st.ScheduleIDHash))
+		return fmt.Errorf("cannot process ScheduleTag until ScheduleKey, LastModifiedDateUTC, ScheduleIDHash are set")
 	}
 
 	if err := ProcessStruct(st); err != nil {
