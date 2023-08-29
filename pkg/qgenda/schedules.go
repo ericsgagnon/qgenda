@@ -19,7 +19,7 @@ import (
 
 type Schedules []Schedule
 
-func (s *Schedules) Get(ctx context.Context, c *Client, rc *RequestConfig) error {
+func GetSchedules(ctx context.Context, c *Client, rc *RequestConfig) (Schedules, error) {
 	req := NewScheduleRequest(rc)
 
 	// qgenda only supports 100 days of schedules per query
@@ -35,27 +35,24 @@ func (s *Schedules) Get(ctx context.Context, c *Client, rc *RequestConfig) error
 			endDate = t.Add(duration)
 		}
 		subreq.SetEndDate(endDate)
-		// fmt.Println(subreq.ToHTTPRequest().URL.String())
 		resp, err := c.Do(ctx, subreq)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		data, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		ss := []Schedule{}
-		// fmt.Printf("response header:\t%s\n", resp.Header)
-		// fmt.Printf("response body:\t%s\n", data)
+		fmt.Println(string(data))
+		// ss := []Schedule{}
+		ss := Schedules{}
 		if err := json.Unmarshal(data, &ss); err != nil {
-			return err
+			return nil, err
 		}
 		sourceQuery := resp.Request.URL.String()
-		// user response header for extract time
-		// fmt.Println(resp.Header.Get("date"))
 		extractDateTime, err := ParseTime(resp.Header.Get("date"))
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		if len(ss) > 0 {
@@ -69,8 +66,44 @@ func (s *Schedules) Get(ctx context.Context, c *Client, rc *RequestConfig) error
 		schedules = append(schedules, ss...)
 
 	}
-	*s = schedules
-	return nil
+	return schedules, nil
+}
+
+func GetSchedulesFromFiles(filenames ...string) (Schedules, error) {
+	schedules := Schedules{}
+	for _, filename := range filenames {
+		fi, err := os.Stat(filename)
+		if err != nil {
+			return nil, err
+		}
+		modTime := fi.ModTime()
+
+		b, err := os.ReadFile(filename)
+		if err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal(b, &schedules); err != nil {
+			return nil, err
+		}
+		for i, v := range schedules {
+			if v.ExtractDateTime == nil {
+				proxyExtractDateTime := NewTime(modTime)
+				v.ExtractDateTime = &proxyExtractDateTime
+			}
+			schedules[i] = v
+		}
+	}
+	return schedules, nil
+}
+
+func (s *Schedules) Get(ctx context.Context, c *Client, rc *RequestConfig) error {
+	switch schedules, err := GetSchedules(ctx, c, rc); {
+	case err != nil:
+		return err
+	default:
+		*s = schedules
+		return nil
+	}
 }
 
 func (ss *Schedules) Process() error {
@@ -98,35 +131,35 @@ func (ss *Schedules) Process() error {
 	return nil
 }
 
-// LoadFile is used to import any cached files
-func (s *Schedules) LoadFile(filename string) error {
-	fi, err := os.Stat(filename)
-	if err != nil {
-		return err
-	}
-	modTime := fi.ModTime()
+// // LoadFile is used to import any cached files
+// func (s *Schedules) LoadFile(filename string) error {
+// 	fi, err := os.Stat(filename)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	modTime := fi.ModTime()
 
-	b, err := os.ReadFile(filename)
-	if err != nil {
-		log.Println(err)
-	}
-	ss := []Schedule{}
-	if err := json.Unmarshal(b, &ss); err != nil {
-		log.Println(err)
-	}
-	for i, v := range ss {
-		if v.ExtractDateTime == nil {
-			proxyExtractDateTime := NewTime(modTime)
-			v.ExtractDateTime = &proxyExtractDateTime
-		}
-		ss[i] = v
-	}
-	*s = ss
-	return nil
-}
+// 	b, err := os.ReadFile(filename)
+// 	if err != nil {
+// 		log.Println(err)
+// 	}
+// 	ss := []Schedule{}
+// 	if err := json.Unmarshal(b, &ss); err != nil {
+// 		log.Println(err)
+// 	}
+// 	for i, v := range ss {
+// 		if v.ExtractDateTime == nil {
+// 			proxyExtractDateTime := NewTime(modTime)
+// 			v.ExtractDateTime = &proxyExtractDateTime
+// 		}
+// 		ss[i] = v
+// 	}
+// 	*s = ss
+// 	return nil
+// }
 
-func (s Schedules) CreateTable(ctx context.Context, db *sqlx.DB, schema, table string) (sql.Result, error) {
-	return Schedule{}.CreateTable(ctx, db, schema, table)
+func (s Schedules) CreatePGTable(ctx context.Context, db *sqlx.DB, schema, table string) (sql.Result, error) {
+	return Schedule{}.CreatePGTable(ctx, db, schema, table)
 }
 
 func (s Schedules) PGInsertRows(ctx context.Context, tx *sqlx.Tx, schema, tablename, id string) (sql.Result, error) {
@@ -420,10 +453,10 @@ func (s Schedules) PGInsertRows(ctx context.Context, tx *sqlx.Tx, schema, tablen
 	return res, nil
 }
 
-func (s Schedules) InsertPG(ctx context.Context, db *sqlx.DB, schema, table string) (sql.Result, error) {
-	// if len(s) < 1 {
-	// 	return nil, fmt.Errorf("%T.PGInsertRows: length of %T < 1, nothing to do", s, s)
-	// }
+func (s Schedules) PutPG(ctx context.Context, db *sqlx.DB, schema, table string) (sql.Result, error) {
+	if len(s) < 1 {
+		return nil, fmt.Errorf("%T.PGInsertRows: length of %T < 1, nothing to do", s, s)
+	}
 
 	if schema == "" {
 		schema = "qgenda"
@@ -455,7 +488,7 @@ func (s Schedules) InsertPG(ctx context.Context, db *sqlx.DB, schema, table stri
 		"tasktag":     {Struct: str.Fields().ByName("TaskTags").ToStruct(), Data: meta.ToData(tasktags)},
 	}
 	// create target tables: schedule, schedulestafftag, scheduletasktag, schedulelocationtag
-	result, err := Schedule{}.CreateTable(ctx, db, schema, table)
+	result, err := Schedule{}.CreatePGTable(ctx, db, schema, table)
 	if err != nil {
 		return result, err
 	}
@@ -544,7 +577,12 @@ func (s Schedules) InsertPG(ctx context.Context, db *sqlx.DB, schema, table stri
 		}
 		log.Println(result)
 	}
+	fmt.Println(db.DriverName())
 	return nil, tx.Commit()
+}
+
+func (s Schedules) GetPGStatus(ctx context.Context, db *sqlx.DB, schema, table string) (*RequestConfig, error) {
+	return Schedule{}.GetPGStatus(ctx, db, schema, table)
 }
 
 func (s *Schedules) EPL(ctx context.Context, c *Client, rc *RequestConfig,
@@ -587,18 +625,57 @@ func (s *Schedules) EPL(ctx context.Context, c *Client, rc *RequestConfig,
 	return res, nil
 }
 
-func GetFromFile[P *[]T, T any](filename string, dst P) error {
+func (s *Schedules) GetProcessPut(ctx context.Context, c *Client, rc *RequestConfig, db *sqlx.DB,
+	schema, table string, newRowsOnly bool) (sql.Result, error) {
 
-	b, err := os.ReadFile(filename)
+	rc = NewScheduleRequestConfig(rc)
+
+	if result, err := (Schedule{}.CreatePGTable(ctx, db, schema, table)); err != nil {
+		return result, err
+	}
+	// rc, err := Schedule{}.GetPGStatus(ctx, db, schema, table)
+	return nil, nil
+}
+
+func GetProcessPutPGSchedules(ctx context.Context, c *Client, rc *RequestConfig,
+	db *sqlx.DB, schema, table string, newRowsOnly bool, filenames ...string) (sql.Result, error) {
+
+	schedules := Schedules{}
+	var err error
+	rc = NewScheduleRequestConfig(rc)
+	if result, err := (Schedule{}.CreatePGTable(ctx, db, schema, table)); err != nil {
+		return result, err
+	}
+	destRC, err := Schedule{}.GetPGStatus(ctx, db, schema, table)
 	if err != nil {
-		return err
+		return nil, err
+	}
+	if destRC.SinceModifiedTimestamp != nil && newRowsOnly {
+		rc.SetSinceModifiedTimestamp(destRC.GetSinceModifiedTimestamp())
+	}
+	// if len(filenames) > 0 {
+	// 	schedules, err = GetSchedulesFromFiles(filenames...)
+	// 	if err != nil {
+	// 		return nil, nil, err
+	// 	}
+	// }
+
+	schedules, err = GetSchedules(ctx, c, rc)
+	if err != nil {
+		return nil, err
 	}
 
-	t := []T{}
-	if err := json.Unmarshal(b, &t); err != nil {
-		log.Println(err)
+	// schedules = append(schedules, sch...)
+	if err := schedules.Process(); err != nil {
+		return nil, err
 	}
-	*dst = t
-	return nil
 
+	return schedules.PutPG(ctx, db, schema, table)
+
+	// result, err := schedules.PutPG(ctx, db, schema, table)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// return result, nil
 }

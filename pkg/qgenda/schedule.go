@@ -77,7 +77,7 @@ type Schedule struct {
 	LocationID             *string      `json:"LocationID,omitempty" db:"locationid" pgtype:"text"`
 	LocationAddress        *string      `json:"LocationAddress,omitempty" db:"locationaddress" pgtype:"text"`
 	TimeZone               *string      `json:"TimeZone,omitempty" db:"timezone" pgtype:"text"`
-	LastModifiedDateUTC    *Time        `json:"LastModifiedDateUTC,omitempty" querycondition:"ge" qf:"SinceModifiedTimestamp" idhash:"true" db:"lastmodifieddateutc" pgtype:"timestamp with time zone"`
+	LastModifiedDateUTC    *Time        `json:"LastModifiedDateUTC,omitempty" querycondition:"ge" qf:"SinceModifiedTimestamp" idhash:"true" db:"lastmodifieddateutc" pgtype:"timestamp with time zone" qgendarequestname:"SinceModifiedTimestamp"`
 	LocationTags           ScheduleTags `json:"LocationTags,omitempty" db:"-,locationtags" pgtype:"jsonb" table:"schedulelocationtag"`
 	IsRotationTask         *bool        `json:"IsRotationTask" db:"isrotationtask" pgtype:"boolean"`
 }
@@ -138,13 +138,10 @@ func (s *Schedule) Process() error {
 			s.StaffTags[i].ScheduleKey = s.ScheduleKey
 			s.StaffTags[i].LastModifiedDateUTC = s.LastModifiedDateUTC
 			s.StaffTags[i].ScheduleIDHash = s.IDHash
-			// if err := s.StaffTags[i].Process(); err != nil {
-			// 	return err
-			// }
 		}
-		// if err := s.StaffTags.Process(); err != nil {
-		// 	return err
-		// }
+		if err := s.StaffTags.Process(); err != nil {
+			return err
+		}
 	}
 
 	// process TaskTags
@@ -156,13 +153,12 @@ func (s *Schedule) Process() error {
 			s.TaskTags[i].LastModifiedDateUTC = s.LastModifiedDateUTC
 			s.TaskTags[i].ScheduleIDHash = s.IDHash
 		}
-		// if err := s.TaskTags.Process(); err != nil {
-		// 	return err
-		// }
+		if err := s.TaskTags.Process(); err != nil {
+			return err
+		}
 	}
 
 	// process LocationTags
-	// fmt.Println("Length of LocationTags: ", len(s.LocationTags))
 	if len(s.LocationTags) > 0 {
 		for i, _ := range s.LocationTags {
 			s.LocationTags[i].ExtractDateTime = s.ExtractDateTime
@@ -170,9 +166,9 @@ func (s *Schedule) Process() error {
 			s.LocationTags[i].LastModifiedDateUTC = s.LastModifiedDateUTC
 			s.LocationTags[i].ScheduleIDHash = s.IDHash
 		}
-		// if err := s.LocationTags.Process(); err != nil {
-		// 	return err
-		// }
+		if err := s.LocationTags.Process(); err != nil {
+			return err
+		}
 	}
 	if err := ProcessStruct(s); err != nil {
 		return fmt.Errorf("error processing %T:\t%q", s, err)
@@ -181,7 +177,6 @@ func (s *Schedule) Process() error {
 	if err := s.SetMessage(); err != nil {
 		return err
 	}
-	fmt.Println("--------------------------------------")
 	return nil
 }
 
@@ -248,14 +243,7 @@ func NewScheduleRequest(rc *RequestConfig) *Request {
 	return NewRequest(rc)
 }
 
-func (s Schedule) CreateTable(ctx context.Context, db *sqlx.DB, schema, table string) (sql.Result, error) {
-
-	// str, err := meta.ToStruct(s)
-	// structConfig := meta.Structconfig{
-	// 	NameSpace: []string{schema},
-	// 	Name:      table,
-	// }
-	// fmt.Printf("\n\nmeta.StructConfig:\n%#v\n\n\n\n", structConfig)
+func (s Schedule) CreatePGTable(ctx context.Context, db *sqlx.DB, schema, table string) (sql.Result, error) {
 
 	str, err := meta.NewStruct(s, meta.Structconfig{
 		NameSpace: []string{schema},
@@ -264,8 +252,6 @@ func (s Schedule) CreateTable(ctx context.Context, db *sqlx.DB, schema, table st
 	if err != nil {
 		return nil, err
 	}
-
-	// fmt.Printf("\n\nmeta.Struct(Schedule):\n%#v\n\n\n", str)
 
 	tx, err := db.BeginTxx(ctx, nil)
 	if err != nil {
@@ -277,8 +263,6 @@ func (s Schedule) CreateTable(ctx context.Context, db *sqlx.DB, schema, table st
 		return result, err
 	}
 
-	// {{- $schema := ( index .Struct.NameSpace 0 ) | tolower -}}
-	// {{- if ne $schema "" -}}.{{- end -}}{{- .Table }}
 	tpl := `{{- "\n" -}}
 	CREATE TABLE IF NOT EXISTS {{ .Struct.Identifier | tolower }} (
 		{{- $names := .Struct.Fields.TagNames "db" -}}
@@ -305,7 +289,7 @@ func (s Schedule) CreateTable(ctx context.Context, db *sqlx.DB, schema, table st
 	if err != nil {
 		return nil, err
 	}
-	// fmt.Println(query)
+
 	if result, err := tx.ExecContext(ctx, query); err != nil {
 		return result, err
 	}
@@ -405,6 +389,47 @@ func (s Schedule) PGCreateTable(ctx context.Context, tx *sqlx.Tx, schema, tablen
 	return res, nil
 }
 
+func (s Schedule) GetPGStatus(ctx context.Context, db *sqlx.DB, schema, table string) (*RequestConfig, error) {
+	if schema == "" {
+		schema = "qgenda"
+	}
+	if table == "" {
+		table = "schedule"
+	}
+
+	str, err := meta.NewStruct(s, meta.Structconfig{
+		NameSpace: []string{schema},
+		Name:      table,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	tpl := `
+	{{- $field := .Struct.Fields.ByName "LastModifiedDateUTC" -}}
+	select max ( {{ $field.TagName "db" }} ) {{ $field.TagName "qgendarequestname" }}
+	from {{ .Struct.Identifier | tolower }}
+	`
+	// tpl := `
+	// {{- $fields := .Struct.Fields.WithTagTrue "qgendarequestname" -}}
+	// select max ( {{ $fields.TagNames "db" | join "" }} ) {{ $fields.TagNames "qgendarequestname" | join "" }}
+	// from {{ .Struct.Identifier | tolower }}
+	// `
+
+	query, err := str.ExecuteTemplate(tpl, nil, nil)
+	// fmt.Println(query)
+	if err != nil {
+		return nil, err
+	}
+
+	rc := RequestConfig{}
+	if err := db.GetContext(ctx, &rc, query); err != nil {
+		return nil, err
+	}
+
+	return &rc, nil
+}
+
 func (s Schedule) PGQueryConstraints(ctx context.Context, db *sqlx.DB, schema, table string) (*RequestConfig, error) {
 	rc := RequestConfig{}
 	tbl := StructToTable(Schedule{}, table, schema, false, "", nil, nil, nil)
@@ -426,31 +451,31 @@ func (s Schedule) PGQueryConstraints(ctx context.Context, db *sqlx.DB, schema, t
 	return &rc, nil
 }
 
-// PGGetCDC returns a single row from the destination that (should) only have relevant CDC data
-// for conversion to a RequestConfig using ToRequestConfig
-func (s *Schedule) PGGetCDC(ctx context.Context, db *sqlx.DB, schema, table string) (*Schedule, error) {
-	var ss *Schedule
-	if schema != "" {
-		table = schema + "." + table
-	}
-	query := fmt.Sprintf("SELECT MAX ( lastmodifieddateutc ) FROM %s ", table)
-	if err := db.GetContext(ctx, ss, query); err != nil {
-		return nil, err
-	}
-	return ss, nil
+// // PGGetCDC returns a single row from the destination that (should) only have relevant CDC data
+// // for conversion to a RequestConfig using ToRequestConfig
+// func (s *Schedule) PGGetCDC(ctx context.Context, db *sqlx.DB, schema, table string) (*Schedule, error) {
+// 	var ss *Schedule
+// 	if schema != "" {
+// 		table = schema + "." + table
+// 	}
+// 	query := fmt.Sprintf("SELECT MAX ( lastmodifieddateutc ) FROM %s ", table)
+// 	if err := db.GetContext(ctx, ss, query); err != nil {
+// 		return nil, err
+// 	}
+// 	return ss, nil
 
-}
+// }
 
-func (s Schedule) ToRequestConfig() (*RequestConfig, error) {
-	// if s.LastModifiedDateUTC == nil {
-	// 	return nil, fmt.Errorf("*LastModifiedDateUTC is nil")
-	// }
-	// rc := RequestConfig{}
+// func (s Schedule) ToRequestConfig() (*RequestConfig, error) {
+// 	// if s.LastModifiedDateUTC == nil {
+// 	// 	return nil, fmt.Errorf("*LastModifiedDateUTC is nil")
+// 	// }
+// 	// rc := RequestConfig{}
 
-	rc := DefaultScheduleRequestConfig()
-	if s.LastModifiedDateUTC != nil {
-		rc.SetSinceModifiedTimestamp(s.LastModifiedDateUTC.Time)
-	}
+// 	rc := DefaultScheduleRequestConfig()
+// 	if s.LastModifiedDateUTC != nil {
+// 		rc.SetSinceModifiedTimestamp(s.LastModifiedDateUTC.Time)
+// 	}
 
-	return rc, nil
-}
+// 	return rc, nil
+// }

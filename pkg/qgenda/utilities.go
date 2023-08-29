@@ -2,6 +2,7 @@ package qgenda
 
 import (
 	"crypto/sha1"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -323,3 +324,52 @@ func floatFromPointer(f *float64) float64 {
 	}
 	return float64(0)
 }
+
+func GetFromFile[P *[]T, T any](filename string, dst P) error {
+
+	b, err := os.ReadFile(filename)
+	if err != nil {
+		return err
+	}
+
+	t := []T{}
+	if err := json.Unmarshal(b, &t); err != nil {
+		log.Println(err)
+	}
+	*dst = t
+	return nil
+
+}
+
+func PtoV[P *T, T any](p P) T {
+	switch kind := reflect.ValueOf(p).Kind(); kind {
+	case reflect.Pointer:
+		return *p
+	default:
+		panic(fmt.Errorf("%T must be a pointer", p))
+	}
+}
+
+func VtoP[P *T, T any](value T) P {
+	switch kind := reflect.ValueOf(value).Kind(); kind {
+	case reflect.Pointer:
+		panic(fmt.Errorf("%T can't be a pointer", value))
+	default:
+		return &value
+	}
+}
+
+// var tagMap = map[string]map[string]string{
+// 	"postgres": {
+// 		"fieldname": "pg",
+// 		"fieldtype": "pgtype",
+// 	},
+// }
+// 	tpl = `
+// {{ .Struct.Fields.TagNames .postgres.fieldname "db" }}
+// `
+// 	tplMap := map[string]any{}
+// 	for k, v := range tagMap {
+// 		tplMap[k] = any(v)
+// 	}
+// 	fmt.Println(str.ExecuteTemplate(tpl, nil, tplMap))

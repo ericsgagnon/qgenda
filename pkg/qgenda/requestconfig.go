@@ -37,6 +37,9 @@ type RequestConfig struct {
 	SinceModifiedTimestamp  *time.Time `yaml:"sinceModifiedTimestamp,omitempty" query:"sinceModifiedTimestamp,omitempty" url:"sinceModifiedTimestamp,omitempty" layout:"2006-01-02T15:04:05Z"`
 	StartDate               *time.Time `yaml:"startDate,omitempty" query:"startDate,omitempty" url:"startDate,omitempty"`
 	SyncToken               *string    `yaml:"syncToken,omitempty" query:"syncToken,omitempty" url:"syncToken,omitempty"`
+	NewDataOnly             bool       `yaml:"newDataOnly,omitempty" query:"-" url:"-"`
+	UseCache                bool       `yaml:"useCache,omitempty" query:"-" url:"-"`
+	CacheFilenames          []string   `yaml:"cacheFilenames" query:"-" url:"-"`
 }
 
 // NewRequestConfig is intended for each data type to customize request configurations

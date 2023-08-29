@@ -27,7 +27,7 @@ type AppConfig struct {
 func NewAppConfig() *AppConfig {
 	return &AppConfig{
 		Name:    "qgenda-exporter",
-		Version: "v0.2.0",
+		Version: "v0.3.0",
 	}
 }
 
@@ -80,23 +80,39 @@ func (app *App) ExecSchedulePipeline() error {
 
 	ctx := context.Background()
 	rqf := app.Config.Data["schedule"]
-	s := qgenda.Schedules{}
-	result, err := s.EPL(ctx,
+	// s := qgenda.Schedules{}
+	// result, err := s.EPL(ctx,
+	// 	app.Client,
+	// 	&rqf,
+	// 	app.DBClients["postgres"],
+	// 	app.Config.DBClients["postgres"].Schema,
+	// 	"schedule",
+	// 	true)
+	// if err != nil {
+	// 	return err
+	// }
+	// if result != nil {
+	// 	ra, _ := result.RowsAffected()
+	// 	log.Printf("Schedule Rows Inserted: %d", ra)
+
+	// }
+	// data := []qgenda.Schedule{}
+	result, err := qgenda.GetProcessPutPGSchedules(ctx,
 		app.Client,
 		&rqf,
 		app.DBClients["postgres"],
 		app.Config.DBClients["postgres"].Schema,
 		"schedule",
-		true)
+		true,
+	)
 	if err != nil {
-		return err
+		log.Println(err)
 	}
 	if result != nil {
-		ra, _ := result.RowsAffected()
-		log.Printf("Schedule Rows Inserted: %d", ra)
-
+		rowsAffected, _ := result.RowsAffected()
+		log.Printf("Schedule Rows Inserted: %d", rowsAffected)
 	}
-	// data := []qgenda.Schedule{}
+
 	return nil
 }
 

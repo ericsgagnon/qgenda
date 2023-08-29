@@ -50,12 +50,6 @@ func NewCommand(app *App) (*cli.App, error) {
 							}
 							fmt.Println(string(cfgOut))
 
-							// cfgOut, err := yaml.Marshal(exCfg)
-							// if err != nil {
-							// 	return err
-							// }
-							// fmt.Println(string(cfgOut))
-							// fmt.Println("----------------------------------------------------------------------")
 							return nil
 						},
 					},
@@ -123,9 +117,9 @@ func NewCommand(app *App) (*cli.App, error) {
 					if err := app.ExecSchedulePipeline(); err != nil {
 						return err
 					}
-					if err := app.ExecStaffMemberPipeline(); err != nil {
-						return err
-					}
+					// if err := app.ExecStaffMemberPipeline(); err != nil {
+					// 	return err
+					// }
 					return nil
 				},
 			},

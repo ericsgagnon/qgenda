@@ -119,33 +119,3 @@ func (s ScheduleTags) MarshalJSON() ([]byte, error) {
 
 	return json.Marshal(tagCatSlice)
 }
-
-// type ScheduleTags struct {
-// 	ExtractDateTime     *Time         `json:"-"`
-// 	ScheduleKey         *string       `json:"-"`
-// 	LastModifiedDateUTC *Time         `json:"-"`
-// 	CategoryKey         *int64        `json:"CategoryKey"`
-// 	CategoryName        *string       `json:"CategoryName"`
-// 	Tags                []ScheduleTag `json:"Tags,omitempty"`
-// }
-
-// func (sts *ScheduleTags) Process() error {
-// 	if len(sts.Tags) > 0 {
-// 		// sts.setTagMetaData()
-// 		for i, _ := range sts.Tags {
-// 			sts.Tags[i].ExtractDateTime = sts.ExtractDateTime
-// 			sts.Tags[i].ScheduleKey = sts.ScheduleKey
-// 			sts.Tags[i].LastModifiedDateUTC = sts.LastModifiedDateUTC
-// 			sts.Tags[i].CategoryKey = sts.CategoryKey
-// 			sts.Tags[i].CategoryName = sts.CategoryName
-// 			if err := sts.Tags[i].Process(); err != nil {
-// 				return err
-// 			}
-// 		}
-// 		sort.SliceStable(sts.Tags, func(i, j int) bool {
-// 			return *(sts.Tags[i].TagKey) < *(sts.Tags[j].TagKey)
-// 		})
-
-// 	}
-// 	return nil
-// }

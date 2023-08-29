@@ -53,6 +53,7 @@ func LoadAndParseConfig(filename string) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	b = ExpandEnvVars(b)
 	cfg := Config{}
 	if err := yaml.Unmarshal(b, &cfg); err != nil {
 		return nil, err
@@ -113,7 +114,9 @@ func ConfigFile(app string, filename string) (string, error) {
 // ExpandEnvVars substitutes environment variables of the form ${ENV_VAR_NAME}
 // if you have characters that need to be escaped, they should be surrounded in
 // quotes in the source string.
-func ExpandEnvVars(s string) string {
+func ExpandEnvVars[T []byte | string](value T) T {
+	s := string(value)
+
 	re := regexp.MustCompile(`\$\{.+\}`)
 
 	envvars := map[string]string{}
@@ -127,7 +130,7 @@ func ExpandEnvVars(s string) string {
 	for k, v := range envvars {
 		s = strings.ReplaceAll(s, k, v)
 	}
-	return s
+	return T(s)
 }
 
 func ConfigToYAML(cfg Config) (string, error) {
