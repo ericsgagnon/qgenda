@@ -14,6 +14,8 @@ import (
 	// "path"
 	// "reflect"
 	"time"
+
+	"github.com/exiledavatar/gotoolkit/meta"
 )
 
 // ClientConfig is used to pass all necessary
@@ -102,8 +104,8 @@ func NewClient(cc *ClientConfig) (*Client, error) {
 
 	// login credentials and auth token
 	cr := &url.Values{}
-	email := ExpandEnvVars(cc.Email)
-	password := ExpandEnvVars(cc.Password)
+	email := meta.ExpandEnvVars(cc.Email)
+	password := meta.ExpandEnvVars(cc.Password)
 	cr.Add("email", email)
 	cr.Add("password", password)
 	tkn, err := NewAuthToken(cch)

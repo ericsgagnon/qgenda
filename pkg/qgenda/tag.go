@@ -1,5 +1,7 @@
 package qgenda
 
+import "github.com/exiledavatar/gotoolkit/meta"
+
 type TagCompany struct {
 	CompanyName   *string       `json:"CompanyName"`
 	CompanyKey    *string       `json:"CompanyKey"`
@@ -164,7 +166,7 @@ func NewTagRequest(rqf *RequestConfig) *Request {
 }
 
 func (p *TagCompany) Process() error {
-	ProcessStruct(p)
+	meta.ProcessStruct(p)
 	for i, _ := range p.TagCategories {
 		(&p.TagCategories[i]).Process()
 	}
@@ -172,7 +174,7 @@ func (p *TagCompany) Process() error {
 }
 
 func (p *TagCategory) Process() error {
-	ProcessStruct(p)
+	meta.ProcessStruct(p)
 	for i, _ := range p.Tags {
 		(&p.Tags[i]).Process()
 	}
@@ -180,5 +182,5 @@ func (p *TagCategory) Process() error {
 }
 
 func (p *Tag) Process() error {
-	return ProcessStruct(p)
+	return meta.ProcessStruct(p)
 }

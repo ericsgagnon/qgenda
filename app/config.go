@@ -17,8 +17,8 @@ type Config struct {
 	App       AppConfig
 	Cache     qgenda.CacheConfig
 	Client    qgenda.ClientConfig
-	Logger    LogConfig                        //zap.Config         `yaml:"-"`
-	DBClients map[string]qgenda.DBClientConfig `yaml:"dbClients"`
+	Logger    LogConfig                 //zap.Config         `yaml:"-"`
+	DBClients map[string]DBClientConfig `yaml:"dbClients"`
 	Data      map[string]qgenda.RequestConfig
 	// DBClients map[string]url.URL `yaml:"dbClients"`
 }
@@ -38,8 +38,8 @@ func DefaultConfig(ac *AppConfig) *Config {
 		Cache:  *cacheCfg,
 		Client: *qgenda.DefaultClientConfig(),
 		Logger: NewLogConfig(),
-		DBClients: map[string]qgenda.DBClientConfig{
-			"odbc": qgenda.ExampleDBClientConfig(),
+		DBClients: map[string]DBClientConfig{
+			"odbc": ExampleDBClientConfig(),
 		},
 		Data: map[string]qgenda.RequestConfig{
 			"schedule": *qgenda.DefaultScheduleRequestConfig(),

@@ -1,751 +1,302 @@
 package qgenda
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"fmt"
 	"log"
-	"reflect"
-	"strings"
 	"text/template"
 
-	"github.com/jackc/pgx/v4"
+	"github.com/exiledavatar/gotoolkit/meta"
+	"github.com/exiledavatar/gotoolkit/typemap"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 )
 
 var PGTag = "pg"
 
-func NewPGClientConfig(connString string) *DBClientConfig {
-	return &DBClientConfig{
-		Name:             "postgres",
-		Type:             "postgres",
-		Driver:           "postgres",
-		ConnectionString: connString,
-		Schema:           "qgenda",
-	}
+func CreatePGTable[T any](ctx context.Context, db *sqlx.DB, value T, schema, table string) (sql.Result, error) {
 
-}
-
-type PGClient struct {
-	*sqlx.DB
-	Tx     *sqlx.Tx // for use in transactions
-	Config DBClientConfig
-}
-
-// copied here just to know the methods I need to implement to satisfy the interface
-// type DBClient interface {
-// 	// Open(cfg *DBClientConfig) (*sqlx.DB, error)
-// 	// Ping(ctx context.Context) (bool, error)
-// 	DB() *sqlx.DB
-// 	CreateSchema(ctx context.Context, schema string) (sql.Result, error)
-// 	CreateTable(ctx context.Context, table Table) (sql.Result, error)
-// 	DropTable(ctx context.Context, table Table) (sql.Result, error)
-// 	InsertRows(ctx context.Context, data Dataset) (sql.Result, error)
-// 	QueryConstraints(ctx context.Context, data Dataset) error
-// }
-
-// CreateSchema uses 'if not exists' to guarantee idompetency. Generally, owner is omitted, which will
-// default to current user. If schema is omitted, it will default to PGClient.Config.Schema
-func (c *PGClient) CreateSchema(ctx context.Context, schema string, owner string) (sql.Result, error) {
 	if schema == "" {
-		schema = c.Config.Schema
+		schema = "qgenda"
 	}
-	if owner != "" {
-		owner = fmt.Sprintf("authorization %s ", pgx.Identifier{owner}.Sanitize())
+	str, err := meta.NewStruct(value, meta.Structconfig{
+		NameSpace: []string{schema},
+		Name:      table,
+		Tags:      meta.ToTags(fmt.Sprintf(`table:"%s"`, table)),
+	})
+	if err != nil {
+		return nil, err
 	}
-	return c.ExecContext(
-		ctx,
-		fmt.Sprintf("create schema if not exists %s %s", pgx.Identifier{schema}.Sanitize(), owner),
-	)
-}
 
-// DropSchema uses 'if exists' to guarantee idempotency. Cascade will remove all objects that depend on
-// an element in the schema.
-func (c *PGClient) DropSchema(ctx context.Context, schema string, force bool) (sql.Result, error) {
-	if schema == "" {
-		schema = c.Config.Schema
+	tx, err := db.BeginTxx(ctx, nil)
+	if err != nil {
+		return nil, err
 	}
-	var sql string
-	if force {
-		sql = fmt.Sprintf("drop schema if exists %s cascade", pgx.Identifier{schema}.Sanitize())
-	} else {
-		sql = fmt.Sprintf("drop schema if exists %s restrict", pgx.Identifier{schema}.Sanitize())
-	}
-	return c.ExecContext(ctx, sql)
-}
-
-// ForceDropSchema uses 'if exists' to guarantee idempotency and cascade to force the drop regardless of
-// dependent objects in this or other schemas.
-func (c *PGClient) ForceDropSchema(ctx context.Context, schema string) (sql.Result, error) {
-	if schema == "" {
-		schema = c.Config.Schema
-	}
-	return c.ExecContext(
-		ctx,
-		fmt.Sprintf("drop schema if exists %s cascade", pgx.Identifier{schema}.Sanitize()),
-	)
-}
-
-// CreateTable uses 'if exists' to guarantee idempotency
-func (c *PGClient) CreateTable(ctx context.Context, table Table, tx bool) (sql.Result, error) {
-	result, err := c.CreateSchema(ctx, table.Schema, "")
+	result, err := tx.ExecContext(ctx, fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s", str.NameSpace[0]))
 	if err != nil {
 		return result, err
 	}
-	// sql := PGTableStatement(table, PGCreateTableDevTpl, nil)
-	if tx {
-		if c.Tx == nil {
-			c.Tx = c.MustBegin()
-		}
-		return c.Tx.ExecContext(ctx, PGTableStatement(table, PGCreateTableDevTpl, nil))
+
+	tpl := `{{- "\n" -}}
+	CREATE TABLE IF NOT EXISTS {{ .Struct.TagIdentifier "table" | tolower }} (
+		{{- $fields := .Struct.Fields.WithTagTrue "db" -}}
+		{{- $names := $fields.TagNames "db" -}}
+		{{- $types := $fields.NonEmptyTagValues "pgtype" -}}
+		{{- $columnDefs := joinslices "\t" ",\n\t" $names $types -}}
+		{{- print "\n\t" $columnDefs -}}
+		{{- $primarykeyfields := .Struct.Fields.WithTagTrue "primarykey" -}}
+		{{- $primarykey := $primarykeyfields.TagNames "db" | join ", " -}}
+		{{- if ne $primarykey "" -}}{{- printf ",\n\tPRIMARY KEY ( %s )" $primarykey -}}{{- end -}}
+		{{- "\n)" -}}
+	`
+	funcs := template.FuncMap{
+		// "gotopgtype": qgenda.GoToPGType,
+		// "joinslices": meta.JoinSlices,
 	}
-	return c.ExecContext(ctx, PGTableStatement(table, PGCreateTableDevTpl, nil))
-}
 
-// DropTable uses 'if exists' to guarantee idempotency. Cascade will remove all objects that depend on
-// the table.
-func (c *PGClient) DropTable(ctx context.Context, table Table, force bool) (sql.Result, error) {
-	if table.Name == "" {
-		return nil, fmt.Errorf("drop table: table.Name appears empty: %v", table)
+	data := map[string]any{
+		"postgres": typemap.TypeMaps["postgres"].ToType,
+		// "Schema":   schema,
+		// "Table":    table,
 	}
-	var sql string
-	if force {
-		sql = fmt.Sprintf("drop table if exists %s cascade", pgx.Identifier{table.Name}.Sanitize())
-	} else {
-		sql = fmt.Sprintf("drop table if exists %s restrict", pgx.Identifier{table.Name}.Sanitize())
+
+	query, err := str.ExecuteTemplate(tpl, funcs, data)
+	// fmt.Println(query)
+	if err != nil {
+		return nil, err
 	}
-	return c.ExecContext(ctx, sql)
-}
 
-// ForceDropTable uses 'if exists' to guarantee idempotency and cascade to force the drop regardless of
-// dependent objects in its own or other schemas.
-func (c *PGClient) ForceDropTable(ctx context.Context, table Table) (sql.Result, error) {
-	if table.Name == "" {
-		return nil, fmt.Errorf("drop table: table.Name appears empty: %v", table)
+	if result, err := tx.ExecContext(ctx, query); err != nil {
+		return result, err
 	}
-	sql := fmt.Sprintf("drop table if exists %s cascade", pgx.Identifier{table.Name}.Sanitize())
-	return c.ExecContext(ctx, sql)
-}
 
-func (c *PGClient) InsertRows(ctx context.Context, table Table, value []any, tx bool) (sql.Result, error) {
-
-	return PGInsertRowsDev(ctx, c.DB, table, value)
-
-}
-
-// DB is to enable using either (*sqlx.DB or *sqlx.TX), the compiler doesn't seem to really support
-// our use case for generics yet, which seems silly, so we're just treating it like a regular interface...
-type DB interface {
-	// *sqlx.Tx | *sqlx.DB
-	NamedExecContext(context.Context, string, interface{}) (sql.Result, error)
-}
-
-func DBTxx(ctx context.Context, db DB) (*sqlx.Tx, error) {
-	var dbi interface{} = db
-	var tx *sqlx.Tx
-	var err error
-	switch dbi.(type) {
-	case *sqlx.Tx:
-		tx = (dbi).(*sqlx.Tx)
-	case *sqlx.DB:
-		tx, err = (dbi).(*sqlx.DB).BeginTxx(ctx, nil)
+	children := str.Fields().WithTagTrue("table").ToStructs()
+	for _, child := range children {
+		query, err := child.ExecuteTemplate(tpl, funcs, data)
 		if err != nil {
 			return nil, err
 		}
-	// case *sql.DB:
-	// 	db, ok := (dbi).(*sql.DB)
-	// 	if !ok {
-	// 		return nil, fmt.Errorf("unable to assert %T to *sql.DB", db)
-	// 	}
-	// 	sqlx.NewDb(db, db.DriverName())
-	default:
-		return nil, fmt.Errorf("DBTxx received a %T and doesn't know what to do", db)
+		if result, err := tx.ExecContext(ctx, query); err != nil {
+			return result, err
+		}
+
 	}
-	return tx, nil
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }
 
-// func PGInsertRowsTx[T any](ctx context.Context, db DB, table Table, value []T) (sql.Result, error) {
+func GetPGStatus[T any](ctx context.Context, db *sqlx.DB, value T, schema, table, tpl string) (*RequestConfig, error) {
+	if schema == "" {
+		schema = "qgenda"
+	}
 
-// 	db.NamedExecContext(ctx, PGStatement(*new(T), table.Schema, table.Name, pgInsertTpl), value[0:1])
-// 	return nil, nil
-// }
+	str, err := meta.NewStruct(value, meta.Structconfig{
+		NameSpace: []string{schema},
+		Name:      table,
+	})
+	if err != nil {
+		return nil, err
+	}
 
-func PGInsertTx[T any](ctx context.Context, tx *sqlx.Tx, table Table, tpl string, value []T) (sql.Result, error) {
-
-	// PGCreateTableDevTpl
 	if tpl == "" {
-		tpl = PGInsertRowsDevTpl
+		tpl = `
+		{{- $field := .Struct.Fields.ByName "LastModifiedDateUTC" -}}
+		select max ( {{ $field.TagName "db" }} ) {{ $field.TagName "qgendarequestname" }}
+		from {{ .Struct.TagIdentifier "table" | tolower }}
+		`
 	}
 
-	sqlStatement := PGStatement(*new(T), table.Schema, table.Name, pgInsertTpl)
-	return tx.NamedExecContext(ctx, sqlStatement, value)
-}
-
-// func PGInsertRowsDev[T any](ctx context.Context, db *sqlx.DB, table Table, value []T) (sql.Result, error) {
-func PGInsertRowsDev[T any](ctx context.Context, db DB, table Table, value []T) (sql.Result, error) {
-	tx, err := DBTxx(ctx, db)
+	query, err := str.ExecuteTemplate(tpl, nil, nil)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("%T\n", db)
-	if len(value) < 1 {
-		return nil, fmt.Errorf("PGInsertRows: length of %T < 1, nothing to do", value)
+
+	rc := RequestConfig{}
+	if err := db.GetContext(ctx, &rc, query); err != nil {
+		return nil, err
 	}
-	// tx, err := db.Begin()
+
+	return &rc, nil
+
+}
+
+func PutPG[S ~[]T, T any](ctx context.Context, db *sqlx.DB, value S, schema, table string) (sql.Result, error) {
+	if len(value) < 1 {
+		return nil, fmt.Errorf("%T.PGInsertRows: length of %T < 1, nothing to do", value, value)
+	}
+
+	if schema == "" {
+		schema = "qgenda"
+	}
+
+	st, err := meta.NewStruct(value, meta.Structconfig{
+		NameSpace: []string{schema},
+		Name:      table,
+		Tags:      meta.ToTags(fmt.Sprintf(`table:"%s"`, table)),
+	})
 	if err != nil {
 		return nil, err
 	}
-	// postgres has a 65535 'parameter' limit, there is an 'unnest' work around, but for now we're just going to chunk it
-	chunkSize := 65535 / reflect.ValueOf(value[0]).NumField()
-
-	var res Result
-	for i := 0; i < len(value); i = i + chunkSize {
-		j := i + chunkSize
-		if j > len(value) {
-			j = len(value)
-		}
-		sqlResult, err := db.NamedExecContext(
-			ctx,
-			// PGInsertStatement(value[0], schema, table),
-			PGStatement(*new(T), table.Schema, table.Name, pgInsertTpl),
-			value[i:j],
-		)
-		res = SQLResult(res, sqlResult)
-		if err != nil {
-			return res, err
-		}
-
-		// for _, field := range table.Fields {
-		// 	switch field.Kind {
-		// 	case "slice", "map":
-		// 		continue
-		// 		// v := reflect.ValueOf(value[i]).FieldByName(field.Name)
-		// 		// PGInsertRowsDev(ctx, tx, table, v.InterfaceData())
-		// 		// name := strings.ToLower(fmt.Sprintf("%s%s", table.Name, reflect.ValueOf()))
-		// 		// table := StructToTable()
-		// 		// PGInsertRowsDev(ctx, tx, table, )
-		// 	default:
-		// 		continue
-		// 	}
-		// }
-
-	}
-
-	tx.Commit()
-	return res, nil
-}
-
-func (c *PGClient) QueryConstraints(ctx context.Context, db *sqlx.DB, value []any, schema, table string) (sql.Result, error) {
-	return PGQueryConstraint(ctx, c.DB, value, schema, table)
-}
-
-// PGToGoTypeMap represents the default type mapping
-// we expect to use when retrieving data from postgres
-var PGToGoTypeMap = map[string]string{
-	"text": "string",
-}
-
-// GoToPGTypeMap represents the default type mapping
-// we expect to use when sending data to postgres
-var GoToPGTypeMap = map[string]string{
-	"default":          "bytea[]",
-	"string":           "text",
-	"Date":             "date",
-	"qgenda.Date":      "date",
-	"Time":             "timestamp with time zone",
-	"qgenda.Time":      "timestamp with time zone",
-	"TimeOfDay":        "time without time zone",
-	"qgenda.TimeOfDay": "time without time zone",
-	"time.Time":        "timestamp with time zone",
-	"bool":             "boolean",
-
-	"int":     "bigint",
-	"int8":    "smallint",
-	"int16":   "smallint",
-	"int32":   "bigint",
-	"int64":   "bigint",
-	"float32": "double precision",
-	"float64": "double precision",
-}
-
-func GoToPGType(gotype string) string {
-	pgtype, ok := GoToPGTypeMap[gotype]
-	if !ok {
-		pgtype = "text"
-	}
-	return pgtype
-}
-
-// PGName attempts to return the field name to be used for postgres endpoints
-// it does not validate anything. Rather, it check the pg struct tag, if that
-// is empty it checks the db struct tag. If that is empty it takes a lowercase
-// of the name.
-func PGName(field Field) string {
-	var name string
-	nametags, ok := field.Tags()[PGTag]
-	if !ok {
-		nametags, ok = field.Tags()["db"]
-	}
-	if ok {
-		name = nametags[0]
-	} else {
-		name = strings.ToLower(field.Name)
-	}
-	return name
-}
-
-func PGOmit(field Field) bool {
-	if !field.StructField.IsExported() {
-		return true
-	}
-	// slices, maps, arrays, and channel's must be handled separately for now
-	switch field.StructField.Type.Kind() {
-	case reflect.Slice, reflect.Map, reflect.Array, reflect.Chan:
-		return true
-	}
-	return PGName(field) == "-"
-}
-
-func PGNames(fields []Field) []string {
-	var fn []string
-	for _, field := range fields {
-		fn = append(fn, PGName(field))
-	}
-	return fn
-}
-
-func PGStatement[T any](value T, schema, table, tpl string) string {
-	// var allfields []Field
-	allfields := StructToFields(*new(T))
-	// fmt.Println("PGStatement---------------------------------------")
-	var fields []Field
-	for _, field := range allfields {
-		if PGOmit(field) {
-			continue
-		}
-		fields = append(fields, field)
-	}
-	// if schema != "" {
-	// 	schema = fmt.Sprintf("%s.", schema)
+	structs := st.Extract(st.Fields().WithTagTrue("table").Names()...)
+	// fmt.Println("Prior to Temp Tables: ----------------------------------------------------------")
+	// for k, str := range structs {
+	// 	fmt.Printf("%20s%30s%30s\n", k, str.TagName("table"), str.TagIdentifier("table"))
 	// }
-	tplValues := struct {
-		Schema     string
-		Table      string
-		Fields     []Field
-		PrimaryKey []string
-	}{
-		Schema:     schema,
-		Table:      table,
-		Fields:     fields,
-		PrimaryKey: PrimaryKey(fields),
-	}
+	// fmt.Println("--------------------------------------------------------------------------------")
+	// for _, str := range structs {
+	// 	switch {
+	// 	case str.Tags.Exists("table"):
+	// 		// do nothing
+	// 	case str.Parent != nil:
+	// 		// parentTableName := strings.ToLower(str.Parent.TagName("table"))
 
-	var buf bytes.Buffer
+	// 	case str.Parent == nil:
 
-	if err := template.Must(template.
-		New("").
-		Funcs(template.FuncMap{
-			"join":          strings.Join,
-			"joinss":        JoinStringSlice,
-			"pgtype":        GoToPGType,
-			"pgname":        PGName,
-			"pgnames":       PGNames,
-			"pgqueryfields": PGQueryConditionFields,
-			"pgomit":        PGOmit,
-			"qfname":        QueryFieldName,
-		}).
-		Parse(tpl)).
-		Execute(&buf, tplValues); err != nil {
-		log.Println(err)
-		panic(err)
-	}
-	return buf.String()
-}
-
-func PGQueryConditionFields(fields []Field) []Field {
-	qfields := []Field{}
-	for _, field := range fields {
-		if _, ok := field.Tags()["querycondition"]; ok {
-			qfields = append(qfields, field)
-		}
-	}
-	return qfields
-}
-
-var pgCreateSchemaTpl = `
-CREATE SCHEMA IF NOT EXISTS {{ .Schema }}
-`
-
-var pgCreateNewTableTpl = `
-CREATE TABLE IF NOT EXISTS {{ .Schema -}}{{- if ne .Schema "" -}}.{{- end -}}{{- .Table }} (
-{{- range  $index, $field := .Fields -}}
-{{- if ne $index 0 -}},{{- end }}
-	{{ pgname $field }} {{ pgtype $field.Type }} {{ if $field.Unique }} unique {{ end -}} {{- if not $field.Nullable -}} not null {{- end }}
-{{- end -}}
-{{- $primarykey := join .PrimaryKey  ", " -}}
-{{ if ne $primarykey "" }}, 
-PRIMARY KEY ( {{ $primarykey }} ) 
-{{ else }},
-CONSTRAINT {{ .Table -}}_all_columns_unique UNIQUE (
-{{- range  $index, $field := .Fields -}}
-{{- if ne $index 0 -}},{{- end }}
-	{{ pgname $field }} 
-{{- end -}} )
-{{ end }} 
-)
-`
-
-var pgDropTableTpl = `
-DROP TABLE IF EXISTS {{ .Schema -}}{{- if ne .Schema "" -}}.{{- end -}}{{- .Table }}
-`
-
-var pgInsertTpl = `
-INSERT INTO {{ .Schema -}}{{- if ne .Schema "" -}}.{{- end -}}{{- .Table }} (
-{{- range  $index, $field := .Fields -}}
-{{- if ne $index 0 -}},{{- end }}
-	{{ pgname $field }}
-{{- end }} 
-) VALUES (
-{{- range  $index, $field := .Fields -}}
-{{- if ne $index 0 -}},{{- end }}
-	:{{ pgname $field }}
-{{- end }}	
-) ON CONFLICT (
-{{- $primarykey := join .PrimaryKey  ", " -}}
-{{ if ne $primarykey "" }}
-{{ $primarykey }}
-{{ else }}
-{{- range  $index, $field := .Fields -}}
-{{- if ne $index 0 -}},{{- end }}
-	{{ pgname $field }}
-{{- end -}}	
-{{- end }}
-) DO NOTHING
-`
-
-var pgSelectMaxConstraintsTpl = `
-SELECT
-{{- $fields := pgqueryfields .Fields -}}
-{{- range  $index, $field := $fields -}}
-{{- if ne $index 0 -}},{{- end }}
-	MAX( {{ pgname $field }} ) AS {{ qfname $field }}
-{{- end }}
-FROM 
-	{{ .Schema -}}{{- if ne .Schema "" -}}.{{- end -}}{{- .Table }}
-`
-
-func PGCreateTableStatement[T any](value T, schema, table string) string {
-	return PGStatement(value, schema, table, pgCreateNewTableTpl)
-}
-
-func PGDropTableStatement[T any](value T, schema, table string) string {
-	return PGStatement(value, schema, table, pgDropTableTpl)
-}
-
-func PGInsertStatement[T any](value T, schema, table string) string {
-	return PGStatement(value, schema, table, pgInsertTpl)
-}
-
-func PGQueryConstraintsStatement[T any](value T, schema, table string) string {
-	return PGStatement(value, schema, table, pgSelectMaxConstraintsTpl)
-}
-
-func PGCreateSchema[T any](ctx context.Context, db *sqlx.DB, value []T, schema, table string) (sql.Result, error) {
-	// fmt.Printf("PGCreateSchema: %T\n", *new(T))
-	return db.ExecContext(
-		ctx,
-		PGStatement(*new(T), schema, table, pgCreateSchemaTpl),
-	)
-	// return db.NamedExecContext(
-	// 	ctx,
-	// 	PGStatement(*new(T), schema, table, pgCreateSchemaTpl),
-	// 	value,
-	// )
-
-}
-
-func pgCreateTable[T any](ctx context.Context, db *sqlx.DB, value T, schema, table string) (sql.Result, error) {
-	// fmt.Println(PGCreateTableStatement(value[0], schema, table))
-	// fmt.Println(PGStatement(*new(T), schema, table, pgCreateNewTableTpl))
-	// if IsSlice(value) || IsMap(value){
-	// 	return db.ExecContext(
-	// 		ctx,
-	// 		PGStatement(*new(T), schema, table, pgCreateNewTableTpl),
-	// 	)
-
+	// 	}
 	// }
-	return db.ExecContext(
-		ctx,
-		// PGCreateTableStatement(value[0], schema, table),
-		PGStatement(*new(T), schema, table, pgCreateNewTableTpl),
-	)
-}
-
-func PGCreateTableDev(ctx context.Context, db *sqlx.DB, table Table) (sql.Result, error) {
-	return db.ExecContext(ctx, PGTableStatement(table, PGCreateTableDevTpl, nil))
-
-}
-
-var PGCreateTableDevTpl = `
-CREATE {{- if .Temporary }} TEMPORARY TABLE IF NOT EXISTS _tmp_{{- .Name -}}
-{{ else }} TABLE IF NOT EXISTS {{ .Schema -}}{{- if ne .Schema "" -}}.{{- end -}}{{- .Name }}
-{{- end }} (
-{{- $fields := pgincludefields .Fields -}}
-{{- range  $index, $field := $fields -}}
-{{- if ne $index 0 -}},{{- end }}
-	{{ pgname $field }} {{ pgtype $field.Type }} {{ if $field.Unique }} unique {{ end -}} {{- if not $field.Nullable -}} not null {{- end }}
-{{- end -}}
-{{- if not .Temporary }}
-{{- $pk := .Constraints.primarykey -}}
-{{- $uf := .Constraints.unique -}}
-{{ if $pk }}, 
-PRIMARY KEY ( {{ $pk }} ) 
-{{- end -}}
-{{- if and $pk $uf -}},{{- end -}}
-{{- if $uf }}
-CONSTRAINT {{ .Name -}}_unique UNIQUE ( {{ $uf }} )
-{{- end }}
-{{- end }}
-)
-`
-
-var PGInsertRowsDevTpl = `
-INSERT INTO 
-{{- if .Temporary }}  _tmp_{{- .Name -}} 
-{{- else }} {{ .Schema -}}{{- if ne .Schema "" -}}.{{- end -}}{{- .Name -}}
-{{- end }} (
-	{{- $fields := pgincludefields .Fields -}}
-	{{- range  $index, $field := $fields -}}
-	{{- if ne $index 0 -}},{{- end }}
-		{{ pgname $field }}
-	{{- end }} 
-	) VALUES (
-	{{- range  $index, $field := pgincludefields .Fields -}}
-	{{- if ne $index 0 -}},{{- end }}
-		:{{ pgname $field }}
-	{{- end }}	
-)
-{{- if not .Temporary }} ON CONFLICT (
-	{{- $primarykey := join .PrimaryKey  ", " -}}
-	{{ if ne $primarykey "" }}
-	{{ $primarykey }}
-	{{ else }}
-	{{- range  $index, $field := .Fields -}}
-	{{- if ne $index 0 -}},{{- end }}
-		{{ pgname $field }}
-	{{- end -}}	
-	{{- end }}
-	) DO NOTHING
-{{ end }}
-`
-
-// {{ if .Constraints }}
-// ON CONFLICT (
-// 	{{- $primarykey := join .PrimaryKey  ", " -}}
-// 	{{ if ne $primarykey "" }}
-// 	{{ $primarykey }}
-// 	{{ else }}
-// 	{{- range  $index, $field := .Fields -}}
-// 	{{- if ne $index 0 -}},{{- end }}
-// 		{{ pgname $field }}
-// 	{{- end -}}
-// 	{{- end }}
-// 	) DO NOTHING
-
-// ) ON CONFLICT (
-// 	{{- $pk := .Constraints.primarykey -}}r
-// 	{{- $uf := .Constraints.unique -}}
-
-// {{- $primarykey := join $pk  ", " -}}
-// {{ if ne $primarykey "" }}
-// {{ $primarykey }}
-// {{ else }}
-// {{- range  $index, $field := .Fields -}}
-// {{- if ne $index 0 -}},{{- end }}
-// 	{{ pgname $field }}
-// {{- end -}}
-// {{- end }}
-// ) DO NOTHING
-
-var PGInsertChangesOnlyDevTpl = `
-
-with cte_partitioned_row_numbers as (
-	select * , 
-	row_number() over ( partition by {{ fieldswithtagvalue .Fields "idtype" "group" | pgnames | joinss " , " }} order by {{ fieldswithtagvalue .Fields "idtype" "order" | pgnames | joinss " desc , " }} desc ) rn
-	FROM {{ .Schema -}}{{- if ne .Schema "" -}}.{{- end -}}{{- .Name }}
-), cte_last_inserted_rows as (
-	select * from cte_partitioned_row_numbers cprn where cprn.rn = 1
-), cte_new_rows as (
-	select distinct * from _tmp_{{- .Name }}
-), cte_anti_joined as (
-	select
-	cnr.*
-	from cte_new_rows cnr
-	where not exists (
-		select 1
-		from cte_last_inserted_rows clir where
-		{{- $joinfields := .Fields.WithoutTagValue "idtype" "order" | pgincludefields | pgnames -}}
-		{{- range  $index, $field := $joinfields  }}
-		{{ if ne $index 0 }} and {{ end -}} clir.{{ $field }} = cnr.{{ $field }}
-		{{- end }}	
-	)
-) insert into {{ if ne .Schema "" -}}{{ .Schema -}}.{{- end -}}{{- .Name }} (
-	select caj.* from cte_anti_joined caj
-)
-`
-
-// `
-// insert into {{ if ne .Schema "" -}}{{ .Schema -}}.{{- end -}}{{- .Name }} (
-
-// )
-// `
-
-var PGInsertSubtableRowsTpl = `
-INSERT INTO 
-{{- if .Temporary }}  _tmp_{{- .Name -}} 
-{{- else }} {{ .Schema -}}{{- if ne .Schema "" -}}.{{- end -}}{{- .Name -}}
-{{- end }} (
-	{{- $fields := pgincludefields .Fields -}}
-	{{- range  $index, $field := $fields -}}
-	{{- if ne $index 0 -}},{{- end }}
-		{{ pgname $field }}
-	{{- end }} 
-	) VALUES (
-	{{- range  $index, $field := .Fields -}}
-	{{- if ne $index 0 -}},{{- end }}
-		:{{ pgname $field }}
-	{{- end }}	
-)	
-`
-
-var Xuseforreference = `
-INSERT INTO 
-	{{- range  $index, $field := .Fields -}}
-	{{- if ne $index 0 -}},{{- end }}
-		{{ pgname $field }}
-	{{- end }} 
-	) VALUES (
-	{{- range  $index, $field := .Fields -}}
-	{{- if ne $index 0 -}},{{- end }}
-		:{{ pgname $field }}
-	{{- end }}	
-	) ON CONFLICT (
-	{{- $pk := fieldswithtagvalue .Fields "primarykey" "table" | pgnames | joinss ", " -}}
-	{{- $uf := .Constraints.unique -}}		
-	{{ if ne $pk "" }}
-		{{ $pk }}
-	{{ else }}
-	{{- range  $index, $field := .Fields -}}
-	{{- if ne $index 0 -}},{{- end }}
-		{{ pgname $field }}
-	{{- end -}}	
-	{{- end }}
-	) DO NOTHING	
-`
-
-func PGCreateTable[T any](ctx context.Context, db *sqlx.DB, value []T, schema, table string) (sql.Result, error) {
-	// fmt.Println(PGCreateTableStatement(value[0], schema, table))
-	// fmt.Println(PGStatement(*new(T), schema, table, pgCreateNewTableTpl))
-
-	return db.ExecContext(
-		ctx,
-		// PGCreateTableStatement(value[0], schema, table),
-		PGStatement(*new(T), schema, table, pgCreateNewTableTpl),
-	)
-}
-
-func PGDropTable[T any](ctx context.Context, db *sqlx.DB, value []T, schema, table string) (sql.Result, error) {
-	// fmt.Println(PGCreateTableStatement(value[0], schema, table))
-	// fmt.Println(PGStatement(*new(T), schema, table, pgDropTableTpl))
-	return db.ExecContext(
-		ctx,
-		// PGDropTableStatement(value[0], schema, table),
-		PGStatement(*new(T), schema, table, pgDropTableTpl),
-		// PGStatement(*new(T), schema, table, pgDropTableTpl),
-	)
-}
-
-func PGInsertRows[T any](ctx context.Context, db *sqlx.DB, value []T, schema, table string) (sql.Result, error) {
-	if len(value) < 1 {
-		return nil, fmt.Errorf("PGInsertRows: length of %T < 1, nothing to do", value)
+	tx, err := db.BeginTxx(ctx, nil)
+	if err != nil {
+		return nil, err
 	}
-	// postgres has a 65535 'parameter' limit, there is an 'unnest' work around, but for now we're just going to chunk it
-	chunkSize := 65535 / reflect.ValueOf(value[0]).NumField()
-	// var rowsAffected int64
-	var res Result
-	for i := 0; i < len(value); i = i + chunkSize {
-		j := i + chunkSize
-		if j > len(value) {
-			j = len(value)
-		}
-		sqlResult, err := db.NamedExecContext(
-			ctx,
-			// PGInsertStatement(value[0], schema, table),
-			PGStatement(*new(T), schema, table, pgInsertTpl),
-			value[i:j],
-		)
-		if sqlResult != nil {
-			// ra, _ := sqlResult.RowsAffected()
-
-			// fmt.Printf("Insert %T[%d:%d]: RowsAffected: %d\n", value[i], i, j, ra)
-			res = SQLResult(res, sqlResult)
-
-			// rowsAffected = rowsAffected + ra
-
-		}
+	for _, str := range structs {
+		result, err := CreatePGTable(ctx, db, str, schema, str.TagName("table"))
 		if err != nil {
-			return res, err
+			return result, err
+		}
+	}
+	// fmt.Println("Prior to Temp Tables: ----------------------------------------------------------")
+	// for k, str := range structs {
+	// 	fmt.Printf("%20s%30s%30s\n", k, str.TagName("table"), str.TagIdentifier("table"))
+	// }
+	// fmt.Println("--------------------------------------------------------------------------------")
+
+	// temporary tables
+	tpl := `create temporary table if not exists _tmp_{{- .Struct.TagName "table" | tolower }} (like {{ .Struct.TagIdentifier "table" | tolower }} excluding constraints)`
+	for _, str := range structs {
+		query, err := str.ExecuteTemplate(tpl, nil, nil)
+		if err != nil {
+			return nil, err
+		}
+		if result, err := tx.ExecContext(ctx, query); err != nil {
+			return result, err
+		}
+	}
+
+	// insert to temp tables
+	tpl = `{{- "\n" -}}
+	insert into _tmp_{{- .Struct.TagName "table" | tolower }} ( 
+		{{- $fields := .Struct.Fields.WithTagTrue "db" -}}
+		{{ $fields.TagNames "db" | join ", " }} )
+		values (
+			{{- $fields := .Struct.Fields.WithTagTrue "db" -}}
+			:
+			{{- $fields.TagNames "db" | join ", :" -}}
+			{{- "\n)" }}
+			`
+	// postgres has a 65535 'parameter' limit, there is an 'unnest' work around, but for now we're just going to chunk it
+	for k, str := range structs {
+		chunkSize := 65535 / len(str.Fields())
+		query, err := str.ExecuteTemplate(tpl, nil, nil)
+		if err != nil {
+			return nil, err
+		}
+		for i := 0; i < len(str.Data); i += chunkSize {
+			j := i + chunkSize
+			if j > len(str.Data) {
+				j = len(str.Data)
+			}
+			values := str.Data[i:j]
+			result, err := tx.NamedExecContext(ctx, query, values)
+			if err != nil {
+				return result, err
+			}
+			log.Printf("%-25s[%10d:%10d] Rows: %10d Fields: %10d Total Parameters: %10d\n", k, i, j, len(values), len(str.Fields()), (len(values) * len(str.Fields())))
 		}
 
 	}
+	// fmt.Println("Prior to Update: -----------------------------------------------------------------------------------------")
+	// for k, str := range structs {
+	// 	fmt.Println(k, " ", str.TagName("table"))
+	// 	fmt.Println(k, " ", str.TagIdentifier("table"))
+	// }
 
-	return res, nil
-}
-
-func PGQueryConstraint[T any](ctx context.Context, db *sqlx.DB, value []T, schema, table string) (sql.Result, error) {
-	// fmt.Println(PGQueryConstraintsStatement(value[0], schema, table))
-	result, err := db.NamedExecContext(
-		ctx,
-		// PGQueryConstraintsStatement(value[0], schema, table),
-		PGStatement(*new(T), schema, table, pgSelectMaxConstraintsTpl),
-		value,
+	// fmt.Println("----------------------------------------------------------------------------------------------------------")
+	// update from temp to permanent tables
+	updateTpl := `{{- "\n" -}}
+	insert into {{ .Struct.TagIdentifier "table" | tolower }} (
+		select distinct on (tmp._id_hash) tmp.*
+		from _tmp_{{- .Struct.TagName "table" }} tmp 
+		{{- if ne .Struct.Parent nil }}
+		inner join _tmp_{{ .Struct.Parent.TagName "table" }} ptmp
+		{{- $parentprimarykey := (index ( .Struct.Parent.Fields.WithTagTrue "primarykey" ) 0 ).TagName "db" -}}
+		{{- $parentpkey := ( index ( .Struct.Fields.WithTagTrue "parentprimarykey" ) 0  ).TagName "db" }} 
+		on tmp.{{ $parentpkey }} = ptmp.{{ $parentprimarykey -}}
+		{{ end }}
+		where not exists (
+			select 1
+			from {{ .Struct.TagIdentifier "table" }} dst
+			{{- $pkey := index ( ( .Struct.Fields.WithTagTrue "primarykey" ).TagNames "db" ) 0 }}
+			where dst.{{ $pkey }} = tmp.{{ $pkey }}
+		) 
 	)
-	return result, err
-}
+	`
 
-// PGIncludeFields is intended to be used in templates and is included in the default
-// PGTableStatement funcmap as pgincludefields
-func PGIncludeFields(fields []Field) []Field {
-	f := []Field{}
-	for _, field := range fields {
-		if !PGOmit(field) {
-			f = append(f, field)
+	// update permanent tables from temp tables
+	for _, str := range structs {
+		// fmt.Println("updating ", k)
+		// fmt.Println(str.TagIdentifier("table"))
+		query, err := str.ExecuteTemplate(updateTpl, nil, nil)
+		if err != nil {
+			return nil, err
 		}
+		// fmt.Println(query)
+		result, err := tx.ExecContext(ctx, query)
+		if err != nil {
+			return result, err
+		}
+		// log.Println(result)
 	}
-	return f
+	// fmt.Println(db.DriverName())
+	return nil, tx.Commit()
 }
 
-// PGTableStatement wraps TableStatement and adds several pg specific funcs
-func PGTableStatement(table Table, tpl string, funcs template.FuncMap) string {
-	fm := template.FuncMap{
-		"join":               strings.Join,
-		"joinss":             JoinStringSlice,
-		"pgtype":             GoToPGType,
-		"pgname":             PGName,
-		"pgnames":            PGNames,
-		"pgqueryfields":      PGQueryConditionFields,
-		"qfname":             QueryFieldName,
-		"pgomit":             PGOmit,
-		"pgincludefields":    PGIncludeFields,
-		"uniquefields":       UniqueFields,
-		"fieldswithtagvalue": FieldsWithTagValue,
-		"fieldnames":         FieldNames,
+func DropPGTable[T any](ctx context.Context, db *sqlx.DB, value T, force bool, schema, table string) (sql.Result, error) {
+	if schema == "" {
+		schema = "qgenda"
 	}
-	for k, v := range funcs {
-		fm[k] = v
+	str, err := meta.NewStruct(value, meta.Structconfig{
+		NameSpace: []string{schema},
+		Name:      table,
+		Tags:      meta.ToTags(fmt.Sprintf(`table:"%s"`, table)),
+	})
+	if err != nil {
+		return nil, err
 	}
-	return TableStatement(table, tpl, fm)
 
+	tpl := `drop table if exists {{ .Struct.TagIdentifier "table" | tolower }}`
+	if force {
+		tpl = tpl + ` cascade `
+	}
+	query, err := str.ExecuteTemplate(tpl, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	return db.ExecContext(ctx, query)
+}
+
+func DropPGSchema(ctx context.Context, db *sqlx.DB, force bool, schema string) (sql.Result, error) {
+	if schema == "" {
+		schema = "qgenda"
+	}
+	var cascade string
+	if force {
+		cascade = "cascade"
+	}
+	query := fmt.Sprintf(`drop schema if exists %s %s`, schema, cascade)
+	return db.ExecContext(ctx, query)
 }

@@ -6,12 +6,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"text/template"
 	"time"
 
 	// "github.com/ericsgagnon/qgenda/pkg/meta"
 	"github.com/exiledavatar/gotoolkit/meta"
-	"github.com/exiledavatar/gotoolkit/typemap"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -20,7 +18,7 @@ type Schedule struct {
 	RawMessage       *string `json:"-" db:"_raw_message" pgtype:"text"`
 	ProcessedMessage *string `json:"-" db:"_processed_message" pgtype:"text"` // RawMessage processed, omits 'message' metadata and 'noisy' fields (eg lastlogin)
 	SourceQuery      *string `json:"_source_query,omitempty" db:"_source_query" pgtype:"text"`
-	ExtractDateTime  *Time   `json:"_extract_date_time,omitempty" db:"_extract_date_time" pgtype:"text"`
+	ExtractDateTime  *Time   `json:"_extract_date_time,omitempty" db:"_extract_date_time" pgtype:"timestamp with time zone"`
 	IDHash           *string `json:"_id_hash,omitempty" db:"_id_hash" pgtype:"text" primarykey:"true"` // hash of identifying fields: schedulekey-lastmodifieddateutc (rfc3339nano)
 	// ------------------------------------ //
 	ScheduleKey            *string      `json:"ScheduleKey,omitempty" db:"schedulekey" pgtype:"text" idhash:"true"`
@@ -78,7 +76,7 @@ type Schedule struct {
 	LocationAddress        *string      `json:"LocationAddress,omitempty" db:"locationaddress" pgtype:"text"`
 	TimeZone               *string      `json:"TimeZone,omitempty" db:"timezone" pgtype:"text"`
 	LastModifiedDateUTC    *Time        `json:"LastModifiedDateUTC,omitempty" querycondition:"ge" qf:"SinceModifiedTimestamp" idhash:"true" db:"lastmodifieddateutc" pgtype:"timestamp with time zone" qgendarequestname:"SinceModifiedTimestamp"`
-	LocationTags           ScheduleTags `json:"LocationTags,omitempty" db:"-,locationtags" pgtype:"jsonb" table:"schedulelocationtag"`
+	LocationTags           ScheduleTags `json:"LocationTags,omitempty" db:"-,locationtags" pgtype:"text" table:"schedulelocationtag"`
 	IsRotationTask         *bool        `json:"IsRotationTask" db:"isrotationtask" pgtype:"boolean"`
 }
 
@@ -170,7 +168,7 @@ func (s *Schedule) Process() error {
 			return err
 		}
 	}
-	if err := ProcessStruct(s); err != nil {
+	if err := meta.ProcessStruct(s); err != nil {
 		return fmt.Errorf("error processing %T:\t%q", s, err)
 	}
 
@@ -182,14 +180,12 @@ func (s *Schedule) Process() error {
 
 // SetMessage uses a copy, strips message metadata, remarshals to JSON and compacts it, and assigns the string to .ProcessedMessage
 func (s *Schedule) SetMessage() error {
-	// take a copy and strip metadata, for good measure
+	// take a copy and strip message fields, for good measure
 	ss := *s
 	ss.RawMessage = nil
 	ss.ProcessedMessage = nil
-	// ss.MessageHash = nil
 
 	b, err := json.Marshal(ss)
-	// b, err := json.Marshal(s)
 	if err != nil {
 		return err
 	}
@@ -244,238 +240,18 @@ func NewScheduleRequest(rc *RequestConfig) *Request {
 }
 
 func (s Schedule) CreatePGTable(ctx context.Context, db *sqlx.DB, schema, table string) (sql.Result, error) {
+	return CreatePGTable(ctx, db, s, schema, table)
 
-	str, err := meta.NewStruct(s, meta.Structconfig{
-		NameSpace: []string{schema},
-		Name:      table,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	tx, err := db.BeginTxx(ctx, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	result, err := tx.ExecContext(ctx, fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s", str.NameSpace[0]))
-	if err != nil {
-		return result, err
-	}
-
-	tpl := `{{- "\n" -}}
-	CREATE TABLE IF NOT EXISTS {{ .Struct.Identifier | tolower }} (
-		{{- $names := .Struct.Fields.TagNames "db" -}}
-		{{- $types := .Struct.Fields.NonEmptyTagValues "pgtype" -}}
-		{{- $columnDefs := joinslices "\t" ",\n\t" $names $types -}}
-		{{- print "\n\t" $columnDefs -}}
-		{{- $primarykeyfields := .Struct.Fields.WithTagTrue "primarykey" -}}
-		{{- $primarykey := $primarykeyfields.TagNames "db" | join ", " -}}
-		{{- if ne $primarykey "" -}}{{- printf ",\n\tPRIMARY KEY ( %s )" $primarykey -}}{{- end -}}
-		{{- "\n)" -}}
-	`
-	funcs := template.FuncMap{
-		// "gotopgtype": qgenda.GoToPGType,
-		// "joinslices": meta.JoinSlices,
-	}
-
-	data := map[string]any{
-		"postgres": typemap.TypeMaps["postgres"].ToType,
-		// "Schema":   schema,
-		// "Table":    table,
-	}
-
-	query, err := str.ExecuteTemplate(tpl, funcs, data)
-	if err != nil {
-		return nil, err
-	}
-
-	if result, err := tx.ExecContext(ctx, query); err != nil {
-		return result, err
-	}
-
-	children := str.Fields().WithTagTrue("table")
-	for _, child := range children {
-		childStruct := child.ToStruct()
-		childStruct.Name = child.TagName("table")
-		query, err := childStruct.ExecuteTemplate(tpl, funcs, data)
-		if err != nil {
-			return nil, err
-		}
-		if result, err := tx.ExecContext(ctx, query); err != nil {
-			return result, err
-		}
-		// fmt.Printf("--------------------------------------------------\n%s\n\n", query)
-
-	}
-
-	if err := tx.Commit(); err != nil {
-		return nil, err
-	}
-
-	return result, nil
-}
-
-func (s Schedule) PGCreateTable(ctx context.Context, tx *sqlx.Tx, schema, tablename string, temporary bool, id string) (sql.Result, error) {
-
-	basetable := "schedule"
-	if tablename != "" {
-		basetable = tablename
-	}
-	var res Result
-
-	if !temporary && schema != "" {
-		sqlResult, err := tx.ExecContext(ctx, fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s", schema))
-		res = SQLResult(res, sqlResult)
-		if err != nil {
-			return res, err
-		}
-	}
-
-	tablename = basetable
-	tpl := `{{- $table := . -}}
-	CREATE {{- if .Temporary }} TEMPORARY TABLE IF NOT EXISTS _tmp_{{- .UUID -}}_{{- .Name -}}
-	{{ else }} TABLE IF NOT EXISTS {{ .Schema -}}{{- if ne .Schema "" -}}.{{- end -}}{{- .Name }}
-	{{- end }} (
-		{{- $fields := pgincludefields .Fields -}}
-	{{- range  $index, $field := $fields -}}
-	{{- if ne $index 0 -}},{{- end }}
-	{{ pgname $field }} {{ pgtype $field.Type }} {{ if not $table.Temporary }}{{ if $field.Unique }} unique {{ end -}} {{- if not $field.Nullable -}} not null {{- end }}{{- end }}
-	{{- end -}}
-	{{- if not .Temporary }}{{- if .PrimaryKey }}, 
-		PRIMARY KEY ({{ .PrimaryKey }}){{- end -}}{{- end }}
-	)	
-	`
-
-	table := StructToTable(Schedule{}, tablename, schema, temporary, id, nil, nil, nil)
-	sqlStatement := PGTableStatement(table, tpl, nil)
-	// fmt.Println(sqlStatement)
-
-	sqlResult, err := tx.ExecContext(ctx, sqlStatement)
-	res = SQLResult(res, sqlResult)
-	if err != nil {
-		return res, err
-	}
-
-	tablename = fmt.Sprint(basetable, "stafftag")
-	table = StructToTable(ScheduleTag{}, tablename, schema, temporary, id, nil, nil, nil)
-	// sqlStatement = PGTableStatement(table, PGCreateTableDevTpl, nil)
-	sqlStatement = PGTableStatement(table, tpl, nil)
-	sqlResult, err = tx.ExecContext(ctx, sqlStatement)
-	res = SQLResult(res, sqlResult)
-	if err != nil {
-		return res, err
-	}
-
-	tablename = fmt.Sprint(basetable, "tasktag")
-	table = StructToTable(ScheduleTag{}, tablename, schema, temporary, id, nil, nil, nil)
-	// sqlStatement = PGTableStatement(table, PGCreateTableDevTpl, nil)
-	sqlStatement = PGTableStatement(table, tpl, nil)
-	sqlResult, err = tx.ExecContext(ctx, sqlStatement)
-	res = SQLResult(res, sqlResult)
-	if err != nil {
-		return res, err
-	}
-
-	tablename = fmt.Sprint(basetable, "locationtag")
-	table = StructToTable(ScheduleTag{}, tablename, schema, temporary, id, nil, nil, nil)
-	// sqlStatement = PGTableStatement(table, PGCreateTableDevTpl, nil)
-	sqlStatement = PGTableStatement(table, tpl, nil)
-	sqlResult, err = tx.ExecContext(ctx, sqlStatement)
-	res = SQLResult(res, sqlResult)
-	if err != nil {
-		return res, err
-	}
-	return res, nil
 }
 
 func (s Schedule) GetPGStatus(ctx context.Context, db *sqlx.DB, schema, table string) (*RequestConfig, error) {
-	if schema == "" {
-		schema = "qgenda"
-	}
 	if table == "" {
 		table = "schedule"
 	}
-
-	str, err := meta.NewStruct(s, meta.Structconfig{
-		NameSpace: []string{schema},
-		Name:      table,
-	})
-	if err != nil {
-		return nil, err
-	}
-
 	tpl := `
 	{{- $field := .Struct.Fields.ByName "LastModifiedDateUTC" -}}
 	select max ( {{ $field.TagName "db" }} ) {{ $field.TagName "qgendarequestname" }}
 	from {{ .Struct.Identifier | tolower }}
 	`
-	// tpl := `
-	// {{- $fields := .Struct.Fields.WithTagTrue "qgendarequestname" -}}
-	// select max ( {{ $fields.TagNames "db" | join "" }} ) {{ $fields.TagNames "qgendarequestname" | join "" }}
-	// from {{ .Struct.Identifier | tolower }}
-	// `
-
-	query, err := str.ExecuteTemplate(tpl, nil, nil)
-	// fmt.Println(query)
-	if err != nil {
-		return nil, err
-	}
-
-	rc := RequestConfig{}
-	if err := db.GetContext(ctx, &rc, query); err != nil {
-		return nil, err
-	}
-
-	return &rc, nil
+	return GetPGStatus(ctx, db, s, schema, table, tpl)
 }
-
-func (s Schedule) PGQueryConstraints(ctx context.Context, db *sqlx.DB, schema, table string) (*RequestConfig, error) {
-	rc := RequestConfig{}
-	tbl := StructToTable(Schedule{}, table, schema, false, "", nil, nil, nil)
-	tpl := `
-	SELECT
-	{{- $fields := pgqueryfields .Fields -}}
-	{{- range  $index, $field := $fields -}}
-	{{- if ne $index 0 -}},{{- end }}
-	MAX( {{ pgname $field }} ) AS {{ qfname $field }}
-	{{- end }}
-	FROM 
-		{{ .Schema -}}{{- if ne .Schema "" -}}.{{- end -}}{{- .Name }}	
-	`
-	query := PGTableStatement(tbl, tpl, nil)
-	// query := PGStatement(*new(Schedule), schema, table, tpl)
-	if err := db.GetContext(ctx, &rc, query); err != nil {
-		return nil, err
-	}
-	return &rc, nil
-}
-
-// // PGGetCDC returns a single row from the destination that (should) only have relevant CDC data
-// // for conversion to a RequestConfig using ToRequestConfig
-// func (s *Schedule) PGGetCDC(ctx context.Context, db *sqlx.DB, schema, table string) (*Schedule, error) {
-// 	var ss *Schedule
-// 	if schema != "" {
-// 		table = schema + "." + table
-// 	}
-// 	query := fmt.Sprintf("SELECT MAX ( lastmodifieddateutc ) FROM %s ", table)
-// 	if err := db.GetContext(ctx, ss, query); err != nil {
-// 		return nil, err
-// 	}
-// 	return ss, nil
-
-// }
-
-// func (s Schedule) ToRequestConfig() (*RequestConfig, error) {
-// 	// if s.LastModifiedDateUTC == nil {
-// 	// 	return nil, fmt.Errorf("*LastModifiedDateUTC is nil")
-// 	// }
-// 	// rc := RequestConfig{}
-
-// 	rc := DefaultScheduleRequestConfig()
-// 	if s.LastModifiedDateUTC != nil {
-// 		rc.SetSinceModifiedTimestamp(s.LastModifiedDateUTC.Time)
-// 	}
-
-// 	return rc, nil
-// }

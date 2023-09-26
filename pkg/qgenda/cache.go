@@ -160,6 +160,9 @@ func ReadCacheFile(cf *CacheFile) ([]byte, error) {
 
 // WriteCacheFile writes to the file and updates the CacheFile.Timestamp
 func WriteCacheFile(cf *CacheFile, data []byte) error {
+	if err := CreateCacheFile(cf); err != nil {
+		return err
+	}
 	os.WriteFile(cf.String(), data, 0666)
 	cf.Timestamp = time.Now().UTC()
 	return nil

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -81,6 +82,7 @@ func NewCommand(app *App) (*cli.App, error) {
 				Action: func(c *cli.Context) error {
 					fmt.Println("Let's do this.")
 					fmt.Println("load config file:  ", c.String("config"))
+					ctx := context.Background()
 
 					cfg, err := LoadAndParseConfig(c.String("config"))
 					if err != nil {
@@ -108,18 +110,18 @@ func NewCommand(app *App) (*cli.App, error) {
 					// 	fmt.Printf("Name: %s\t%#v\n", k, v)
 
 					// }
-					db, err := qgenda.NewDBClient(&pgcfg)
+					db, err := NewDBClient(&pgcfg)
 					if err != nil {
 						return err
 					}
 					defer db.Close()
 					app.DBClients["postgres"] = db
-					if err := app.ExecSchedulePipeline(); err != nil {
+					if err := app.ExecSchedulePipeline(ctx); err != nil {
 						return err
 					}
-					// if err := app.ExecStaffMemberPipeline(); err != nil {
-					// 	return err
-					// }
+					if err := app.ExecStaffPipeline(ctx); err != nil {
+						return err
+					}
 					return nil
 				},
 			},

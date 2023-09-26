@@ -175,10 +175,10 @@ type Company struct {
 }
 
 type Profile struct {
-	Name         *string       `json:"Name,omitempty"`
-	CompanyKey   *string       `json:"CompanyKey,omitempty"`
-	ProfileKey   *string       `json:"ProfileKey,omitempty"`
-	StaffMembers []StaffMember `json:"StaffMembers,omitempty"`
+	Name         *string `json:"Name,omitempty"`
+	CompanyKey   *string `json:"CompanyKey,omitempty"`
+	ProfileKey   *string `json:"ProfileKey,omitempty"`
+	StaffMembers []Staff `json:"StaffMembers,omitempty"`
 	// StaffAbbreviation *string `json:"StaffAbbreviation,omitempty"`
 	// StaffId           *string `json:"StaffId,omitempty"`
 	// StaffKey          *string `json:"StaffKey,omitempty"`

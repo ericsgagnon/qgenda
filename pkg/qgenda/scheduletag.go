@@ -10,7 +10,7 @@ import (
 
 type ScheduleTag struct {
 	ExtractDateTime *Time   `json:"-" db:"_extract_date_time" pgtype:"timestamp with time zone"`
-	ScheduleIDHash  *string `json:"-" db:"_schedule_id_hash" pgtype:"text" parentprimarykey:"true"`
+	ScheduleIDHash  *string `json:"-" db:"_schedule_id_hash" pgtype:"text" parentprimarykey:"true" idhash:"true"`
 	IDHash          *string `json:"-" db:"_id_hash" pgtype:"text" primarykey:"true"` // hash of identifying fields: schedulekey-lastmodifieddateutc (rfc3339nano)
 	// --
 	LastModifiedDateUTC *Time   `json:"-" db:"lastmodifieddateutc" idhash:"true" pgtype:"timestamp with time zone"`
@@ -34,7 +34,7 @@ func (st *ScheduleTag) Process() error {
 		return fmt.Errorf("cannot process ScheduleTag until ScheduleKey, LastModifiedDateUTC, ScheduleIDHash are set")
 	}
 
-	if err := ProcessStruct(st); err != nil {
+	if err := meta.ProcessStruct(st); err != nil {
 		return err
 	}
 

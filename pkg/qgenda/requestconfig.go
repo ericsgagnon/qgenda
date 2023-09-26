@@ -222,82 +222,74 @@ func (rc *RequestConfig) FilterFields() *RequestConfig {
 }
 
 // Setters and Getters - Using Set* and Get* to avoid conflicts with member names
-func (rc *RequestConfig) GetCompanyKey() string  { return stringFromPointer(rc.CompanyKey) }
-func (rc *RequestConfig) SetCompanyKey(s string) { rc.CompanyKey = stringPointer(s) }
-func (rc *RequestConfig) SetExpand(s string)     { rc.Expand = stringPointer(s) }
-func (rc *RequestConfig) GetExpand() string      { return stringFromPointer(rc.Expand) }
-func (rc *RequestConfig) SetFilter(s string)     { rc.Filter = stringPointer(s) }
-func (rc *RequestConfig) GetFilter() string      { return stringFromPointer(rc.Filter) }
-func (rc *RequestConfig) SetOrderby(s string)    { rc.Orderby = stringPointer(s) }
-func (rc *RequestConfig) GetOrderby() string     { return stringFromPointer(rc.Orderby) }
-func (rc *RequestConfig) SetSelect(s string)     { rc.Select = stringPointer(s) }
-func (rc *RequestConfig) GetSelect() string      { return stringFromPointer(rc.Select) }
-func (rc *RequestConfig) SetDailyConfigurationKey(s string) {
-	rc.DailyConfigurationKey = stringPointer(s)
-}
-func (rc *RequestConfig) GetDailyConfigurationKey() string {
-	return stringFromPointer(rc.DailyConfigurationKey)
-}
-func (rc *RequestConfig) SetDateFormat(s string) { rc.DateFormat = stringPointer(s) }
-func (rc *RequestConfig) GetDateFormat() string  { return stringFromPointer(rc.DateFormat) }
-func (rc *RequestConfig) SetIncludes(s string)   { rc.Includes = stringPointer(s) }
-func (rc *RequestConfig) GetIncludes() string    { return stringFromPointer(rc.Includes) }
-func (rc *RequestConfig) SetPageToken(s string)  { rc.PageToken = stringPointer(s) }
-func (rc *RequestConfig) GetPageToken() string   { return stringFromPointer(rc.PageToken) }
-func (rc *RequestConfig) SetSyncToken(s string)  { rc.SyncToken = stringPointer(s) }
-func (rc *RequestConfig) GetSyncToken() string   { return stringFromPointer(rc.SyncToken) }
+func (rc *RequestConfig) GetCompanyKey() string             { return toValue(rc.CompanyKey) }
+func (rc *RequestConfig) SetCompanyKey(s string)            { rc.CompanyKey = toPointer(s) }
+func (rc *RequestConfig) SetExpand(s string)                { rc.Expand = toPointer(s) }
+func (rc *RequestConfig) GetExpand() string                 { return toValue(rc.Expand) }
+func (rc *RequestConfig) SetFilter(s string)                { rc.Filter = toPointer(s) }
+func (rc *RequestConfig) GetFilter() string                 { return toValue(rc.Filter) }
+func (rc *RequestConfig) SetOrderby(s string)               { rc.Orderby = toPointer(s) }
+func (rc *RequestConfig) GetOrderby() string                { return toValue(rc.Orderby) }
+func (rc *RequestConfig) SetSelect(s string)                { rc.Select = toPointer(s) }
+func (rc *RequestConfig) GetSelect() string                 { return toValue(rc.Select) }
+func (rc *RequestConfig) SetDailyConfigurationKey(s string) { rc.DailyConfigurationKey = toPointer(s) }
+func (rc *RequestConfig) GetDailyConfigurationKey() string  { return toValue(rc.DailyConfigurationKey) }
+func (rc *RequestConfig) SetDateFormat(s string)            { rc.DateFormat = toPointer(s) }
+func (rc *RequestConfig) GetDateFormat() string             { return toValue(rc.DateFormat) }
+func (rc *RequestConfig) SetIncludes(s string)              { rc.Includes = toPointer(s) }
+func (rc *RequestConfig) GetIncludes() string               { return toValue(rc.Includes) }
+func (rc *RequestConfig) SetPageToken(s string)             { rc.PageToken = toPointer(s) }
+func (rc *RequestConfig) GetPageToken() string              { return toValue(rc.PageToken) }
+func (rc *RequestConfig) SetSyncToken(s string)             { rc.SyncToken = toPointer(s) }
+func (rc *RequestConfig) GetSyncToken() string              { return toValue(rc.SyncToken) }
 
 // bool
-func (rc *RequestConfig) SetIgnoreHoliday(b bool)  { rc.IgnoreHoliday = boolPointer(b) }
-func (rc *RequestConfig) GetIgnoreHoliday() bool   { return boolFromPointer(rc.IgnoreHoliday) }
-func (rc *RequestConfig) SetIgnoreWeekend(b bool)  { rc.IgnoreWeekend = boolPointer(b) }
-func (rc *RequestConfig) GetIgnoreWeekend() bool   { return boolFromPointer(rc.IgnoreWeekend) }
-func (rc *RequestConfig) SetIncludeDeletes(b bool) { rc.IncludeDeletes = boolPointer(b) }
-func (rc *RequestConfig) GetIncludeDeletes() bool  { return boolFromPointer(rc.IncludeDeletes) }
-func (rc *RequestConfig) SetIncludeRemoved(b bool) { rc.IncludeRemoved = boolPointer(b) }
-func (rc *RequestConfig) GetIncludeRemoved() bool  { return boolFromPointer(rc.IncludeRemoved) }
+func (rc *RequestConfig) SetIgnoreHoliday(b bool)  { rc.IgnoreHoliday = toPointer(b) }
+func (rc *RequestConfig) GetIgnoreHoliday() bool   { return toValue(rc.IgnoreHoliday) }
+func (rc *RequestConfig) SetIgnoreWeekend(b bool)  { rc.IgnoreWeekend = toPointer(b) }
+func (rc *RequestConfig) GetIgnoreWeekend() bool   { return toValue(rc.IgnoreWeekend) }
+func (rc *RequestConfig) SetIncludeDeletes(b bool) { rc.IncludeDeletes = toPointer(b) }
+func (rc *RequestConfig) GetIncludeDeletes() bool  { return toValue(rc.IncludeDeletes) }
+func (rc *RequestConfig) SetIncludeRemoved(b bool) { rc.IncludeRemoved = toPointer(b) }
+func (rc *RequestConfig) GetIncludeRemoved() bool  { return toValue(rc.IncludeRemoved) }
 func (rc *RequestConfig) SetIsUniversallyLocalDates(b bool) {
-	rc.IsUniversallyLocalDates = boolPointer(b)
+	rc.IsUniversallyLocalDates = toPointer(b)
 }
 func (rc *RequestConfig) GetIsUniversallyLocalDates() bool {
-	return boolFromPointer(rc.IsUniversallyLocalDates)
+	return toValue(rc.IsUniversallyLocalDates)
 }
 
 // int
-func (rc *RequestConfig) SetMaxResults(i int)      { rc.MaxResults = intPointer(i) }
-func (rc *RequestConfig) GetMaxResults() int       { return intFromPointer(rc.MaxResults) }
-func (rc *RequestConfig) SetOrganizationKey(i int) { rc.OrganizationKey = intPointer(i) }
-func (rc *RequestConfig) GetOrganizationKey() int  { return intFromPointer(rc.OrganizationKey) }
+func (rc *RequestConfig) SetMaxResults(i int)      { rc.MaxResults = toPointer(i) }
+func (rc *RequestConfig) GetMaxResults() int       { return toValue(rc.MaxResults) }
+func (rc *RequestConfig) SetOrganizationKey(i int) { rc.OrganizationKey = toPointer(i) }
+func (rc *RequestConfig) GetOrganizationKey() int  { return toValue(rc.OrganizationKey) }
 
 // time.Time
-func (rc *RequestConfig) SetEndDate(t time.Time)        { rc.EndDate = timePointer(t) }
-func (rc *RequestConfig) GetEndDate() time.Time         { return timeFromPointer(rc.EndDate) }
-func (rc *RequestConfig) SetRangeEndDate(t time.Time)   { rc.RangeEndDate = timePointer(t) }
-func (rc *RequestConfig) GetRangeEndDate() time.Time    { return timeFromPointer(rc.RangeEndDate) }
-func (rc *RequestConfig) SetRangeStartDate(t time.Time) { rc.RangeStartDate = timePointer(t) }
-func (rc *RequestConfig) GetRangeStartDate() time.Time {
-	return timeFromPointer(rc.RangeStartDate)
-}
-func (rc *RequestConfig) SetScheduleEndDate(t time.Time) { rc.ScheduleEndDate = timePointer(t) }
-func (rc *RequestConfig) GetScheduleEndDate() time.Time {
-	return timeFromPointer(rc.ScheduleEndDate)
-}
-func (rc *RequestConfig) SetScheduleStartDate(t time.Time) {
-	rc.ScheduleStartDate = timePointer(t)
-}
-func (rc *RequestConfig) GetScheduleStartDate() time.Time {
-	return timeFromPointer(rc.ScheduleStartDate)
-}
+func (rc *RequestConfig) SetEndDate(t time.Time)           { rc.EndDate = toPointer(t) }
+func (rc *RequestConfig) GetEndDate() time.Time            { return toValue(rc.EndDate) }
+func (rc *RequestConfig) SetRangeEndDate(t time.Time)      { rc.RangeEndDate = toPointer(t) }
+func (rc *RequestConfig) GetRangeEndDate() time.Time       { return toValue(rc.RangeEndDate) }
+func (rc *RequestConfig) SetRangeStartDate(t time.Time)    { rc.RangeStartDate = toPointer(t) }
+func (rc *RequestConfig) GetRangeStartDate() time.Time     { return toValue(rc.RangeStartDate) }
+func (rc *RequestConfig) SetScheduleEndDate(t time.Time)   { rc.ScheduleEndDate = toPointer(t) }
+func (rc *RequestConfig) GetScheduleEndDate() time.Time    { return toValue(rc.ScheduleEndDate) }
+func (rc *RequestConfig) SetScheduleStartDate(t time.Time) { rc.ScheduleStartDate = toPointer(t) }
+func (rc *RequestConfig) GetScheduleStartDate() time.Time  { return toValue(rc.ScheduleStartDate) }
 func (rc *RequestConfig) SetSinceModifiedTimestamp(t time.Time) {
-	rc.SinceModifiedTimestamp = timePointer(t)
+	rc.SinceModifiedTimestamp = toPointer(t)
 }
 func (rc *RequestConfig) GetSinceModifiedTimestamp() time.Time {
-	return timeFromPointer(rc.SinceModifiedTimestamp)
+	return toValue(rc.SinceModifiedTimestamp)
 }
-func (rc *RequestConfig) SetStartDate(t time.Time) { rc.StartDate = timePointer(t) }
-func (rc *RequestConfig) GetStartDate() time.Time  { return timeFromPointer(rc.StartDate) }
+func (rc *RequestConfig) SetStartDate(t time.Time) { rc.StartDate = toPointer(t) }
+func (rc *RequestConfig) GetStartDate() time.Time  { return toValue(rc.StartDate) }
 
 func (r *Request) Parse() (*http.Request, error) {
 	return http.NewRequest(r.Method, r.RequestConfig.Parse().Encode(), nil)
 
 }
+
+// func (rc *RequestConfig) ToRequest() *Request {
+// 	return NewRequest(rc)
+// }
