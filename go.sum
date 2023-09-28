@@ -19,6 +19,8 @@ github.com/exiledavatar/gotoolkit v0.0.0-20230921082350-39c909414e15 h1:0SFqzTI9
 github.com/exiledavatar/gotoolkit v0.0.0-20230921082350-39c909414e15/go.mod h1:xosXi7U1N+ZMJm3nkeItPR+bgX0z0P5daOo9rjehND8=
 github.com/exiledavatar/gotoolkit v0.0.0-20230921181146-5848b2813dce h1:4mAEPLVwH4ND04ugOnTgDvrcBHOpvXNKAQFvTIkT/NU=
 github.com/exiledavatar/gotoolkit v0.0.0-20230921181146-5848b2813dce/go.mod h1:xosXi7U1N+ZMJm3nkeItPR+bgX0z0P5daOo9rjehND8=
+github.com/exiledavatar/gotoolkit v0.0.0-20230928080713-4dc930bdd127 h1:03DaziJhqp3oFQeCE+NExyE4VUX3NbY9ddLTIKIBwto=
+github.com/exiledavatar/gotoolkit v0.0.0-20230928080713-4dc930bdd127/go.mod h1:xosXi7U1N+ZMJm3nkeItPR+bgX0z0P5daOo9rjehND8=
 github.com/fsnotify/fsnotify v1.5.1 h1:mZcQUHVQUQWoPXXtuf9yuEXKudkV2sx1E06UadKWpgI=
 github.com/fsnotify/fsnotify v1.5.1/go.mod h1:T3375wBYaZdLLcVNkcVbzGHY7f1l/uK5T5Ai1i3InKU=
 github.com/go-kit/log v0.1.0/go.mod h1:zbhenjAZHb184qTLMA9ZjW7ThYL0H2mk7Q6pNt4vbaY=

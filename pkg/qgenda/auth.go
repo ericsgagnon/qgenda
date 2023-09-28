@@ -39,7 +39,7 @@ func NewAuthToken(cfg *CacheConfig) (*AuthToken, error) {
 // see the login section of https://restapi.qgenda.com for more details.
 func NewAuthRequest(u *url.Values) (*Request, error) {
 	rc := NewRequestConfig("login", nil)
-	fmt.Printf("%#v\n", rc)
+	// fmt.Printf("%#v\n", rc)
 	r := NewRequest(rc)
 	r.Method = http.MethodPost
 	r.Body = []byte(u.Encode())

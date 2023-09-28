@@ -3,7 +3,7 @@ module github.com/ericsgagnon/qgenda
 go 1.18
 
 require (
-	github.com/exiledavatar/gotoolkit v0.0.0-20230921181146-5848b2813dce
+	github.com/exiledavatar/gotoolkit v0.0.0-20230928080713-4dc930bdd127
 	github.com/google/go-querystring v1.1.0
 	github.com/jackc/pgtype v1.9.1
 	github.com/jackc/pgx/v4 v4.14.1

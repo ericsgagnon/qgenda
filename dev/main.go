@@ -78,7 +78,7 @@ func main() {
 	}
 
 	// process data
-	qgenda.Process(sch)
+	// qgenda.Process(sch)
 
 	// load data
 	jsonOut, err := json.MarshalIndent(sch, "", "\t")
@@ -156,8 +156,8 @@ func main() {
 	}
 	if err := MakeItHappen(ctx, c, qgenda.NewRequestsApprovedRequest(
 		&qgenda.RequestConfig{
-			StartDate: qgenda.Pointer(time.Now().UTC().Add(-1 * 14 * 24 * time.Hour)),
-			EndDate:   qgenda.Pointer(time.Now().UTC()),
+			// StartDate: qgenda.Pointer(time.Now().UTC().Add(-1 * 14 * 24 * time.Hour)),
+			// EndDate:   qgenda.Pointer(time.Now().UTC()),
 		}), "requestapproved.json"); err != nil {
 		log.Println(err)
 	}
@@ -193,7 +193,7 @@ func main() {
 	// }
 	// os.WriteFile("requests.json", jsonOut, 0644)
 
-	if err := HandleStructuredData[qgenda.StaffMember](ctx, c, qgenda.NewStaffMemberRequest(&qgenda.RequestConfig{}), "out/staffmember.json"); err != nil {
+	if err := HandleStructuredData[qgenda.Staff](ctx, c, qgenda.NewStaffRequest(&qgenda.RequestConfig{}), "out/staffmember.json"); err != nil {
 		log.Println(err)
 	}
 	if err := HandleStructuredData[qgenda.Schedule](ctx, c, qgenda.NewScheduleRequest(&qgenda.RequestConfig{}), "out/schedule.json"); err != nil {
@@ -209,14 +209,14 @@ func main() {
 		log.Println(err)
 	}
 	if err := MakeItHappen(ctx, c, qgenda.NewScheduleRequest(&qgenda.RequestConfig{
-		StartDate:              qgenda.Pointer(time.Now().UTC().Add(-1 * 14 * 24 * time.Hour)),
-		EndDate:                qgenda.Pointer(time.Now().UTC()),
-		SinceModifiedTimestamp: qgenda.Pointer(time.Now().UTC().Add(-1 * 14 * 24 * time.Hour)),
+		// StartDate:              qgenda.Pointer(time.Now().UTC().Add(-1 * 14 * 24 * time.Hour)),
+		// EndDate:                qgenda.Pointer(time.Now().UTC()),
+		// SinceModifiedTimestamp: qgenda.Pointer(time.Now().UTC().Add(-1 * 14 * 24 * time.Hour)),
 	}), "rawschedule.json"); err != nil {
 		log.Println(err)
 	}
 
-	if err := MakeItHappen(ctx, c, qgenda.NewStaffMemberRequest(&qgenda.RequestConfig{}), "out/rawstaffmember.json"); err != nil {
+	if err := MakeItHappen(ctx, c, qgenda.NewStaffRequest(&qgenda.RequestConfig{}), "out/rawstaffmember.json"); err != nil {
 		log.Println(err)
 	}
 	// if err := MakeItHappen(ctx, c, qgenda.NewStaffMemberRequestLimitRequest(&qgenda.RequestConfig{}), "staffmemberrequestlimit.json"); err != nil {
@@ -332,9 +332,9 @@ func HandleStructuredData[T any](ctx context.Context, c *qgenda.Client, r *qgend
 	// 		log.Printf("HandleStructuredData %T %s\n", da, err)
 	// 	}
 	// }
-	if err := qgenda.Process(da); err != nil {
-		log.Printf("HandleStructuredData %T %s\n", da, err)
-	}
+	// if err := qgenda.Process(da); err != nil {
+	// 	log.Printf("HandleStructuredData %T %s\n", da, err)
+	// }
 
 	// load data
 	jsonOut, err := json.MarshalIndent(da, "", "\t")

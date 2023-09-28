@@ -40,6 +40,7 @@ type RequestConfig struct {
 	NewDataOnly             bool       `yaml:"newDataOnly,omitempty" query:"-" url:"-"`
 	UseCache                bool       `yaml:"useCache,omitempty" query:"-" url:"-"`
 	CacheFilenames          []string   `yaml:"cacheFilenames" query:"-" url:"-"`
+	BatchSize               int        `yaml:"batchSize" query:"-" url:"-"`
 }
 
 // NewRequestConfig is intended for each data type to customize request configurations

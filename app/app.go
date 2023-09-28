@@ -96,15 +96,21 @@ func (app *App) ExecSchedulePipeline(ctx context.Context) error {
 		}
 	}
 
-	result, err = qgenda.PutPG(ctx, db, values, dbCfg.Schema, "")
+	result, err = qgenda.BatchPutPG(ctx, db, 100, values, dbCfg.Schema, "")
 	if err != nil {
 		return err
 	}
 	if result != nil {
+
 		rowsAffected, _ := result.RowsAffected()
 		log.Printf("%T Rows Inserted: %d", values, rowsAffected)
-	}
 
+	}
+	rows, err := qgenda.CountPGRows(ctx, db, values, "", "")
+	if err != nil {
+		return err
+	}
+	log.Printf("%T actual rows inserted: %d", values, rows)
 	return nil
 }
 

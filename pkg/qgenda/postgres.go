@@ -125,6 +125,32 @@ func GetPGStatus[T any](ctx context.Context, db *sqlx.DB, value T, schema, table
 
 }
 
+func BatchPutPG[S ~[]T, T any](ctx context.Context, db *sqlx.DB, batchSize int, values S, schema, table string) (sql.Result, error) {
+	if len(values) < 1 {
+		return nil, fmt.Errorf("%T.PGInsertRows: length of %T < 1, nothing to do", values, values)
+	}
+	result := meta.SQLResults{}
+
+	if batchSize <= 0 {
+		batchSize = len(values)
+	}
+
+	for i := 0; i < len(values); i += batchSize {
+
+		j := i + batchSize
+		if j > len(values) {
+			j = len(values)
+		}
+		batch := values[i:j]
+		res, err := PutPG(ctx, db, batch, schema, table)
+		if err != nil {
+			return res, err
+		}
+		result = append(result, res)
+	}
+	return result, nil
+}
+
 func PutPG[S ~[]T, T any](ctx context.Context, db *sqlx.DB, value S, schema, table string) (sql.Result, error) {
 	if len(value) < 1 {
 		return nil, fmt.Errorf("%T.PGInsertRows: length of %T < 1, nothing to do", value, value)
@@ -299,4 +325,34 @@ func DropPGSchema(ctx context.Context, db *sqlx.DB, force bool, schema string) (
 	}
 	query := fmt.Sprintf(`drop schema if exists %s %s`, schema, cascade)
 	return db.ExecContext(ctx, query)
+}
+
+func CountPGRows(ctx context.Context, db *sqlx.DB, value any, schema, table string) (int, error) {
+	if schema == "" {
+		schema = "qgenda"
+	}
+	var rowCount int
+	var str meta.Struct
+	switch st, ok := value.(meta.Struct); {
+	case !ok:
+		st, err := meta.NewStruct(value, meta.Structconfig{
+			NameSpace: []string{schema},
+			Name:      table,
+			Tags:      meta.ToTags(fmt.Sprintf(`table:"%s"`, table)),
+		})
+		if err != nil {
+			return rowCount, err
+		}
+		str = st
+	default:
+		str = st
+	}
+
+	tpl := `select count( * ) from {{ .Struct.TagIdentifier "table" | tolower }} `
+	query, err := str.ExecuteTemplate(tpl, nil, nil)
+	if err != nil {
+		return rowCount, err
+	}
+	err = db.GetContext(ctx, &rowCount, query)
+	return rowCount, err
 }
