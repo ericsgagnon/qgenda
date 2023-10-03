@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
 	"text/template"
 
 	"github.com/exiledavatar/gotoolkit/meta"
@@ -126,10 +125,16 @@ func GetPGStatus[T any](ctx context.Context, db *sqlx.DB, value T, schema, table
 }
 
 func BatchPutPG[S ~[]T, T any](ctx context.Context, db *sqlx.DB, batchSize int, values S, schema, table string) (sql.Result, error) {
+
 	if len(values) < 1 {
 		return nil, fmt.Errorf("%T.PGInsertRows: length of %T < 1, nothing to do", values, values)
 	}
 	result := meta.SQLResults{}
+
+	// preRowCount, err := CountPGRows(ctx, db, st, schema, st.TagName("table"))
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	if batchSize <= 0 {
 		batchSize = len(values)
@@ -148,9 +153,24 @@ func BatchPutPG[S ~[]T, T any](ctx context.Context, db *sqlx.DB, batchSize int, 
 		}
 		result = append(result, res)
 	}
+
+	// log.Printf("%-25s[%10d:%10d] Rows: %10d Fields: %10d Total Parameters: %10d\n", k, i, j, len(values), len(str.Fields()), (len(values) * len(str.Fields())))
+
 	return result, nil
 }
 
+// type result struct {
+// 	sql.Result
+// 	rowCount int64
+// }
+
+// func (r result) RowsAffected() (int64, error) {
+// 	_, err := r.Result.RowsAffected()
+// 	return r.rowCount, err
+// }
+
+// PutPG attempts to insert new rows, its return result is currently largely useless
+// TODO: improve post-pre row count return value
 func PutPG[S ~[]T, T any](ctx context.Context, db *sqlx.DB, value S, schema, table string) (sql.Result, error) {
 	if len(value) < 1 {
 		return nil, fmt.Errorf("%T.PGInsertRows: length of %T < 1, nothing to do", value, value)
@@ -195,6 +215,19 @@ func PutPG[S ~[]T, T any](ctx context.Context, db *sqlx.DB, value S, schema, tab
 			return result, err
 		}
 	}
+	// var preRowCounts = map[string]int{}
+	// for k, str := range structs {
+	// 	rowCount, err := CountPGRows(ctx, db, str, schema, str.TagName("table"))
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	preRowCounts[k] = rowCount
+	// }
+	// preRowCount, err := CountPGRows(ctx, db, st, schema, st.TagName("table"))
+	// if err != nil {
+	// 	return nil, err
+	// }
+
 	// fmt.Println("Prior to Temp Tables: ----------------------------------------------------------")
 	// for k, str := range structs {
 	// 	fmt.Printf("%20s%30s%30s\n", k, str.TagName("table"), str.TagIdentifier("table"))
@@ -224,8 +257,9 @@ func PutPG[S ~[]T, T any](ctx context.Context, db *sqlx.DB, value S, schema, tab
 			{{- $fields.TagNames "db" | join ", :" -}}
 			{{- "\n)" }}
 			`
+	results := meta.SQLResults{}
 	// postgres has a 65535 'parameter' limit, there is an 'unnest' work around, but for now we're just going to chunk it
-	for k, str := range structs {
+	for _, str := range structs {
 		chunkSize := 65535 / len(str.Fields())
 		query, err := str.ExecuteTemplate(tpl, nil, nil)
 		if err != nil {
@@ -241,7 +275,10 @@ func PutPG[S ~[]T, T any](ctx context.Context, db *sqlx.DB, value S, schema, tab
 			if err != nil {
 				return result, err
 			}
-			log.Printf("%-25s[%10d:%10d] Rows: %10d Fields: %10d Total Parameters: %10d\n", k, i, j, len(values), len(str.Fields()), (len(values) * len(str.Fields())))
+			if result != nil {
+				results = append(results, result)
+			}
+			// log.Printf("%-25s[%10d:%10d] Rows: %10d Fields: %10d Total Parameters: %10d\n", k, i, j, len(values), len(str.Fields()), (len(values) * len(str.Fields())))
 		}
 
 	}
@@ -274,20 +311,24 @@ func PutPG[S ~[]T, T any](ctx context.Context, db *sqlx.DB, value S, schema, tab
 
 	// update permanent tables from temp tables
 	for _, str := range structs {
-		// fmt.Println("updating ", k)
-		// fmt.Println(str.TagIdentifier("table"))
 		query, err := str.ExecuteTemplate(updateTpl, nil, nil)
 		if err != nil {
 			return nil, err
 		}
-		// fmt.Println(query)
 		result, err := tx.ExecContext(ctx, query)
 		if err != nil {
 			return result, err
 		}
-		// log.Println(result)
 	}
-	// fmt.Println(db.DriverName())
+	// postRowCount, err := CountPGRows(ctx, db, st, schema, st.TagName("table"))
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// res := result{
+	// 	Result: result,
+	// }
+
 	return nil, tx.Commit()
 }
 
@@ -328,24 +369,13 @@ func DropPGSchema(ctx context.Context, db *sqlx.DB, force bool, schema string) (
 }
 
 func CountPGRows(ctx context.Context, db *sqlx.DB, value any, schema, table string) (int, error) {
-	if schema == "" {
-		schema = "qgenda"
-	}
 	var rowCount int
-	var str meta.Struct
-	switch st, ok := value.(meta.Struct); {
-	case !ok:
-		st, err := meta.NewStruct(value, meta.Structconfig{
-			NameSpace: []string{schema},
-			Name:      table,
-			Tags:      meta.ToTags(fmt.Sprintf(`table:"%s"`, table)),
-		})
-		if err != nil {
-			return rowCount, err
-		}
-		str = st
-	default:
-		str = st
+	str, err := toStruct(value, schema, table)
+	if err != nil {
+		return rowCount, err
+	}
+	if tableExists, err := PGTableExists(ctx, db, value, schema, table); err != nil || !tableExists {
+		return rowCount, err
 	}
 
 	tpl := `select count( * ) from {{ .Struct.TagIdentifier "table" | tolower }} `
@@ -355,4 +385,46 @@ func CountPGRows(ctx context.Context, db *sqlx.DB, value any, schema, table stri
 	}
 	err = db.GetContext(ctx, &rowCount, query)
 	return rowCount, err
+}
+
+func PGTableExists(ctx context.Context, db *sqlx.DB, value any, schema, table string) (bool, error) {
+
+	var tableExists bool
+	str, err := toStruct(value, schema, table)
+	if err != nil {
+		return tableExists, err
+	}
+
+	tpl := `select exists ( 
+		select 1 
+		from information_schema.tables 
+		where table_name = '{{ .Struct.TagName "table" | tolower }}'
+		and   table_schema = '{{ ( index .Struct.NameSpace 0 ) | tolower }}'
+	) as table_exists`
+
+	query, err := str.ExecuteTemplate(tpl, nil, nil)
+	if err != nil {
+		return tableExists, err
+	}
+	err = db.GetContext(ctx, &tableExists, query)
+	return tableExists, err
+}
+
+func toStruct(value any, schema, table string) (meta.Struct, error) {
+
+	if schema == "" {
+		schema = "qgenda"
+	}
+
+	switch st, ok := value.(meta.Struct); {
+	case !ok:
+		return meta.NewStruct(value, meta.Structconfig{
+			NameSpace: []string{schema},
+			Name:      table,
+			Tags:      meta.ToTags(fmt.Sprintf(`table:"%s"`, table)),
+		})
+	default:
+		return st, nil
+	}
+
 }

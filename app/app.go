@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"github.com/ericsgagnon/qgenda/pkg/qgenda"
@@ -96,26 +97,30 @@ func (app *App) ExecSchedulePipeline(ctx context.Context) error {
 		}
 	}
 
-	result, err = qgenda.BatchPutPG(ctx, db, 100, values, dbCfg.Schema, "")
+	preRowCount, err := qgenda.CountPGRows(ctx, db, values, dbCfg.Schema, "")
 	if err != nil {
 		return err
 	}
-	if result != nil {
-
-		rowsAffected, _ := result.RowsAffected()
-		log.Printf("%T Rows Inserted: %d", values, rowsAffected)
-
-	}
-	rows, err := qgenda.CountPGRows(ctx, db, values, "", "")
+	_, err = qgenda.BatchPutPG(ctx, db, 100, values, dbCfg.Schema, "")
 	if err != nil {
 		return err
 	}
-	log.Printf("%T actual rows inserted: %d", values, rows)
+	// if result != nil {
+
+	// 	// rowsAffected, _ := result.RowsAffected()
+	// 	// log.Printf("%T Rows Inserted: %d", values, rowsAffected)
+
+	// }
+	rows, err := qgenda.CountPGRows(ctx, db, values, dbCfg.Schema, "")
+	if err != nil {
+		return err
+	}
+	log.Printf("Insert %T: preRowCount: %d\tpostRowCount: %d\trowInserted: %d", values, preRowCount, rows, rows-preRowCount)
 	return nil
 }
 
 func (app *App) ExecStaffPipeline(ctx context.Context) error {
-
+	fmt.Println("Starting Staffs")
 	// only one dbClient at present
 	dbCfg := app.Config.DBClients["postgres"]
 	db := app.DBClients["postgres"]
@@ -147,17 +152,25 @@ func (app *App) ExecStaffPipeline(ctx context.Context) error {
 		}
 	}
 
-	result, err = qgenda.PutPG(ctx, db, values, dbCfg.Schema, "")
+	preRowCount, err := qgenda.CountPGRows(ctx, db, values, dbCfg.Schema, "")
 	if err != nil {
 		return err
 	}
+
+	_, err = qgenda.PutPG(ctx, db, values, dbCfg.Schema, "")
 	if err != nil {
 		return err
 	}
-	if result != nil {
-		rowsAffected, _ := result.RowsAffected()
-		log.Printf("%T Rows Inserted: %d", values, rowsAffected)
+	rows, err := qgenda.CountPGRows(ctx, db, values, dbCfg.Schema, "")
+	if err != nil {
+		return err
 	}
+	log.Printf("Insert %T: preRowCount: %d\tpostRowCount: %d\trowInserted: %d", values, preRowCount, rows, rows-preRowCount)
+
+	// if result != nil {
+	// 	rowsAffected, _ := result.RowsAffected()
+	// 	log.Printf("%T Rows Inserted: %d", values, rowsAffected)
+	// }
 
 	// s := qgenda.Schedules{}
 	// result, err := s.EPL(ctx,
