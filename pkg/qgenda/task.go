@@ -1,5 +1,13 @@
 package qgenda
 
+import (
+	"fmt"
+	"sort"
+
+	"github.com/exiledavatar/gotoolkit/meta"
+	"golang.org/x/exp/slices"
+)
+
 type Task struct {
 	Abbrev                                 *string      `json:"Abbrev,omitempty"`
 	BgColor                                *string      `json:"BgColor,omitempty"`
@@ -64,7 +72,70 @@ type TaskTag struct {
 	TagName      *string `json:"Name" db:"tagname" pgtype:"text" idhash:"true"`
 }
 
+func (s *TaskTag) Process() error {
+	if s.TaskIDHash == nil {
+		return fmt.Errorf("cannot process TaskTag until TaskIDHash is set")
+	}
+
+	if err := meta.ProcessStruct(s); err != nil {
+		return err
+	}
+
+	idh := meta.ToValueMap(*s, "idhash").Hash()
+	s.IDHash = &idh
+	return nil
+}
+
 type TaskShifts []TaskShift
+
+func (s *TaskTags) Sort() *TaskTags {
+	sv := *s
+	sort.SliceStable(sv, func(i, j int) bool {
+		ski := *(sv[i].TaskKey)
+		skj := *(sv[j].TaskKey)
+		cki := *(sv[i].CategoryKey)
+		ckj := *(sv[j].CategoryKey)
+		tki := *(sv[i].TagKey)
+		tkj := *(sv[j].TagKey)
+		return (ski < skj) ||
+			(ski <= skj && cki < ckj) ||
+			(cki <= ckj && tki < tkj)
+	})
+	*s = sv
+	return s
+}
+
+func (s *TaskTags) Process() error {
+	sv := *s
+	for i, _ := range sv {
+		if err := sv[i].Process(); err != nil {
+			return err
+		}
+	}
+	sort.SliceStable(sv, func(i, j int) bool {
+		ski := *(sv[i].TaskKey)
+		skj := *(sv[j].TaskKey)
+		cki := *(sv[i].CategoryKey)
+		ckj := *(sv[j].CategoryKey)
+		tki := *(sv[i].TagKey)
+		tkj := *(sv[j].TagKey)
+		return (ski < skj) ||
+			(ski <= skj && cki < ckj) ||
+			(cki <= ckj && tki < tkj)
+	})
+	sv = slices.CompactFunc(sv, func(s1, s2 TaskTag) bool {
+		return *(s1.IDHash) == *(s2.IDHash) && *(s1.TaskIDHash) == *(s2.TaskIDHash)
+	})
+
+	*s = sv
+	return nil
+}
+
+type tagCategory struct {
+	CategoryKey  *int64     `json:"CategoryKey" db:"categorykey" pgtype:"numeric"`
+	CategoryName *string    `json:"CategoryName" db:"categoryname" pgtype:"text"`
+	Tags         []StaffTag `json:"Tags,omitempty"`
+}
 
 type TaskShift struct {
 	DayOfWeek     *string         `json:"DayOfWeek,omitempty"`
